@@ -1,0 +1,69 @@
+from os.path import join
+import sys
+import re
+import os
+import pandas as pd
+import yaml
+import uuid
+from pathlib import Path
+from snakemake.utils import min_version
+from collections import defaultdict
+from pprint import pprint
+import shutil
+
+# no truncations during print pandas data frames
+pd.set_option("display.max_rows", None)
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_colwidth", None)
+
+min_version("5.24")
+
+def oncomplete():
+    from datetime import datetime
+    import subprocess
+    import shutil
+
+    # Get timestamp
+    now = datetime.now().isoformat(timespec="seconds").replace(":", "-")
+    log_copy = f"snakemake.{now}.log"
+    # jobby_output = f"{log_copy}.jobby.tsv"
+
+    try:
+        # Step 1: Copy the log file
+        shutil.copyfile("snakemake.log", log_copy)
+        print(f"📁 Copied snakemake.log to {log_copy}")
+
+        # Step 2: Run jobby on the copied log
+        jobby_bin = shutil.which("jobby")
+        if not jobby_bin:
+            raise FileNotFoundError("jobby not found in PATH")
+
+        log_dir = Path(".snakemake/log")
+        latest = max(log_dir.glob("*.snakemake.log"), key=lambda p: p.stat().st_mtime)
+        print(f"Using log file: {latest}")
+        jobby_output = f"{latest}.jobby.tsv"
+        print(f"Running jobby command: {jobby_bin} {latest} --tsv > {jobby_output}")
+        with open(jobby_output, "w") as f:
+            result = subprocess.run(
+                [jobby_bin, latest, "--tsv"],
+                stdout=f,
+                stderr=subprocess.PIPE,  # still capture errors
+                text=True,
+                check=True
+            )
+
+        print(f"✅ jobby output saved to {jobby_output}")
+
+    except subprocess.CalledProcessError as e:
+        print("❌ jobby command failed!")
+        print(f"Return code: {e.returncode}")
+        print("stderr:", e.stderr.strip())
+
+    except FileNotFoundError as e:
+        print("❌ File not found:", e)
+
+include: "rules/init.smk"
+
+rule all:
+    input:
