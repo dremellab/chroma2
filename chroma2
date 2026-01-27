@@ -18,6 +18,8 @@ import shlex
 import subprocess
 import sys
 import textwrap
+import uuid
+import yaml
 from typing import Dict, Optional
 
 
@@ -169,6 +171,7 @@ def write_config(
     kraken2_db: str,
 ) -> None:
     template = read_config_template()
+    temp_dir = str(pathlib.Path(temp_dir) / str(uuid.uuid4()))
     rendered = render_template(
         template,
         {
@@ -286,6 +289,23 @@ def create_runinfo(workdir: pathlib.Path) -> None:
         f"Date/Time: {dt.datetime.now()}",
     ]
     runinfo.write_text("\n".join(lines) + "\n")
+
+
+def cleanup_tempdir(workdir: pathlib.Path) -> None:
+    config_path = workdir / "config.yaml"
+    if not config_path.exists():
+        return
+    cfg = yaml.safe_load(config_path.read_text()) or {}
+    tempdir = str(cfg.get("tempdir", "")).strip()
+    if not tempdir:
+        return
+    temp_path = pathlib.Path(tempdir)
+    try:
+        uuid.UUID(temp_path.name)
+    except ValueError:
+        return
+    if temp_path.is_dir() and str(temp_path) not in {"/", "//"}:
+        shutil.rmtree(temp_path)
 
 
 def run_snakemake(
@@ -569,6 +589,7 @@ def main() -> None:
     if runmode in {"runlocal", "local"}:
         create_runinfo(workdir)
         runlocal(workdir, env, module_load, conda_activate, path_prepend)
+        cleanup_tempdir(workdir)
         return
 
     if runmode in {"run"}:

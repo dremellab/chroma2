@@ -4,6 +4,7 @@
 workdir: "WORKDIR"
 
 # temporary directory for intermediate files that are not saved
+# (wrapper appends a random subfolder under this path)
 tempdir: "TEMP_DIR"
 
 # tab delimited samples file ... should have the following columns:
