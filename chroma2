@@ -1,1 +1,599 @@
 #!/usr/bin/env python3
+"""
+chroma2: Python wrapper to run the CHROMA2 Snakemake pipeline on Rivanna.
+
+Based on the HAROLD wrapper:
+https://raw.githubusercontent.com/dremellab/HAROLD/refs/heads/main/harold
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import getpass
+import os
+import pathlib
+import shutil
+import shlex
+import subprocess
+import sys
+import textwrap
+from typing import Dict, Optional
+
+
+PIPELINE_HOME = pathlib.Path(__file__).resolve().parent
+SNAKEFILE = PIPELINE_HOME / "workflow" / "Snakefile"
+CONFIG_TEMPLATE = PIPELINE_HOME / "config" / "config.yaml"
+
+
+def err(message: str) -> None:
+    print(usage(), file=sys.stderr)
+    print(
+        "\n#\n# ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n#\n  "
+        + message
+        + "\n#\n# ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n#",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def usage() -> str:
+    return textwrap.dedent(
+        f"""
+        ##########################################################################################
+
+        CHROMA2 Snakemake wrapper (Rivanna)
+
+        USAGE:
+          chroma2 -w/--workdir=<WORKDIR> -m/--runmode=<RUNMODE>
+
+        Required Arguments:
+        1.  WORKDIR     : Absolute or relative path to output folder with write permissions.
+        2.  RUNMODE     : Valid options:
+            * init      : initialize workdir
+            * dryrun    : dry run snakemake to generate DAG
+            * run       : run with slurm (submit head job via sbatch)
+            * runlocal  : run on interactive node without sbatch
+            ADVANCED RUNMODES (use with caution!!)
+            * unlock    : unlock WORKDIR if locked by snakemake
+            * reconfig  : recreate config file in WORKDIR (debugging option)
+            * reset     : DELETE workdir and re-init (debugging option)
+            * recluster : re-copy cluster profile files into WORKDIR/config
+            * touch     : touch outputs
+            * printbinds: print apptainer bind args (from profile)
+            * local     : same as runlocal
+            * dry       : same as dryrun
+
+        Optional Arguments:
+        --host|-g       : host genome (e.g. hg38 or mm39)                       (--runmode=init only)
+        --viruses|-v    : comma-separated list of viruses                       (--runmode=init only)
+        --manifest|-s   : absolute path to samples.tsv (copied to WORKDIR)      (--runmode=init only)
+        --sifdir|-i     : path for pre-downloaded SIF images (default: DEFAULT_SHARED_SIF_DIR)
+        --help|-h       : print this help
+        --version|-V    : print version and exit
+
+        Example:
+          chroma2 -w=/my/output/folder -m=init
+          chroma2 -w=/my/output/folder -m=dryrun
+          chroma2 -w=/my/output/folder -m=run
+
+        ##########################################################################################
+        """
+    ).strip()
+
+
+def get_platform() -> str:
+    if shutil.which("scontrol") is None:
+        return "unknown"
+    try:
+        out = subprocess.check_output(
+            ["scontrol", "show", "config"], text=True, stderr=subprocess.DEVNULL
+        )
+    except subprocess.CalledProcessError:
+        return "unknown"
+    for line in out.splitlines():
+        if "ClusterName" in line:
+            return line.split()[-1].strip()
+    return "unknown"
+
+
+def get_git_commit_tag(repo: pathlib.Path) -> str:
+    try:
+        gid = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+        ).strip()
+        try:
+            tag = subprocess.check_output(
+                ["git", "-C", str(repo), "describe", "--tags", gid],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+        except subprocess.CalledProcessError:
+            tag = "No Tags"
+        return f"{gid}\t{tag}"
+    except Exception:
+        return "unknown\tNo Tags"
+
+
+def require_env(var: str, hint: str) -> None:
+    if not os.environ.get(var):
+        err(f"{var} is not set in the environment. {hint}")
+
+
+def read_config_template() -> str:
+    if CONFIG_TEMPLATE.exists() and CONFIG_TEMPLATE.stat().st_size > 0:
+        return CONFIG_TEMPLATE.read_text()
+    # Fallback to HAROLD-like template
+    return (
+        textwrap.dedent(
+            """
+        # The working dir... output will be in the results subfolder of the workdir
+        workdir: "WORKDIR"
+
+        # temporary directory for intermediate files that are not saved
+        tempdir: "TEMP_DIR"
+
+        # tab delimited samples file ... should have the following columns:
+        # sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq
+        samples: "WORKDIR/samples.tsv"
+
+        # select references .... host + viruses(comma-separated):
+        host: "HOST"
+        viruses: "VIRUSES"
+
+        ## you most probably dont need to change these
+        scriptsdir: "PIPELINE_HOME/workflow/scripts"
+        resourcesdir: "PIPELINE_HOME/resources"
+        fastas_gtfs_dir: "REFS_DIR"
+
+        # kraken2 db
+        kraken2_db: "KRAKEN2_DB"
+        """
+        ).strip()
+        + "\n"
+    )
+
+
+def render_template(template: str, mapping: Dict[str, str]) -> str:
+    for key, value in mapping.items():
+        template = template.replace(key, value)
+    return template
+
+
+def write_config(
+    workdir: pathlib.Path,
+    host: str,
+    viruses: str,
+    temp_dir: str,
+    refs_dir: str,
+    kraken2_db: str,
+) -> None:
+    template = read_config_template()
+    rendered = render_template(
+        template,
+        {
+            "PIPELINE_HOME": str(PIPELINE_HOME),
+            "WORKDIR": str(workdir),
+            "HOST": host,
+            "VIRUSES": viruses,
+            "TEMP_DIR": temp_dir,
+            "REFS_DIR": refs_dir,
+            "KRAKEN2_DB": kraken2_db,
+        },
+    )
+    (workdir / "config.yaml").write_text(rendered)
+
+
+def write_samples_template(path: pathlib.Path) -> None:
+    header = "sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq\n"
+    path.write_text(header)
+
+
+def copy_config_profiles(workdir: pathlib.Path) -> None:
+    src = PIPELINE_HOME / "config"
+    dst = workdir / "config"
+    if src.exists():
+        shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+def check_essential_files(workdir: pathlib.Path) -> None:
+    if not workdir.exists():
+        err(f"Folder {workdir} does not exist!")
+    if not (workdir / "config.yaml").exists():
+        err("Missing config.yaml in workdir ... initialize first!")
+
+
+def resolve_apptainer_paths(sif_dir_override: Optional[str]) -> Dict[str, str]:
+    hint = (
+        "This is set in the pipelines environment. "
+        "If you are running into this error reach out to cud2td@virginia.edu."
+    )
+    require_env("SINGULARITY_CACHEDIR", hint)
+    require_env("SINGULARITY_TMPDIR", hint)
+    require_env("SINGULARITY_PULLFOLDER", hint)
+    require_env("DEFAULT_SHARED_SIF_DIR", hint)
+
+    apptainer_sif_dir = sif_dir_override or os.environ["DEFAULT_SHARED_SIF_DIR"]
+    return {
+        "APPTAINER_SIF_DIR": str(pathlib.Path(apptainer_sif_dir).resolve()),
+        "APPTAINER_CACHEDIR": str(
+            pathlib.Path(os.environ["SINGULARITY_CACHEDIR"]).resolve()
+        ),
+        "APPTAINER_TMPDIR": str(
+            pathlib.Path(os.environ["SINGULARITY_TMPDIR"]).resolve()
+        ),
+        "APPTAINER_PULLDIR": str(
+            pathlib.Path(os.environ["SINGULARITY_PULLFOLDER"]).resolve()
+        ),
+    }
+
+
+def build_env(
+    profile_dir: pathlib.Path, apptainer_vars: Dict[str, str]
+) -> Dict[str, str]:
+    env = os.environ.copy()
+    env["PROFILE"] = str(profile_dir)
+    env.update(apptainer_vars)
+    if apptainer_vars.get("APPTAINER_SIF_DIR"):
+        env[
+            "APPTAINER_PREFIX_ARG"
+        ] = f"--apptainer-prefix={apptainer_vars['APPTAINER_SIF_DIR']}"
+    return env
+
+
+def shell_run(
+    cmd_list,
+    env: Dict[str, str],
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+) -> None:
+    cmd = " ".join(shlex.quote(str(c)) for c in cmd_list)
+    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
+    if parts:
+        cmd = " && ".join(parts + [cmd])
+        subprocess.run(["bash", "-lc", cmd], check=True, env=env)
+    else:
+        subprocess.run(cmd_list, check=True, env=env)
+
+
+def create_runinfo(workdir: pathlib.Path) -> None:
+    runinfo = workdir / "runinfo.yaml"
+    if runinfo.exists():
+        stamp = dt.datetime.fromtimestamp(runinfo.stat().st_mtime).strftime(
+            "%y%m%d%H%M%S"
+        )
+        stats_dir = workdir / "stats"
+        stats_dir.mkdir(exist_ok=True)
+        runinfo.rename(stats_dir / f"runinfo.{stamp}.yaml")
+
+    user = getpass.getuser()
+    full_name = ""
+    try:
+        import pwd
+
+        full_name = pwd.getpwnam(user).pw_gecos.split(",")[0]
+    except Exception:
+        full_name = ""
+
+    groups = " ".join(str(g) for g in os.getgroups())
+    lines = [
+        f"Pipeline Dir: {PIPELINE_HOME}",
+        f"Git Commit/Tag: {get_git_commit_tag(PIPELINE_HOME)}",
+        f"Login: {user}",
+        f"Name: {full_name}",
+        f"Groups: {groups}",
+        f"Date/Time: {dt.datetime.now()}",
+    ]
+    runinfo.write_text("\n".join(lines) + "\n")
+
+
+def run_snakemake(
+    workdir: pathlib.Path,
+    profile: Optional[str],
+    extra_args: Optional[list],
+    env: Dict[str, str],
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+) -> None:
+    cmd = [
+        "snakemake",
+        "-s",
+        str(SNAKEFILE),
+        "--directory",
+        str(workdir),
+        "-j",
+        "100",
+        "--verbose",
+    ]
+    if env.get("APPTAINER_PREFIX_ARG"):
+        cmd.append(env["APPTAINER_PREFIX_ARG"])
+    if profile:
+        cmd.extend(["--profile", profile])
+    if extra_args:
+        cmd.extend(extra_args)
+    shell_run(cmd, env, module_load, conda_activate, path_prepend)
+
+
+def runlocal(
+    workdir: pathlib.Path,
+    env: Dict[str, str],
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+) -> None:
+    if not os.environ.get("SLURM_JOB_ID"):
+        err("runlocal can only be done on an interactive node")
+    cmd = [
+        "snakemake",
+        "-s",
+        str(SNAKEFILE),
+        "--directory",
+        str(workdir),
+        "-j",
+        "100",
+        "--verbose",
+    ]
+    if env.get("APPTAINER_PREFIX_ARG"):
+        cmd.append(env["APPTAINER_PREFIX_ARG"])
+    shell_run(cmd, env, module_load, conda_activate, path_prepend)
+
+
+def write_sbatch_script(
+    workdir: pathlib.Path,
+    profile: str,
+    apptainer_vars: Dict[str, str],
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+    partition: Optional[str],
+) -> pathlib.Path:
+    sbatch_path = workdir / "run_head_job.sbatch"
+    part_line = f"#SBATCH --partition={partition}" if partition else ""
+    apptainer_exports = "\n".join(
+        f'export {k}="{v}"' for k, v in apptainer_vars.items()
+    )
+    apptainer_prefix = ""
+    if apptainer_vars.get("APPTAINER_SIF_DIR"):
+        apptainer_prefix = f'--apptainer-prefix={apptainer_vars["APPTAINER_SIF_DIR"]}'
+
+    script = textwrap.dedent(
+        f"""\
+        #!/bin/bash
+        # Auto-generated by chroma2 wrapper
+        #SBATCH --cpus-per-task=2
+        #SBATCH --mem=40G
+        #SBATCH --time=3-00:00:00
+        #SBATCH --account=dremel_lab
+        #SBATCH --job-name=chroma2_head_job
+        #SBATCH --output={workdir}/slurm-%j.out
+        {part_line}
+
+        set -euo pipefail
+
+        cd {workdir}
+
+        {apptainer_exports}
+        export PROFILE="{workdir}/config/{profile}"
+
+        {path_prepend}
+        {conda_activate}
+        {module_load}
+
+        snakemake -s {SNAKEFILE} --directory {workdir} -j 100 --verbose {apptainer_prefix} --profile config/{profile}
+        """
+    )
+    sbatch_path.write_text(script)
+    return sbatch_path
+
+
+def printbinds(profile_path: pathlib.Path) -> None:
+    if not profile_path.exists():
+        err(f"Profile not found: {profile_path}")
+    apptainer_args = ""
+    with profile_path.open() as f:
+        for line in f:
+            if line.strip().startswith("apptainer-args:"):
+                apptainer_args = line.split(":", 1)[1].strip()
+                break
+    print(apptainer_args)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-m", "--runmode")
+    parser.add_argument("-w", "--workdir")
+    parser.add_argument("-g", "--host")
+    parser.add_argument("-v", "--viruses")
+    parser.add_argument("-s", "--manifest")
+    parser.add_argument("-i", "--sifdir")
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("-V", "--version", action="store_true")
+    args = parser.parse_args()
+
+    if args.help or not args.runmode or not args.workdir:
+        print(usage())
+        sys.exit(0 if args.help else 1)
+
+    if args.version:
+        print("chroma2 (no VERSION file)")
+        sys.exit(0)
+
+    workdir = pathlib.Path(args.workdir).expanduser().resolve()
+    platform = get_platform()
+
+    cluster_profile = "unknown"
+    partition = None
+    module_load = ""
+    conda_activate = ""
+    path_prepend = ""
+    temp_dir = f"/scratch/{getpass.getuser()}/"
+    refs_dir = "/standard/dremel_lab/workflows/reference_data/fasta_gtf/"
+    kraken2_db = "/standard/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
+
+    if platform == "shen":
+        cluster_profile = "rivanna"
+        partition = "standard"
+        py_bin = "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin"
+        path_prepend = f'export PATH="{py_bin}:/standard/dremel_lab/scripts/bin:$PATH"'
+        module_load = "module load apptainer"
+    else:
+        print(
+            f'WARNING: detected platform is "{platform}". '
+            "Please edit config/ and config.yaml for compatibility with your environment."
+        )
+
+    host = args.host or "hg38"
+    viruses = args.viruses or "KT899744.1"
+
+    runmode = args.runmode
+
+    def do_init() -> None:
+        if workdir.exists():
+            err(f"Folder {workdir} already exists!")
+        workdir.mkdir(parents=True)
+        copy_config_profiles(workdir)
+        write_config(workdir, host, viruses, temp_dir, refs_dir, kraken2_db)
+
+        manifest = args.manifest
+        if manifest:
+            manifest_path = pathlib.Path(manifest).expanduser().resolve()
+            if not manifest_path.exists():
+                err(f"Manifest file {manifest_path} does not exist!")
+            shutil.copy2(manifest_path, workdir / "samples.tsv")
+        else:
+            default_manifest = PIPELINE_HOME / "config" / "samples.tsv"
+            if default_manifest.exists():
+                shutil.copy2(default_manifest, workdir / "samples.tsv")
+            else:
+                write_samples_template(workdir / "samples.tsv")
+
+        (workdir / "logs").mkdir(exist_ok=True)
+        (workdir / "stats").mkdir(exist_ok=True)
+        print(f"Done initializing {workdir}")
+        print("You can now edit:")
+        print(f"  {workdir}/config.yaml")
+        print(f"  {workdir}/samples.tsv")
+
+    if runmode == "init":
+        do_init()
+        return
+
+    if runmode in {"reconfig"}:
+        check_essential_files(workdir)
+        write_config(workdir, host, viruses, temp_dir, refs_dir, kraken2_db)
+        print(f"{workdir}/config.yaml has been updated!")
+        return
+
+    if runmode in {"recluster"}:
+        check_essential_files(workdir)
+        copy_config_profiles(workdir)
+        print("Done reclustering!")
+        return
+
+    if runmode in {"reset"}:
+        if not workdir.exists():
+            err(f"Folder {workdir} does not exist!")
+        print(f"Deleting {workdir}")
+        shutil.rmtree(workdir)
+        do_init()
+        return
+
+    if runmode in {"printbinds"}:
+        profile_path = workdir / "config" / cluster_profile / "config.yaml"
+        printbinds(profile_path)
+        return
+
+    # runtime paths/env setup
+    check_essential_files(workdir)
+    apptainer_vars = resolve_apptainer_paths(args.sifdir)
+    profile_dir = workdir / "config" / cluster_profile
+    env = build_env(profile_dir, apptainer_vars)
+
+    if runmode in {"dryrun", "dry"}:
+        create_runinfo(workdir)
+        timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
+        log_path = workdir / f"dryrun.{timestamp}.log"
+        cmd = [
+            "snakemake",
+            "-s",
+            str(SNAKEFILE),
+            "--directory",
+            str(workdir),
+            "-j",
+            "100",
+            "--verbose",
+        ]
+        if env.get("APPTAINER_PREFIX_ARG"):
+            cmd.append(env["APPTAINER_PREFIX_ARG"])
+        cmd.extend(["--profile", f"config/{cluster_profile}", "--dry-run"])
+        cmd_str = (
+            " ".join(shlex.quote(str(c)) for c in cmd)
+            + f" | tee {shlex.quote(str(log_path))}"
+        )
+        parts = [p for p in [path_prepend, conda_activate, module_load] if p]
+        if parts:
+            cmd_str = " && ".join(parts + [cmd_str])
+        subprocess.run(["bash", "-lc", cmd_str], check=True, env=env)
+        return
+
+    if runmode in {"touch"}:
+        cmd = [
+            "snakemake",
+            "--touch",
+            "-s",
+            str(SNAKEFILE),
+            "--directory",
+            str(workdir),
+            "--cores",
+            "1",
+        ]
+        if env.get("APPTAINER_PREFIX_ARG"):
+            cmd.append(env["APPTAINER_PREFIX_ARG"])
+        shell_run(cmd, env, module_load, conda_activate, path_prepend)
+        return
+
+    if runmode in {"unlock"}:
+        run_snakemake(
+            workdir,
+            f"config/{cluster_profile}",
+            ["--unlock"],
+            env,
+            module_load,
+            conda_activate,
+            path_prepend,
+        )
+        return
+
+    if runmode in {"runlocal", "local"}:
+        create_runinfo(workdir)
+        runlocal(workdir, env, module_load, conda_activate, path_prepend)
+        return
+
+    if runmode in {"run"}:
+        create_runinfo(workdir)
+        if shutil.which("sbatch") is None:
+            err("sbatch not found in PATH; cannot submit head job to Slurm")
+        sbatch_script = write_sbatch_script(
+            workdir,
+            cluster_profile,
+            apptainer_vars,
+            module_load,
+            conda_activate,
+            path_prepend,
+            partition,
+        )
+        jobid = subprocess.check_output(
+            ["sbatch", "--parsable", str(sbatch_script)], text=True
+        ).strip()
+        print(
+            f"Submitted head job as sbatch job {jobid}. Output: {workdir}/slurm-{jobid}.out"
+        )
+        return
+
+    err(f'Unknown RUNMODE "{runmode}"')
+
+
+if __name__ == "__main__":
+    main()
