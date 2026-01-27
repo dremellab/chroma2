@@ -445,13 +445,18 @@ def main() -> None:
     parser.add_argument("-V", "--version", action="store_true")
     args = parser.parse_args()
 
+    if args.version:
+        version_path = PIPELINE_HOME / "VERSION"
+        if version_path.exists():
+            version = version_path.read_text().strip().split()[0]
+        else:
+            version = "unknown"
+        print(version)
+        sys.exit(0)
+
     if args.help or not args.runmode or not args.workdir:
         print(usage())
         sys.exit(0 if args.help else 1)
-
-    if args.version:
-        print("chroma2 (no VERSION file)")
-        sys.exit(0)
 
     workdir = pathlib.Path(args.workdir).expanduser().resolve()
     platform = get_platform()
