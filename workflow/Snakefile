@@ -64,6 +64,25 @@ def oncomplete():
         print("❌ File not found:", e)
 
 include: "rules/init.smk"
+include: "rules/preprocess.smk"
+include: "rules/initqc.smk"
 
 rule all:
     input:
+        # fastp trimmed reads + reports
+        expand(join(RESULTSDIR, "{sample}", "trim", "{sample}.trimmed_R1.fastq.gz"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "trim", "{sample}.trimmed_R2.fastq.gz"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "trim", "{sample}.fastp_report.html"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "trim", "{sample}.fastp_report.json"), sample=SAMPLES),
+        # bowtie2 index
+        expand(join(REF_DIR, "ref.fa.{ext}.bt2"), ext=["1", "2", "3", "4", "rev.1", "rev.2"]),
+        # fastqc on raw reads
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R1_fastqc.html"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R1_fastqc.zip"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R2_fastqc.html"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R2_fastqc.zip"), sample=SAMPLES),
+        # fastqc on trimmed reads
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R1_fastqc.html"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R1_fastqc.zip"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R2_fastqc.html"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R2_fastqc.zip"), sample=SAMPLES),

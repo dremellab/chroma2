@@ -22,3 +22,14 @@ fastas_gtfs_dir: "REFS_DIR"
 
 # kraken2 db
 kraken2_db: "KRAKEN2_DB"
+
+# fastp parameters
+fastp:
+  length_required: 15
+  qualified_quality_phred: 15
+
+# containers
+containers:
+  fastp: "docker://staphb/fastp:0.24.1"
+  fastqc: "docker://seqinfomics/fastqc:0.12.1"
+  bowtie2: "docker://biocontainers/bowtie2:v2.5.4_cv1"

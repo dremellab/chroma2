@@ -69,6 +69,26 @@ def _get_threads(rule_name, profile_config):
     return profile_config["default-resources"]["threads"]
 
 ###################################################################################
+
+def _get_mem_mb(rule_name, profile_config):
+    """
+    Return mem_mb for a rule from profile_config.
+    Falls back to default if not defined.
+    """
+    if (
+        "set-resources" in profile_config
+        and rule_name in profile_config["set-resources"]
+        and "mem_mb" in profile_config["set-resources"][rule_name]
+    ):
+        return profile_config["set-resources"][rule_name]["mem_mb"]
+    return profile_config["default-resources"].get("mem_mb", 4096)
+
+
+def getmemG(rule_name):
+    # Return memory in MB for tools that expect MB (despite name).
+    return int(_get_mem_mb(rule_name, profile_config))
+
+###################################################################################
 ###################################################################################
 
 # import yaml
@@ -109,14 +129,11 @@ FASTAS_GTFS_DIR = config["fastas_gtfs_dir"]
 REF_DIR = join(WORKDIR, "ref")
 if not os.path.exists(REF_DIR):
     os.mkdir(REF_DIR)
-STAR_INDEX_DIR = join(REF_DIR, "STAR_no_GTF")
-if not os.path.exists(STAR_INDEX_DIR):
-    os.mkdir(STAR_INDEX_DIR)
 
 # strip trailing slashes if any
 for varname in [
     "WORKDIR", "SCRIPTS_DIR", "RESOURCES_DIR", "FASTAS_GTFS_DIR",
-    "STAR_INDEX_DIR", "REF_DIR", "TEMPDIR"
+    "REF_DIR", "TEMPDIR"
 ]:
     globals()[varname] = globals()[varname].rstrip(r"\/")
 
@@ -154,7 +171,9 @@ FASTAS_REGIONS_GTFS.extend(REGIONS)
 FASTAS_REGIONS_GTFS.extend(GTFS)
 EGS = join(FASTAS_GTFS_DIR, "effectiveGenomeSizes.tsv")
 
-print("FASTAS_REGIONS_GTFS: ", FASTAS_REGIONS_GTFS)
+print("FASTAS_REGIONS_GTFS:")
+for item in FASTAS_REGIONS_GTFS:
+    print(f"  - {item}")
 
 REF_FA = join(REF_DIR, "ref.fa")
 REF_REGIONS = join(REF_DIR, "ref.fa.regions")
@@ -288,8 +307,10 @@ if missing_columns:
     raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
 
 # Step 2: Confirm that sampleNames are unique
-if SAMPLESDF['sampleName'].duplicated().any():
-    raise ValueError("Duplicate sampleNames found!")
+dup_mask = SAMPLESDF['sampleName'].duplicated(keep=False)
+if dup_mask.any():
+    dup_names = sorted(SAMPLESDF.loc[dup_mask, 'sampleName'].astype(str).tolist())
+    raise ValueError(f"Duplicate sampleNames found: {dup_names}")
 
 # SAMPLESDF.set_index(["sampleName"], inplace=False)
 SAMPLES = list(SAMPLESDF["sampleName"])
