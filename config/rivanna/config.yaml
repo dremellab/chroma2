@@ -1,0 +1,118 @@
+# Snakemake v8+ profile for Rivanna (SLURM)
+# "rivanna" profile
+
+executor: slurm
+jobs: 200
+
+# singularity related settings
+# --deployment-method apptainer
+use-apptainer: true
+# harold wrapper points to the shared /project/dremel_lab/workflows/singularity_images SIF directory by default.
+apptainer-prefix: /project/dremel_lab/workflows/singularity_images
+apptainer-args: --bind /project/dremel_lab:/project/dremel_lab --bind /standard/dremel_lab:/standard/dremel_lab --bind /sfs/gpfs/tardis/project/dremel_lab:/sfs/gpfs/tardis/project/dremel_lab --bind /sfs/ceph/standard/dremel_lab:/sfs/ceph/standard/dremel_lab --bind /sfs/weka/scratch:/sfs/weka/scratch --bind /scratch:/scratch
+
+# debugging and verbosity
+# --verbose
+verbose: true # is true by default for plugin
+# --printshellcmds
+printshellcmds: true
+
+# rerun settings
+# --rerun-triggers input mtime software-env code
+rerun-triggers: [mtime, input, code, software-env]
+# --rerun-incomplete
+rerun-incomplete: true # not parsed via plugin
+# do not use --ignore-incomplete
+ignore-incomplete: false # set true via plugin
+
+# no parameters
+# --notemp
+notemp: true # logs of successful jobs are kept .. this is parsed correctly via plugin but logs are still deleted
+# do not use --nolock
+nolock: false # reset lock to default, plugin sets to true .. but this does not work it is still set to true by plugin
+# do not use --no-hooks
+no-hooks: false # reset hooks to default, plugin sets to true
+
+# latency and speed related
+# --latency-wait 300
+latency-wait: 300
+# --max-inventory-time 60
+max-inventory-time: 60 # plugin parses this correctly as 0 .. trying to reset to default
+
+# Logging settings
+slurm-logdir: logs
+slurm-keep-successful-logs: true
+keep-going: true
+restart-times: 3
+
+# report: report.html
+
+# these are not really working ... ignore
+jobname: "{rule}.{wildcards}.{jobid}" # job-name errors out ... needs to be jobname
+jobscript: config/rivanna/jobscript.sh
+
+# --- Global defaults (from "__default__") ---
+default-resources:
+  threads: 2 # "__default__.threads"
+  mem_mb: 40960 # "__default__.mem" = 40g -> 40*1024 = 40960 MB
+  runtime: 240 # "__default__.time" = 4:00:00 -> 240 minutes
+  slurm_partition: standard
+  slurm_ntasks: 1
+
+# --- Per-rule overrides ---
+
+set-threads:
+  create_index: 8
+  cutadapt: 16
+  star_align_two_pass: 16
+  sort_star: 8
+  split_bam: 8
+  bam_to_bigwig: 8
+  qualimap: 8
+  kraken2: 32
+
+set-resources:
+  create_index:
+    mem_mb: 122880 # 120 GB
+    runtime: 480 # 8 hours
+
+  cutadapt:
+    mem_mb: 122880 # 120 GB
+    runtime: 960 # 16 hours
+
+  star_align_two_pass:
+    mem_mb: 122880
+    runtime: 480
+
+  sort_star:
+    mem_mb: 122880
+    runtime: 480
+
+  split_bam:
+    mem_mb: 122880
+    runtime: 480
+
+  bam_to_bigwig:
+    mem_mb: 122880
+    runtime: 480
+
+  qualimap:
+    mem_mb: 122880
+    runtime: 480
+
+  rseqc_geneBody_coverage:
+    runtime: 1440
+
+  rseqc_infer_experiment:
+    runtime: 480
+
+  rseqc_read_distribution:
+    runtime: 480
+
+  rseqc_tin:
+    runtime: 720
+
+  kraken2:
+    mem_mb: 245760
+    threads: 32
+    runtime: 720

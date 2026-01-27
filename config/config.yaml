@@ -1,0 +1,23 @@
+## CHROMA2 config template (placeholders are replaced by the wrapper at init/reconfig)
+
+# The working dir... output will be in the results subfolder of the workdir
+workdir: "WORKDIR"
+
+# temporary directory for intermediate files that are not saved
+tempdir: "TEMP_DIR"
+
+# tab delimited samples file ... should have the following columns:
+# sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq
+samples: "WORKDIR/samples.tsv"
+
+# select references .... host + viruses(comma-separated):
+host: "HOST"
+viruses: "VIRUSES"
+
+## you most probably dont need to change these
+scriptsdir: "PIPELINE_HOME/workflow/scripts"
+resourcesdir: "PIPELINE_HOME/resources"
+fastas_gtfs_dir: "REFS_DIR"
+
+# kraken2 db
+kraken2_db: "KRAKEN2_DB"
