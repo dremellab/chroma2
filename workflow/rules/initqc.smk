@@ -21,6 +21,10 @@ rule fastqc_raw:
     shell:
         r"""
         set -exo pipefail
+        echo "[fastqc_raw] sample={params.sample} peorse={params.peorse}"
+        echo "[fastqc_raw] R1={input.R1}"
+        echo "[fastqc_raw] R2={input.R2}"
+        echo "[fastqc_raw] outdir={params.outdir} threads={threads} mem={params.memoryG}"
         mkdir -p {params.outdir}
         if [ "{params.peorse}" == "PE" ]; then
             fastqc {input.R1} {input.R2} \
@@ -37,6 +41,7 @@ rule fastqc_raw:
             touch {output.R2_fastqc}
             touch {output.R2_fastqc_zip}
         fi
+        echo "[fastqc_raw] done"
         """
 
 
@@ -60,6 +65,10 @@ rule fastqc_trimmed:
     shell:
         r"""
         set -exo pipefail
+        echo "[fastqc_trimmed] sample={params.sample} peorse={params.peorse}"
+        echo "[fastqc_trimmed] R1={input.R1}"
+        echo "[fastqc_trimmed] R2={input.R2}"
+        echo "[fastqc_trimmed] outdir={params.outdir} threads={threads} mem={params.memoryG}"
         mkdir -p {params.outdir}
         if [ "{params.peorse}" == "PE" ]; then
             fastqc {input.R1} {input.R2} \
@@ -76,4 +85,5 @@ rule fastqc_trimmed:
             touch {output.R2_fastqc}
             touch {output.R2_fastqc_zip}
         fi
+        echo "[fastqc_trimmed] done"
         """
