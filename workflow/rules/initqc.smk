@@ -29,13 +29,11 @@ rule fastqc_raw:
         if [ "{params.peorse}" == "PE" ]; then
             fastqc {input.R1} {input.R2} \
                 --threads {threads} \
-                --memory {params.memoryG} \
                 --outdir {params.outdir} \
                 --quiet
         else
             fastqc {input.R1} \
                 --threads {threads} \
-                --memory {params.memoryG} \
                 --outdir {params.outdir} \
                 --quiet
             touch {output.R2_fastqc}
