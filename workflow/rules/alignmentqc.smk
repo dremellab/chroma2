@@ -86,7 +86,7 @@ rule ataqv:
         echo "[ataqv] extracting host bam"
         samtools view -@ {threads} -b {input.bam} $host_regions -o $host_bam
         samtools index $host_bam
-        host_markdup_bam={params.tmpdir}/{wildcards.sample}.host.markdup.bam
+        host_markdup_bam={params.tmpdir}/{wildcards.sample}.host.bam
         host_qname_bam={params.tmpdir}/{wildcards.sample}.host.qname.bam
         host_fixmate_bam={params.tmpdir}/{wildcards.sample}.host.fixmate.bam
         host_fixmate_sorted_bam={params.tmpdir}/{wildcards.sample}.host.fixmate.sorted.bam
@@ -105,7 +105,7 @@ rule ataqv:
         echo "[ataqv] species=$species tss={input.tss} peaks={input.peaks}"
         cd {params.outdir}
         ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} $species $host_markdup_bam > {log} 2>&1
-        mv -f {params.outdir}/{wildcards.sample}.host.markdup.bam.ataqv.json {output.json}
+        mv -f {params.outdir}/{wildcards.sample}.host.bam.ataqv.json {output.json}
         """
 
 
