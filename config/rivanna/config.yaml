@@ -19,7 +19,8 @@ printshellcmds: true
 
 # rerun settings
 # --rerun-triggers input mtime software-env code
-rerun-triggers: [mtime, input, code, software-env]
+# rerun-triggers: [mtime, input, code, software-env]
+rerun-triggers: [mtime]
 # --rerun-incomplete
 rerun-incomplete: true # not parsed via plugin
 # do not use --ignore-incomplete
@@ -56,6 +57,7 @@ default-resources:
   threads: 2 # "__default__.threads"
   mem_mb: 40960 # "__default__.mem" = 40g -> 40*1024 = 40960 MB
   runtime: 240 # "__default__.time" = 4:00:00 -> 240 minutes
+  slurm_account: dremel_lab
   slurm_partition: standard
   slurm_ntasks: 1
 
@@ -73,6 +75,7 @@ set-threads:
   fastp: 16
   fastqc_raw: 8
   fastqc_trimmed: 8
+  bowtie2_index: 8
 
 set-resources:
   fastp:
@@ -85,6 +88,55 @@ set-resources:
 
   fastqc_trimmed:
     mem_mb: 122880
+    runtime: 240
+
+  bowtie2_index:
+    mem_mb: 122880
+    runtime: 240
+
+  bowtie2_align:
+    mem_mb: 122880 # 120 GB
+    threads: 16
+    runtime: 480
+
+  bowtie2_filter:
+    mem_mb: 49152 # 48 GB
+    threads: 4
+    runtime: 480
+
+  bowtie2_qname_sort:
+    mem_mb: 49152 # 48 GB
+    threads: 4
+    runtime: 240
+
+  alignment_flagstat_summary:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  ataqv:
+    mem_mb: 122880 # 120 GB
+    threads: 8
+    runtime: 240
+
+  split_host_bam:
+    mem_mb: 40960 # 40 GB
+    threads: 4
+    runtime: 240
+
+  split_virus_bam:
+    mem_mb: 40960 # 40 GB
+    threads: 4
+    runtime: 240
+
+  bamcoverage_host:
+    mem_mb: 122880 # 120 GB
+    threads: 8
+    runtime: 240
+
+  bamcoverage_virus:
+    mem_mb: 122880 # 120 GB
+    threads: 8
     runtime: 240
 
   create_index:
