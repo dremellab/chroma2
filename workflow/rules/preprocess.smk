@@ -19,9 +19,13 @@ rule fastp:
         _get_threads("fastp", profile_config)
     container:
         config["containers"]["fastp"]
+    log:
+        join(_logdir("fastp"), "{sample}.log")
     shell:
         r"""
         set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
         mkdir -p "$(dirname {output.R1_trimmed})"
         if [ "{params.peorse}" == "PE" ];then
           fastp \
@@ -65,8 +69,52 @@ rule bowtie2_index:
         _get_threads("bowtie2_index", profile_config)
     container:
         config["containers"]["bowtie2"]
+    log:
+        join(_logdir("bowtie2_index"), "bowtie2_index.log")
     shell:
         r"""
         set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
         bowtie2-build --threads {threads} {input.fasta} {params.prefix}
+        """
+
+
+###################################################################################
+# build TSS bed from ref.gtf (host only)
+###################################################################################
+
+rule build_ref_tss:
+    input:
+        gtf=REF_GTF,
+        regions=REF_REGIONS_HOST,
+    output:
+        tss=join(REF_DIR, "ref.tss.bed"),
+    params:
+        tmpdir=join(TEMPDIR, "ref_tss"),
+    threads: 1
+    container:
+        config["containers"]["bowtie2"]
+    log:
+        join(_logdir("build_ref_tss"), "build_ref_tss.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
+        mkdir -p {params.tmpdir}
+        host_contigs_file={params.tmpdir}/host_contigs.txt
+        awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u > $host_contigs_file
+        if [[ "{input.gtf}" == *.gz ]]; then
+            reader="zcat"
+        else
+            reader="cat"
+        fi
+        $reader {input.gtf} \
+          | awk '$3 == "transcript"' \
+          | awk 'BEGIN{{OFS="\t"}} {{ if($7 == "+") print $1, $4-1, $4; else if($7 == "-") print $1, $5-1, $5; }}' \
+          | sort -k1,1 -k2,2n \
+          | uniq \
+          | awk 'NR==FNR{{keep[$1]=1;next}} ($1 in keep)' $host_contigs_file - \
+          > {output.tss}
         """
