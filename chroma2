@@ -232,6 +232,7 @@ def resolve_apptainer_paths(sif_dir_override: Optional[str]) -> Dict[str, str]:
         "APPTAINER_CACHEDIR": sing_cache,
         "APPTAINER_TMPDIR": sing_tmp,
         "APPTAINER_PULLDIR": sing_pull,
+        "APPTAINER_PULLFOLDER": sing_pull,
         # keep Singularity vars aligned to avoid warnings
         "SINGULARITY_CACHEDIR": sing_cache,
         "SINGULARITY_TMPDIR": sing_tmp,
@@ -316,6 +317,11 @@ def cleanup_tempdir(workdir: pathlib.Path) -> None:
         shutil.rmtree(temp_path)
 
 
+def is_workdir_locked(workdir: pathlib.Path) -> bool:
+    lock_path = workdir / ".snakemake" / "lock"
+    return lock_path.exists()
+
+
 def run_snakemake(
     workdir: pathlib.Path,
     profile: Optional[str],
@@ -378,9 +384,18 @@ def write_sbatch_script(
     partition: Optional[str],
 ) -> pathlib.Path:
     sbatch_path = workdir / "run_head_job.sbatch"
+    cfg = {}
+    cfg_path = workdir / "config.yaml"
+    if cfg_path.exists():
+        try:
+            cfg = yaml.safe_load(cfg_path.read_text()) or {}
+        except Exception:
+            cfg = {}
+    account = str(cfg.get("slurm_account", "dremel_lab")).strip() or "dremel_lab"
     if not partition:
-        partition = "standard"
+        partition = str(cfg.get("slurm_partition", "")).strip() or "standard"
     part_line = f"#SBATCH --partition={partition}"
+    acct_line = f"#SBATCH --account={account}"
     apptainer_exports = "\n".join(
         f'export {k}="{v}"' for k, v in apptainer_vars.items()
     )
@@ -394,7 +409,7 @@ def write_sbatch_script(
         "#SBATCH --cpus-per-task=2",
         "#SBATCH --mem=40G",
         "#SBATCH --time=3-00:00:00",
-        "#SBATCH --account=dremel_lab",
+        acct_line,
         "#SBATCH --job-name=chroma2_head_job",
         f"#SBATCH --output={workdir}/slurm-%j.out",
         part_line,
@@ -551,6 +566,11 @@ def main() -> None:
 
     if runmode in {"dryrun", "dry"}:
         create_runinfo(workdir)
+        if is_workdir_locked(workdir):
+            print(
+                "WARNING: workdir appears to be locked by Snakemake (.snakemake/lock exists). "
+                "If this is stale, run `chroma2 -w <WORKDIR> -m unlock` before proceeding."
+            )
         timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
         log_path = workdir / f"dryrun.{timestamp}.log"
         cmd = [
