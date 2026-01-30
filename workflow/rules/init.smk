@@ -31,6 +31,11 @@ def append_files_in_list(flist, ofile):
 
 ###################################################################################
 
+def _logdir(rule_name):
+    return join(RESULTSDIR, "logs", rule_name)
+
+###################################################################################
+
 def get_peorse(wildcards):
     peorse = SAMPLESDF.loc[SAMPLESDF['sampleName'] == wildcards.sample, 'PEorSE'].values[0]
     return peorse
@@ -155,6 +160,8 @@ else:
 REPEATS_GTF = join(FASTAS_GTFS_DIR, HOST + ".repeats.gtf")
 
 HOST_VIRUSES = HOST_VIRUSES.split(",")
+HOST_LIST = [h for h in HOST.split(",") if h] if HOST != "" else []
+VIRUS_LIST = [v for v in VIRUSES.split(",") if v] if VIRUSES != "" else []
 FASTAS = [join(FASTAS_GTFS_DIR, f + ".fa") for f in HOST_VIRUSES]
 REGIONS = [join(FASTAS_GTFS_DIR, f + ".fa.regions") for f in HOST_VIRUSES]
 if HOST != "":
@@ -347,15 +354,6 @@ for sample, group in zip(SAMPLESDF['sampleName'], SAMPLESDF['groupName']):
 # Step 8: Create SAMPLENAMEISPE
 SAMPLENAMEISPE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['PEorSE']))
 
-# Optional: print or return results
-print("SAMPLENAME2GROUPNAME:", SAMPLENAME2GROUPNAME)
-print("GROUPNAME2SAMPLENAME:", dict(GROUPNAME2SAMPLENAME))
-print("SAMPLENAMEISPE:", SAMPLENAMEISPE)
-
-
-print("SAMPLESDF:\n", SAMPLESDF)
-print("SAMPLES:\n", SAMPLES)
-
 DUMMYFILE = join(RESOURCES_DIR, "dummy")
 RESULTSDIR = join(WORKDIR, "results")
 if not os.path.exists(RESULTSDIR):
@@ -367,5 +365,12 @@ TMPDIR = join(WORKDIR, "tmp")
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
-print("Initialization complete.")
+# Optional: print or return results
+if "workflow" in globals() and getattr(workflow, "dryrun", False):
+    print("SAMPLENAME2GROUPNAME:", SAMPLENAME2GROUPNAME)
+    print("GROUPNAME2SAMPLENAME:", dict(GROUPNAME2SAMPLENAME))
+    print("SAMPLENAMEISPE:", SAMPLENAMEISPE)
+    print("SAMPLESDF:\n", SAMPLESDF)
+    print("SAMPLES:\n", SAMPLES)
+    print("Initialization complete.")
 ###################################################################################
