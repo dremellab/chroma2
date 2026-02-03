@@ -74,6 +74,7 @@ def usage() -> str:
 
         Optional Arguments:
         --host|-g       : host genome (e.g. hg38 or mm39)                       (--runmode=init only)
+        --additives|-a  : comma-separated list of additives (e.g. ERCC,BAC16)   (--runmode=init only)
         --viruses|-v    : comma-separated list of viruses                       (--runmode=init only)
         --manifest|-s   : absolute path to samples.tsv (copied to WORKDIR)      (--runmode=init only)
         --sifdir|-i     : path for pre-downloaded SIF images (default: DEFAULT_SHARED_SIF_DIR)
@@ -145,8 +146,9 @@ def read_config_template() -> str:
         # sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq
         samples: "WORKDIR/samples.tsv"
 
-        # select references .... host + viruses(comma-separated):
+        # select references .... host + additives + viruses(comma-separated):
         host: "HOST"
+        additives: "ADDITIVES"
         viruses: "VIRUSES"
 
         ## you most probably dont need to change these
@@ -171,6 +173,7 @@ def render_template(template: str, mapping: Dict[str, str]) -> str:
 def write_config(
     workdir: pathlib.Path,
     host: str,
+    additives: str,
     viruses: str,
     temp_dir: str,
     refs_dir: str,
@@ -185,6 +188,7 @@ def write_config(
             "PIPELINE_HOME": str(PIPELINE_HOME),
             "WORKDIR": str(workdir),
             "HOST": host,
+            "ADDITIVES": additives,
             "VIRUSES": viruses,
             "TEMP_DIR": temp_dir,
             "REFS_DIR": refs_dir,
@@ -453,6 +457,7 @@ def main() -> None:
     parser.add_argument("-m", "--runmode")
     parser.add_argument("-w", "--workdir")
     parser.add_argument("-g", "--host")
+    parser.add_argument("-a", "--additives")
     parser.add_argument("-v", "--viruses")
     parser.add_argument("-s", "--manifest")
     parser.add_argument("-i", "--sifdir")
@@ -498,6 +503,7 @@ def main() -> None:
         )
 
     host = args.host or "hg38"
+    additives = args.additives or ""
     viruses = args.viruses or "KT899744.1"
 
     runmode = args.runmode
@@ -507,7 +513,7 @@ def main() -> None:
             err(f"Folder {workdir} already exists!")
         workdir.mkdir(parents=True)
         copy_config_profiles(workdir)
-        write_config(workdir, host, viruses, temp_dir, refs_dir, kraken2_db)
+        write_config(workdir, host, additives, viruses, temp_dir, refs_dir, kraken2_db)
 
         manifest = args.manifest
         if manifest:
@@ -535,7 +541,7 @@ def main() -> None:
 
     if runmode in {"reconfig"}:
         check_essential_files(workdir)
-        write_config(workdir, host, viruses, temp_dir, refs_dir, kraken2_db)
+        write_config(workdir, host, additives, viruses, temp_dir, refs_dir, kraken2_db)
         print(f"{workdir}/config.yaml has been updated!")
         return
 
