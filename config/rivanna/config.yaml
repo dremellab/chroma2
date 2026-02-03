@@ -20,7 +20,7 @@ printshellcmds: true
 # rerun settings
 # --rerun-triggers input mtime software-env code
 # rerun-triggers: [mtime, input, code, software-env]
-rerun-triggers: [mtime]
+rerun-triggers: [mtime, code]
 # --rerun-incomplete
 rerun-incomplete: true # not parsed via plugin
 # do not use --ignore-incomplete

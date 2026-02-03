@@ -13,6 +13,7 @@ samples: "WORKDIR/samples.tsv"
 
 # select references .... host + viruses(comma-separated):
 host: "HOST"
+additives: "ADDITIVES"
 viruses: "VIRUSES"
 
 ## you most probably dont need to change these
@@ -31,6 +32,7 @@ fastp:
 # bowtie2 alignment + filtering parameters
 bowtie2_align:
   preset: "--very-sensitive"
+  k: 10
   max_insert: 2000
   no_mixed: true
   no_discordant: true
@@ -57,7 +59,9 @@ genrich:
   remove_dups: true # Genrich -r
   junctions: true # Genrich -j
   exclude_chr: "chrM,MT" # Genrich -e
+  virus_exclude_chr: "" # Genrich -e for virus peaks
   blacklist: "" # Genrich -E (BED), empty = skip
+  virus_blacklist: "" # Genrich -E (BED) for virus peaks, empty = skip
   fraglen: 500 # Genrich -a
   minlen: 150 # Genrich -l
   maxlen: 1000 # Genrich -g
