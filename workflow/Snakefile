@@ -117,6 +117,22 @@ if len(VIRUS_LIST) > 0:
         )
     )
 
+HOST_TSS = []
+if HOST != "":
+    HOST_TSS.extend(
+        [
+            join(REF_DIR, "ref.tss.host.bed"),
+            join(REF_DIR, "ref.chrom.sizes.host.txt"),
+        ]
+    )
+
+VIRUS_TSS = []
+if len(VIRUS_LIST) > 0:
+    VIRUS_TSS.extend(expand(join(REF_DIR, "ref.tss.{virus}.bed"), virus=VIRUS_LIST))
+    VIRUS_TSS.extend(
+        expand(join(REF_DIR, "ref.chrom.sizes.{virus}.txt"), virus=VIRUS_LIST)
+    )
+
 rule all:
     input:
         # fastp trimmed reads + reports
@@ -144,11 +160,38 @@ rule all:
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.idxstats.txt"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"), sample=SAMPLES),
+        # reference TSS + chrom sizes
+        HOST_TSS,
+        VIRUS_TSS,
         # alignment qc summary
         join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
         # ataqv sample-level qc
-        expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.json"), sample=SAMPLES),
-        join(RESULTSDIR, "alignmentqc", "ataqv", "final_report"),
+        (
+            expand(
+                join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"),
+                sample=SAMPLES,
+            )
+            if HOST != ""
+            else []
+        ),
+        (
+            expand(
+                join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
+                sample=SAMPLES,
+                virus=VIRUS_LIST,
+            )
+            if len(VIRUS_LIST) > 0
+            else []
+        ),
+        (join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.host") if HOST != "" else []),
+        (
+            expand(
+                join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.virus.{virus}"),
+                virus=VIRUS_LIST,
+            )
+            if len(VIRUS_LIST) > 0
+            else []
+        ),
         # MACS2 + Genrich peak calls (host + viruses)
         HOST_PEAKS,
         VIRUS_PEAKS,

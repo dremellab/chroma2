@@ -89,7 +89,7 @@ rule macs2_atac_callpeak_virus:
         else
             fmt="BAM"
         fi
-        virus_genome_size=$(awk 'BEGIN{{n=0}} /^>/{next} {{n+=length($0)}} END{{print n}}' {input.fasta})
+        virus_genome_size=$(awk 'BEGIN{{n=0}} /^>/{{next}} {{n+=length($0)}} END{{print n}}' {input.fasta})
         macs2 callpeak \
           -t {input.bam} \
           -f $fmt \

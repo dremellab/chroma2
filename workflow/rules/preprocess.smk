@@ -81,22 +81,24 @@ rule bowtie2_index:
 
 
 ###################################################################################
-# build TSS bed from ref.gtf (host only)
+# build TSS bed from GTFs (host + per-virus)
 ###################################################################################
 
-rule build_ref_tss:
+rule build_ref_tss_host:
     input:
         gtf=REF_GTF,
         regions=REF_REGIONS_HOST,
+        fasta=REF_FA,
     output:
-        tss=join(REF_DIR, "ref.tss.bed"),
+        tss_host=join(REF_DIR, "ref.tss.host.bed"),
+        chromsizes_host=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     params:
-        tmpdir=join(TEMPDIR, "ref_tss"),
+        tmpdir=join(TEMPDIR, "ref_tss", "host"),
     threads: 1
     container:
         config["containers"]["bowtie2"]
     log:
-        join(_logdir("build_ref_tss"), "build_ref_tss.log")
+        join(_logdir("build_ref_tss_host"), "build_ref_tss_host.log")
     shell:
         r"""
         set -exo pipefail
@@ -116,5 +118,53 @@ rule build_ref_tss:
           | sort -k1,1 -k2,2n \
           | uniq \
           | awk 'NR==FNR{{keep[$1]=1;next}} ($1 in keep)' $host_contigs_file - \
-          > {output.tss}
+          > {output.tss_host}
+        if [ ! -s {input.fasta}.fai ]; then
+            samtools faidx {input.fasta}
+        fi
+        awk 'NR==FNR{{keep[$1]=1;next}} ($1 in keep){{print $1"\t"$2}}' $host_contigs_file {input.fasta}.fai \
+          > {output.chromsizes_host}
+        """
+
+
+rule build_ref_tss_virus:
+    input:
+        gtf=join(FASTAS_GTFS_DIR, "{virus}.gtf"),
+        regions=join(FASTAS_GTFS_DIR, "{virus}.fa.regions"),
+        fasta=join(FASTAS_GTFS_DIR, "{virus}.fa"),
+    output:
+        tss_virus=join(REF_DIR, "ref.tss.{virus}.bed"),
+        chromsizes_virus=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
+    params:
+        tmpdir=join(TEMPDIR, "ref_tss", "virus", "{virus}"),
+    threads: 1
+    container:
+        config["containers"]["bowtie2"]
+    log:
+        join(_logdir("build_ref_tss_virus"), "{virus}.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
+        mkdir -p {params.tmpdir}
+        virus_contigs_file={params.tmpdir}/virus_contigs.txt
+        awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u > $virus_contigs_file
+        if [[ "{input.gtf}" == *.gz ]]; then
+            reader="zcat"
+        else
+            reader="cat"
+        fi
+        $reader {input.gtf} \
+          | awk '$3 == "transcript"' \
+          | awk 'BEGIN{{OFS="\t"}} {{ if($7 == "+") print $1, $4-1, $4; else if($7 == "-") print $1, $5-1, $5; }}' \
+          | sort -k1,1 -k2,2n \
+          | uniq \
+          | awk 'NR==FNR{{keep[$1]=1;next}} ($1 in keep)' $virus_contigs_file - \
+          > {output.tss_virus}
+        if [ ! -s {input.fasta}.fai ]; then
+            samtools faidx {input.fasta}
+        fi
+        awk '{{print $1"\t"$2}}' {input.fasta}.fai \
+          > {output.chromsizes_virus}
         """

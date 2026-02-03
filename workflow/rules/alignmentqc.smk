@@ -47,65 +47,94 @@ rule alignment_flagstat_summary:
 
 
 ###################################################################################
-# ATAC-seq QC with ataqv
+# ATAC-seq QC with ataqv (host + per-virus, custom chromsizes)
 ###################################################################################
 
-rule ataqv:
+rule ataqv_host:
     input:
-        bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.sorted.bam"),
-        bai=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.sorted.bam.bai"),
-        regions=REF_REGIONS_HOST,
+        bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"),
+        bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam.bai"),
         peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"),
-        tss=join(REF_DIR, "ref.tss.bed"),
+        tss=join(REF_DIR, "ref.tss.host.bed"),
+        chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     output:
-        json=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.json"),
+        json=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"),
     params:
         outdir=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv"),
-        tmpdir=join(TEMPDIR, "ataqv", "{sample}"),
+        tmpdir=join(TEMPDIR, "ataqv", "{sample}", "host"),
         extra_args=config.get("ataqv", {}).get("extra_args", ""),
     threads:
-        _get_threads("ataqv", profile_config)
+        _get_threads("ataqv_host", profile_config)
     container:
         config["containers"]["ataqv"]
     log:
-        join(_logdir("ataqv"), "{sample}.log")
+        join(_logdir("ataqv_host"), "{sample}.log")
     shell:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        echo "[ataqv] sample={wildcards.sample} bam={input.bam}"
+        echo "[ataqv_host] sample={wildcards.sample} bam={input.bam}"
         mkdir -p {params.outdir}
         mkdir -p {params.tmpdir}
-        host_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
-        echo "[ataqv] host_regions=$host_regions"
-        host_bam={params.tmpdir}/{wildcards.sample}.host.bam
-        if [ ! -f {input.bam}.bai ] || [ {input.bam} -nt {input.bam}.bai ]; then
-            echo "[ataqv] indexing input bam"
-            samtools index -@ {threads} {input.bam}
-        fi
-        echo "[ataqv] extracting host bam"
-        samtools view -@ {threads} -b {input.bam} $host_regions -o $host_bam
-        samtools index $host_bam
         host_markdup_bam={params.tmpdir}/{wildcards.sample}.host.bam
         host_qname_bam={params.tmpdir}/{wildcards.sample}.host.qname.bam
         host_fixmate_bam={params.tmpdir}/{wildcards.sample}.host.fixmate.bam
         host_fixmate_sorted_bam={params.tmpdir}/{wildcards.sample}.host.fixmate.sorted.bam
-        echo "[ataqv] fixmate + markdup on host bam"
-        samtools sort -@ {threads} -n -T {params.tmpdir}/host_qname -o $host_qname_bam $host_bam
+        echo "[ataqv_host] fixmate + markdup on host bam"
+        samtools sort -@ {threads} -n -T {params.tmpdir}/host_qname -o $host_qname_bam {input.bam}
         samtools fixmate -@ {threads} -m $host_qname_bam $host_fixmate_bam
         samtools sort -@ {threads} -T {params.tmpdir}/host_fixmate -o $host_fixmate_sorted_bam $host_fixmate_bam
         samtools markdup -@ {threads} $host_fixmate_sorted_bam $host_markdup_bam
         samtools index $host_markdup_bam
-        species=""
-        if [[ "{HOST}" == hg* ]]; then
-            species="human"
-        elif [[ "{HOST}" == mm* ]]; then
-            species="mouse"
-        fi
-        echo "[ataqv] species=$species tss={input.tss} peaks={input.peaks}"
+        echo "[ataqv_host] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
         cd {params.outdir}
-        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} $species $host_markdup_bam > {log} 2>&1
+        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
+          --chromsizes {input.chromsizes} custom $host_markdup_bam > {log} 2>&1
         mv -f {params.outdir}/{wildcards.sample}.host.bam.ataqv.json {output.json}
+        """
+
+
+rule ataqv_virus:
+    input:
+        bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.virus.{virus}.bam"),
+        bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.virus.{virus}.bam.bai"),
+        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
+        tss=join(REF_DIR, "ref.tss.{virus}.bed"),
+        chromsizes=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
+    output:
+        json=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
+    params:
+        outdir=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv"),
+        tmpdir=join(TEMPDIR, "ataqv", "{sample}", "virus", "{virus}"),
+        extra_args=config.get("ataqv", {}).get("extra_args", ""),
+    threads:
+        _get_threads("ataqv_virus", profile_config)
+    container:
+        config["containers"]["ataqv"]
+    log:
+        join(_logdir("ataqv_virus"), "{sample}.{virus}.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        echo "[ataqv_virus] sample={wildcards.sample} virus={wildcards.virus} bam={input.bam}"
+        mkdir -p {params.outdir}
+        mkdir -p {params.tmpdir}
+        virus_markdup_bam={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.bam
+        virus_qname_bam={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.qname.bam
+        virus_fixmate_bam={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.fixmate.bam
+        virus_fixmate_sorted_bam={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.fixmate.sorted.bam
+        echo "[ataqv_virus] fixmate + markdup on virus bam"
+        samtools sort -@ {threads} -n -T {params.tmpdir}/virus_qname -o $virus_qname_bam {input.bam}
+        samtools fixmate -@ {threads} -m $virus_qname_bam $virus_fixmate_bam
+        samtools sort -@ {threads} -T {params.tmpdir}/virus_fixmate -o $virus_fixmate_sorted_bam $virus_fixmate_bam
+        samtools markdup -@ {threads} $virus_fixmate_sorted_bam $virus_markdup_bam
+        samtools index $virus_markdup_bam
+        echo "[ataqv_virus] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
+        cd {params.outdir}
+        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
+          --chromsizes {input.chromsizes} custom $virus_markdup_bam > {log} 2>&1
+        mv -f {params.outdir}/{wildcards.sample}.virus.{wildcards.virus}.bam.ataqv.json {output.json}
         """
 
 
@@ -113,26 +142,55 @@ rule ataqv:
 # combine ataqv jsons
 ###################################################################################
 
-rule ataqv_report:
+rule ataqv_report_host:
     input:
-        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.json"), sample=SAMPLES),
+        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"), sample=SAMPLES),
     output:
-        report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report")),
+        report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.host")),
     params:
-        genome=HOST,
+        genome="custom",
     threads: 1
     container:
         config["containers"]["ataqv"]
     log:
-        join(_logdir("ataqv_report"), "ataqv_report.log")
+        join(_logdir("ataqv_report_host"), "ataqv_report_host.log")
     shell:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > {log} 2>&1
         mkdir -p {output.report}
-        echo "[ataqv_report] genome={params.genome}"
-        echo "[ataqv_report] output_dir={output.report}"
-        echo "[ataqv_report] jsons={input.jsons}"
+        echo "[ataqv_report_host] genome={params.genome}"
+        echo "[ataqv_report_host] output_dir={output.report}"
+        echo "[ataqv_report_host] jsons={input.jsons}"
+        mkarv -f {output.report} {input.jsons}
+        """
+
+
+rule ataqv_report_virus:
+    input:
+        jsons=lambda wc: expand(
+            join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
+            sample=SAMPLES,
+            virus=wc.virus,
+        ),
+    output:
+        report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.virus.{virus}")),
+    params:
+        genome="custom",
+    threads: 1
+    container:
+        config["containers"]["ataqv"]
+    log:
+        join(_logdir("ataqv_report_virus"), "{virus}.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
+        mkdir -p {output.report}
+        echo "[ataqv_report_virus] genome={params.genome}"
+        echo "[ataqv_report_virus] output_dir={output.report}"
+        echo "[ataqv_report_virus] jsons={input.jsons}"
         mkarv -f {output.report} {input.jsons}
         """
