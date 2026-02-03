@@ -48,6 +48,35 @@ def detect_step(name: str) -> str | None:
     return None
 
 
+def detect_step_idxstats(name: str) -> str | None:
+    if name.endswith(".aligned.idxstats.txt"):
+        return "aligned"
+    for step in STEP_ORDER[1:]:
+        if f".aligned.{step}.idxstats.txt" in name:
+            return step
+    return None
+
+
+def parse_idxstats(path: Path, chrnames: set[str]) -> dict[str, int]:
+    total_mapped = 0
+    chr_mapped = 0
+    with path.open() as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t")
+            if len(parts) < 4:
+                continue
+            rname = parts[0]
+            mapped = int(parts[2])
+            if rname != "*":
+                total_mapped += mapped
+            if rname in chrnames:
+                chr_mapped += mapped
+    return {"total_mapped": total_mapped, "chr_mapped": chr_mapped}
+
+
 def detect_sample(name: str) -> str | None:
     if ".aligned." in name:
         return name.split(".aligned.")[0]
@@ -74,6 +103,11 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--chrnames",
+        default="chrM,MT",
+        help="Comma-separated contig names to count (default: chrM,MT).",
+    )
+    parser.add_argument(
         "--output",
         default="-",
         help="Output TSV file (default: stdout)",
@@ -97,6 +131,7 @@ def main() -> int:
             return 2
 
     sample_step_value: dict[str, dict[str, dict[str, int]]] = {}
+    sample_step_chr: dict[str, dict[str, dict[str, int]]] = {}
 
     for path in results_dir.glob("*/align/*.flagstat.txt"):
         step = detect_step(path.name)
@@ -114,11 +149,24 @@ def main() -> int:
                 metric
             ] = metrics[key]
 
+    chrnames = {c.strip() for c in args.chrnames.split(",") if c.strip()}
+    for path in results_dir.glob("*/align/*.idxstats.txt"):
+        step = detect_step_idxstats(path.name)
+        if step is None:
+            continue
+        sample = detect_sample(path.name)
+        if not sample:
+            continue
+        chr_metrics = parse_idxstats(path, chrnames)
+        sample_step_chr.setdefault(sample, {}).setdefault(step, {}).update(chr_metrics)
+
     samples = sorted(sample_step_value.keys())
     header = ["sample"]
     for step in STEP_ORDER:
         for metric in requested_metrics:
             header.append(f"{step}_{metric}")
+        header.append(f"{step}_mt_mapped")
+        header.append(f"{step}_mt_pct_mapped")
 
     if args.output == "-":
         out = sys.stdout
@@ -137,6 +185,26 @@ def main() -> int:
                         .get(metric, args.fill)
                     )
                     row.append(str(value))
+                chr_mapped = (
+                    sample_step_chr.get(sample, {})
+                    .get(step, {})
+                    .get("chr_mapped", args.fill)
+                )
+                total_mapped = (
+                    sample_step_chr.get(sample, {})
+                    .get(step, {})
+                    .get("total_mapped", None)
+                )
+                if chr_mapped == args.fill:
+                    row.append(str(args.fill))
+                    row.append(str(args.fill))
+                else:
+                    row.append(str(chr_mapped))
+                    if not total_mapped:
+                        row.append("0")
+                    else:
+                        pct = (float(chr_mapped) / float(total_mapped)) * 100.0
+                        row.append(f"{pct:.4f}")
             out.write("\t".join(row) + "\n")
     finally:
         if out is not sys.stdout:
