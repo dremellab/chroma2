@@ -55,7 +55,7 @@ rule ataqv:
         bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.sorted.bam"),
         bai=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.sorted.bam.bai"),
         regions=REF_REGIONS_HOST,
-        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.macs2_peaks.narrowPeak"),
+        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"),
         tss=join(REF_DIR, "ref.tss.bed"),
     output:
         json=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.json"),

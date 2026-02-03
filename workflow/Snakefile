@@ -71,6 +71,52 @@ include: "rules/alignmentqc.smk"
 include: "rules/peakcalling.smk"
 include: "rules/postprocessing.smk"
 
+HOST_PEAKS = []
+if HOST != "":
+    HOST_PEAKS.extend(
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"), sample=SAMPLES)
+    )
+    HOST_PEAKS.extend(
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"), sample=SAMPLES)
+    )
+    HOST_PEAKS.extend(
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"), sample=SAMPLES)
+    )
+    HOST_PEAKS.extend(
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"), sample=SAMPLES)
+    )
+
+VIRUS_PEAKS = []
+if len(VIRUS_LIST) > 0:
+    VIRUS_PEAKS.extend(
+        expand(
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
+            sample=SAMPLES,
+            virus=VIRUS_LIST,
+        )
+    )
+    VIRUS_PEAKS.extend(
+        expand(
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
+            sample=SAMPLES,
+            virus=VIRUS_LIST,
+        )
+    )
+    VIRUS_PEAKS.extend(
+        expand(
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls"),
+            sample=SAMPLES,
+            virus=VIRUS_LIST,
+        )
+    )
+    VIRUS_PEAKS.extend(
+        expand(
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak"),
+            sample=SAMPLES,
+            virus=VIRUS_LIST,
+        )
+    )
+
 rule all:
     input:
         # fastp trimmed reads + reports
@@ -98,18 +144,14 @@ rule all:
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.idxstats.txt"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"), sample=SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.qname.bam"), sample=SAMPLES),
         # alignment qc summary
         join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
         # ataqv sample-level qc
         expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.json"), sample=SAMPLES),
         join(RESULTSDIR, "alignmentqc", "ataqv", "final_report"),
-        # MACS2 peak calls
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.macs2_peaks.narrowPeak"), sample=SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.macs2_summits.bed"), sample=SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.macs2_peaks.xls"), sample=SAMPLES),
-        # Genrich peak calls
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.genrich.narrowPeak"), sample=SAMPLES),
+        # MACS2 + Genrich peak calls (host + viruses)
+        HOST_PEAKS,
+        VIRUS_PEAKS,
         # bigWig outputs (host + viruses)
         expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=SAMPLES),

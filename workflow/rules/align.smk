@@ -17,6 +17,7 @@ rule bowtie2_align:
         tmpdir=join(TEMPDIR, "align", "{sample}"),
         peorse=get_peorse,
         bowtie2_preset=config.get("bowtie2_align", {}).get("preset", "--very-sensitive"),
+        bowtie2_k=str(config.get("bowtie2_align", {}).get("k", 10)),
         bowtie2_maxins=str(config.get("bowtie2_align", {}).get("max_insert", 2000)),
         bowtie2_no_mixed="--no-mixed" if config.get("bowtie2_align", {}).get("no_mixed", True) else "",
         bowtie2_no_discordant="--no-discordant" if config.get("bowtie2_align", {}).get("no_discordant", True) else "",
@@ -45,6 +46,7 @@ rule bowtie2_align:
               -1 {input.R1} -2 {input.R2} \
               -p {threads} \
               {params.bowtie2_preset} \
+              -k {params.bowtie2_k} \
               -X {params.bowtie2_maxins} \
               {params.bowtie2_no_mixed} {params.bowtie2_no_discordant} \
               {params.bowtie2_extra} \
@@ -57,6 +59,7 @@ rule bowtie2_align:
               -U {input.R1} \
               -p {threads} \
               {params.bowtie2_preset} \
+              -k {params.bowtie2_k} \
               -X {params.bowtie2_maxins} \
               {params.bowtie2_no_mixed} {params.bowtie2_no_discordant} \
               {params.bowtie2_extra} \
@@ -192,27 +195,56 @@ rule bowtie2_filter:
 
 
 ###################################################################################
-# queryname sort
+# split aligned.sorted.bam into host/virus and qname-sort for Genrich
 ###################################################################################
 
-rule bowtie2_qname_sort:
+rule split_host_qname_bam:
     input:
-        bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"),
+        bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.sorted.bam"),
+        regions=REF_REGIONS_HOST,
     output:
-        qname_bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.qname.bam"),
+        qname_bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.host.qname.bam"),
     params:
-        tmpdir=join(TEMPDIR, "align", "{sample}", "qname"),
+        tmpdir=join(TEMPDIR, "align", "{sample}", "split_host_qname"),
     threads:
-        _get_threads("bowtie2_qname_sort", profile_config)
+        _get_threads("split_host_qname_bam", profile_config)
     container:
         config["containers"]["bowtie2"]
     log:
-        join(_logdir("bowtie2_qname_sort"), "{sample}.log")
+        join(_logdir("split_host_qname_bam"), "{sample}.log")
     shell:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > {log} 2>&1
         mkdir -p {params.tmpdir}
-        samtools sort -@ {threads} -n -T {params.tmpdir}/qname -o {output.qname_bam} {input.bam}
+        host_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
+        samtools view -@ {threads} -b {input.bam} $host_regions \
+          | samtools sort -@ {threads} -n -T {params.tmpdir}/qname -o {output.qname_bam} -
+        """
+
+
+rule split_virus_qname_bam:
+    input:
+        bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.sorted.bam"),
+        regions=join(FASTAS_GTFS_DIR, "{virus}.fa.regions"),
+    output:
+        qname_bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.virus.{virus}.qname.bam"),
+    params:
+        tmpdir=join(TEMPDIR, "align", "{sample}", "split_virus_qname", "{virus}"),
+    threads:
+        _get_threads("split_virus_qname_bam", profile_config)
+    container:
+        config["containers"]["bowtie2"]
+    log:
+        join(_logdir("split_virus_qname_bam"), "{sample}.{virus}.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > {log} 2>&1
+        mkdir -p {params.tmpdir}
+        virus_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
+        samtools view -@ {threads} -b {input.bam} $virus_regions \
+          | samtools sort -@ {threads} -n -T {params.tmpdir}/qname -o {output.qname_bam} -
         """
