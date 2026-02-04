@@ -77,6 +77,7 @@ postprocessing:
 # ataqv parameters
 ataqv:
   extra_args: ""
+  virus_tss_extension: 200
 
 # containers
 containers:
