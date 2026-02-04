@@ -132,6 +132,9 @@ if len(VIRUS_LIST) > 0:
     VIRUS_TSS.extend(
         expand(join(REF_DIR, "ref.chrom.sizes.{virus}.txt"), virus=VIRUS_LIST)
     )
+    VIRUS_TSS.extend(
+        expand(join(REF_DIR, "ref.chrom.autosomes.{virus}.txt"), virus=VIRUS_LIST)
+    )
 
 rule all:
     input:

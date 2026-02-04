@@ -29,7 +29,7 @@ rule alignment_flagstat_summary:
     params:
         outdir=join(RESULTSDIR, "alignmentqc"),
     threads:
-        _get_threads("ataqv_sample", profile_config)
+        _get_threads("alignment_flagstat_summary", profile_config)
     container:
         config["containers"]["py311"]
     log:
@@ -38,7 +38,7 @@ rule alignment_flagstat_summary:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         python {SCRIPTS_DIR}/summarize_flagstat.py \
           --results-dir {RESULTSDIR} \
@@ -82,15 +82,24 @@ rule ataqv_host:
         host_fixmate_sorted_bam={params.tmpdir}/{wildcards.sample}.host.fixmate.sorted.bam
         echo "[ataqv_host] fixmate + markdup on host bam"
         samtools sort -@ {threads} -n -T {params.tmpdir}/host_qname -o $host_qname_bam {input.bam}
+        echo "[ataqv_host] fixmate"
         samtools fixmate -@ {threads} -m $host_qname_bam $host_fixmate_bam
+        echo "[ataqv_host] coordinate sort"
         samtools sort -@ {threads} -T {params.tmpdir}/host_fixmate -o $host_fixmate_sorted_bam $host_fixmate_bam
+        echo "[ataqv_host] markdup"
         samtools markdup -@ {threads} $host_fixmate_sorted_bam $host_markdup_bam
+        echo "[ataqv_host] index"
         samtools index $host_markdup_bam
         echo "[ataqv_host] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
         cd {params.outdir}
+        echo "[ataqv_host] running ataqv"
         ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
-          --chromsizes {input.chromsizes} custom $host_markdup_bam > {log} 2>&1
-        mv -f {params.outdir}/{wildcards.sample}.host.bam.ataqv.json {output.json}
+          --autosomal-reference-file {input.chromsizes} \
+          --mitochondrial-reference-name none \
+          --name {wildcards.sample} \
+          --metrics-file {output.json} \
+          custom $host_markdup_bam 2>&1 | tee -a {log}
+        echo "[ataqv_host] done"
         """
 
 
@@ -98,15 +107,16 @@ rule ataqv_virus:
     input:
         bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.virus.{virus}.bam"),
         bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.virus.{virus}.bam.bai"),
-        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
         tss=join(REF_DIR, "ref.tss.{virus}.bed"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
+        autosomes=join(REF_DIR, "ref.chrom.autosomes.{virus}.txt"),
     output:
         json=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
     params:
         outdir=join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv"),
         tmpdir=join(TEMPDIR, "ataqv", "{sample}", "virus", "{virus}"),
         extra_args=config.get("ataqv", {}).get("extra_args", ""),
+        tss_extension=str(config.get("ataqv", {}).get("virus_tss_extension", 200)),
     threads:
         _get_threads("ataqv_virus", profile_config)
     container:
@@ -126,15 +136,25 @@ rule ataqv_virus:
         virus_fixmate_sorted_bam={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.fixmate.sorted.bam
         echo "[ataqv_virus] fixmate + markdup on virus bam"
         samtools sort -@ {threads} -n -T {params.tmpdir}/virus_qname -o $virus_qname_bam {input.bam}
+        echo "[ataqv_virus] fixmate"
         samtools fixmate -@ {threads} -m $virus_qname_bam $virus_fixmate_bam
+        echo "[ataqv_virus] coordinate sort"
         samtools sort -@ {threads} -T {params.tmpdir}/virus_fixmate -o $virus_fixmate_sorted_bam $virus_fixmate_bam
+        echo "[ataqv_virus] markdup"
         samtools markdup -@ {threads} $virus_fixmate_sorted_bam $virus_markdup_bam
+        echo "[ataqv_virus] index"
         samtools index $virus_markdup_bam
-        echo "[ataqv_virus] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
+        echo "[ataqv_virus] species=custom tss={input.tss} chromsizes={input.chromsizes} autosomes={input.autosomes}"
         cd {params.outdir}
-        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
-          --chromsizes {input.chromsizes} custom $virus_markdup_bam > {log} 2>&1
-        mv -f {params.outdir}/{wildcards.sample}.virus.{wildcards.virus}.bam.ataqv.json {output.json}
+        echo "[ataqv_virus] running ataqv"
+        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} \
+          --tss-extension {params.tss_extension} \
+          --autosomal-reference-file {input.autosomes} \
+          --mitochondrial-reference-name none \
+          --name {wildcards.sample} \
+          --metrics-file {output.json} \
+          custom $virus_markdup_bam 2>&1 | tee -a {log}
+        echo "[ataqv_virus] done"
         """
 
 
@@ -149,7 +169,8 @@ rule ataqv_report_host:
         report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.host")),
     params:
         genome="custom",
-    threads: 1
+    threads:
+        _get_threads("ataqv_report_host", profile_config)
     container:
         config["containers"]["ataqv"]
     log:
@@ -158,7 +179,7 @@ rule ataqv_report_host:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {output.report}
         echo "[ataqv_report_host] genome={params.genome}"
         echo "[ataqv_report_host] output_dir={output.report}"
@@ -178,7 +199,8 @@ rule ataqv_report_virus:
         report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.virus.{virus}")),
     params:
         genome="custom",
-    threads: 1
+    threads:
+        _get_threads("ataqv_report_virus", profile_config)
     container:
         config["containers"]["ataqv"]
     log:
@@ -187,7 +209,7 @@ rule ataqv_report_virus:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {output.report}
         echo "[ataqv_report_virus] genome={params.genome}"
         echo "[ataqv_report_virus] output_dir={output.report}"

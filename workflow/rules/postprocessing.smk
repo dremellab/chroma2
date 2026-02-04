@@ -22,7 +22,7 @@ rule split_host_bam:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         host_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
         echo "[split_host_bam] sample={wildcards.sample} regions_file={input.regions}"
@@ -55,7 +55,7 @@ rule split_virus_bam:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         virus_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
         echo "[split_virus_bam] sample={wildcards.sample} virus={wildcards.virus} regions_file={input.regions}"
@@ -88,7 +88,7 @@ rule bamcoverage_host:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         bamCoverage \
           -b {input.bam} \
@@ -118,7 +118,7 @@ rule bamcoverage_virus:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         bamCoverage \
           -b {input.bam} \

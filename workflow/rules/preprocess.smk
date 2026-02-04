@@ -25,7 +25,7 @@ rule fastp:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p "$(dirname {output.R1_trimmed})"
         if [ "{params.peorse}" == "PE" ];then
           fastp \
@@ -75,7 +75,7 @@ rule bowtie2_index:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         bowtie2-build --threads {threads} {input.fasta} {params.prefix}
         """
 
@@ -94,7 +94,8 @@ rule build_ref_tss_host:
         chromsizes_host=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     params:
         tmpdir=join(TEMPDIR, "ref_tss", "host"),
-    threads: 1
+    threads:
+        _get_threads("build_ref_tss_host", profile_config)
     container:
         config["containers"]["bowtie2"]
     log:
@@ -103,7 +104,7 @@ rule build_ref_tss_host:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         host_contigs_file={params.tmpdir}/host_contigs.txt
         awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u > $host_contigs_file
@@ -135,9 +136,11 @@ rule build_ref_tss_virus:
     output:
         tss_virus=join(REF_DIR, "ref.tss.{virus}.bed"),
         chromsizes_virus=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
+        autosomes_virus=join(REF_DIR, "ref.chrom.autosomes.{virus}.txt"),
     params:
         tmpdir=join(TEMPDIR, "ref_tss", "virus", "{virus}"),
-    threads: 1
+    threads:
+        _get_threads("build_ref_tss_virus", profile_config)
     container:
         config["containers"]["bowtie2"]
     log:
@@ -146,7 +149,7 @@ rule build_ref_tss_virus:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         virus_contigs_file={params.tmpdir}/virus_contigs.txt
         awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u > $virus_contigs_file
@@ -167,4 +170,6 @@ rule build_ref_tss_virus:
         fi
         awk '{{print $1"\t"$2}}' {input.fasta}.fai \
           > {output.chromsizes_virus}
+        awk '{{print $1}}' {input.fasta}.fai \
+          > {output.autosomes_virus}
         """

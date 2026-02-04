@@ -15,7 +15,8 @@ rule fastqc_raw:
         outdir=join(RESULTSDIR, "{sample}", "fastqc"),
         memoryG=getmemG("fastqc"),
         peorse=get_peorse,
-    threads: 1
+    threads:
+        _get_threads("fastqc_raw", profile_config)
     container:
         config["containers"]["fastqc"]
     log:
@@ -24,7 +25,7 @@ rule fastqc_raw:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         echo "[fastqc_raw] sample={params.sample} peorse={params.peorse}"
         echo "[fastqc_raw] R1={input.R1}"
         echo "[fastqc_raw] R2={input.R2}"
@@ -77,7 +78,8 @@ rule fastqc_trimmed:
         outdir=join(RESULTSDIR, "{sample}", "fastqc"),
         memoryG=getmemG("fastqc"),
         peorse=get_peorse,
-    threads: 1
+    threads:
+        _get_threads("fastqc_trimmed", profile_config)
     container:
         config["containers"]["fastqc"]
     log:
@@ -86,7 +88,7 @@ rule fastqc_trimmed:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         echo "[fastqc_trimmed] sample={params.sample} peorse={params.peorse}"
         echo "[fastqc_trimmed] R1={input.R1}"
         echo "[fastqc_trimmed] R2={input.R2}"

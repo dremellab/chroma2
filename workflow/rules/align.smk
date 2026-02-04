@@ -129,7 +129,7 @@ rule bowtie2_filter:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         echo "[bowtie2_filter] sample={wildcards.sample} peorse={params.peorse}"
         echo "[bowtie2_filter] flags: include={params.flag_include} exclude={params.flag_exclude} mapq={params.mapq_arg}"
         echo "[bowtie2_filter] exclude_rnames_expr={params.exclude_rname_expr}"
@@ -216,7 +216,7 @@ rule split_host_qname_bam:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         host_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
         samtools view -@ {threads} -b {input.bam} $host_regions \
@@ -242,7 +242,7 @@ rule split_virus_qname_bam:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
-        exec > {log} 2>&1
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         virus_regions=$(awk -F '\t' '{{n=split($2,a," "); for(i=1;i<=n;i++) if (a[i]!="") print a[i]}}' {input.regions} | sort -u | tr '\n' ' ')
         samtools view -@ {threads} -b {input.bam} $virus_regions \

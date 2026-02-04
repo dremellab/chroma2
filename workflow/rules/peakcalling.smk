@@ -24,7 +24,8 @@ rule macs2_atac_callpeak_host:
         extsize=str(config.get("macs2", {}).get("extsize", 200)),
         keep_dup=str(config.get("macs2", {}).get("keep_dup", "all")),
         extra_args=config.get("macs2", {}).get("extra_args", ""),
-    threads: 1
+    threads:
+        _get_threads("macs2_atac_callpeak_host", profile_config)
     container:
         config["containers"]["macs2"]
     log:
@@ -52,7 +53,7 @@ rule macs2_atac_callpeak_host:
           --extsize {params.extsize} \
           -q {params.qvalue} \
           {params.extra_args} \
-          > {log} 2>&1
+          2>&1 | tee -a {log}
         """
 
 
@@ -74,7 +75,8 @@ rule macs2_atac_callpeak_virus:
         extsize=str(config.get("macs2", {}).get("extsize", 200)),
         keep_dup=str(config.get("macs2", {}).get("keep_dup", "all")),
         extra_args=config.get("macs2", {}).get("extra_args", ""),
-    threads: 1
+    threads:
+        _get_threads("macs2_atac_callpeak_virus", profile_config)
     container:
         config["containers"]["macs2"]
     log:
@@ -103,7 +105,7 @@ rule macs2_atac_callpeak_virus:
           --extsize {params.extsize} \
           -q {params.qvalue} \
           {params.extra_args} \
-          > {log} 2>&1
+          2>&1 | tee -a {log}
         """
 
 
@@ -123,12 +125,18 @@ rule genrich_atac_callpeak_host:
         remove_dups=str(config.get("genrich", {}).get("remove_dups", True)),
         junctions=str(config.get("genrich", {}).get("junctions", True)),
         exclude_chr=config.get("genrich", {}).get("exclude_chr", "chrM"),
+        exclude_arg=(
+            f"-e {config.get('genrich', {}).get('exclude_chr', 'chrM')}"
+            if config.get("genrich", {}).get("exclude_chr", "chrM")
+            else ""
+        ),
         blacklist=config.get("genrich", {}).get("blacklist", ""),
         fraglen=str(config.get("genrich", {}).get("fraglen", 500)),
         minlen=str(config.get("genrich", {}).get("minlen", 150)),
         maxlen=str(config.get("genrich", {}).get("maxlen", 1000)),
         extra_args=config.get("genrich", {}).get("extra_args", ""),
-    threads: 1
+    threads:
+        _get_threads("genrich_atac_callpeak_host", profile_config)
     container:
         config["containers"]["genrich"]
     log:
@@ -158,11 +166,10 @@ rule genrich_atac_callpeak_host:
           -a {params.fraglen} \
           -l {params.minlen} \
           -g {params.maxlen} \
-          -e {params.exclude_chr} \
+          {params.exclude_arg} \
           $bl_arg \
-          -q {params.qvalue} \
-          {params.extra_args} \
-          > {log} 2>&1
+          -q {params.qvalue} {params.extra_args} \
+          2>&1 | tee -a {log}
         """
 
 
@@ -178,12 +185,18 @@ rule genrich_atac_callpeak_virus:
         remove_dups=str(config.get("genrich", {}).get("remove_dups", True)),
         junctions=str(config.get("genrich", {}).get("junctions", True)),
         exclude_chr=config.get("genrich", {}).get("virus_exclude_chr", ""),
+        exclude_arg=(
+            f"-e {config.get('genrich', {}).get('virus_exclude_chr', '')}"
+            if config.get("genrich", {}).get("virus_exclude_chr", "")
+            else ""
+        ),
         blacklist=config.get("genrich", {}).get("virus_blacklist", ""),
         fraglen=str(config.get("genrich", {}).get("fraglen", 500)),
         minlen=str(config.get("genrich", {}).get("minlen", 150)),
         maxlen=str(config.get("genrich", {}).get("maxlen", 1000)),
         extra_args=config.get("genrich", {}).get("extra_args", ""),
-    threads: 1
+    threads:
+        _get_threads("genrich_atac_callpeak_virus", profile_config)
     container:
         config["containers"]["genrich"]
     log:
@@ -213,9 +226,8 @@ rule genrich_atac_callpeak_virus:
           -a {params.fraglen} \
           -l {params.minlen} \
           -g {params.maxlen} \
-          -e {params.exclude_chr} \
+          {params.exclude_arg} \
           $bl_arg \
-          -q {params.qvalue} \
-          {params.extra_args} \
-          > {log} 2>&1
+          -q {params.qvalue} {params.extra_args} \
+          2>&1 | tee -a {log}
         """
