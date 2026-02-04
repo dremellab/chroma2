@@ -131,7 +131,12 @@ rule genrich_atac_callpeak_host:
             else ""
         ),
         blacklist=config.get("genrich", {}).get("blacklist", ""),
-        fraglen=str(config.get("genrich", {}).get("fraglen", 500)),
+        fraglen=str(
+            config.get("genrich", {}).get(
+                "host_fraglen", config.get("genrich", {}).get("fraglen", 500)
+            )
+        ),
+        mval=str(config.get("genrich", {}).get("host_mval", 30)),
         minlen=str(config.get("genrich", {}).get("minlen", 150)),
         maxlen=str(config.get("genrich", {}).get("maxlen", 1000)),
         extra_args=config.get("genrich", {}).get("extra_args", ""),
@@ -163,6 +168,7 @@ rule genrich_atac_callpeak_host:
           -o {output.narrowpeak} \
           $junc_flag \
           $rm_flag \
+          -m {params.mval} \
           -a {params.fraglen} \
           -l {params.minlen} \
           -g {params.maxlen} \
@@ -191,7 +197,12 @@ rule genrich_atac_callpeak_virus:
             else ""
         ),
         blacklist=config.get("genrich", {}).get("virus_blacklist", ""),
-        fraglen=str(config.get("genrich", {}).get("fraglen", 500)),
+        fraglen=str(
+            config.get("genrich", {}).get(
+                "virus_fraglen", config.get("genrich", {}).get("fraglen", 500)
+            )
+        ),
+        mval=str(config.get("genrich", {}).get("virus_mval", 5)),
         minlen=str(config.get("genrich", {}).get("minlen", 150)),
         maxlen=str(config.get("genrich", {}).get("maxlen", 1000)),
         extra_args=config.get("genrich", {}).get("extra_args", ""),
@@ -223,6 +234,7 @@ rule genrich_atac_callpeak_virus:
           -o {output.narrowpeak} \
           $junc_flag \
           $rm_flag \
+          -m {params.mval} \
           -a {params.fraglen} \
           -l {params.minlen} \
           -g {params.maxlen} \

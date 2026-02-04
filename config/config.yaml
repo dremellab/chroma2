@@ -62,7 +62,11 @@ genrich:
   virus_exclude_chr: "" # Genrich -e for virus peaks
   blacklist: "" # Genrich -E (BED), empty = skip
   virus_blacklist: "" # Genrich -E (BED) for virus peaks, empty = skip
-  fraglen: 500 # Genrich -a
+  host_fraglen: 200 # Genrich -a for host peaks
+  virus_fraglen: 100 # Genrich -a for virus peaks
+  host_mval: 30 # Genrich -m for host peaks
+  virus_mval: 5 # Genrich -m for virus peaks
+  fraglen: 500 # legacy Genrich -a (fallback if host/virus not set)
   minlen: 150 # Genrich -l
   maxlen: 1000 # Genrich -g
   extra_args: ""
