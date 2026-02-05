@@ -120,7 +120,9 @@ except Exception as e:
     print(f"❌ File does not exist: {configfilepath}")
     print(f"❌ Error opening config file: {e}")
     sys.exit(1)
-print("Snakemake working directory:", WORKDIR)
+_is_unlock = "--unlock" in sys.argv
+if not _is_unlock:
+    print("Snakemake working directory:", WORKDIR)
 # print(config)
 # print("end of config")
 
@@ -198,9 +200,10 @@ FASTAS_REGIONS_GTFS.extend(REGIONS)
 FASTAS_REGIONS_GTFS.extend(GTFS)
 EGS = join(FASTAS_GTFS_DIR, "effectiveGenomeSizes.tsv")
 
-print("FASTAS_REGIONS_GTFS:")
-for item in FASTAS_REGIONS_GTFS:
-    print(f"  - {item}")
+if not _is_unlock:
+    print("FASTAS_REGIONS_GTFS:")
+    for item in FASTAS_REGIONS_GTFS:
+        print(f"  - {item}")
 
 REF_FA = join(REF_DIR, "ref.fa")
 REF_REGIONS = join(REF_DIR, "ref.fa.regions")
@@ -214,49 +217,50 @@ append_files_in_list(REGIONS, REF_REGIONS)
 ###################################################################################################
 # check if sequence IDs are unique for unique genome names
 
-print("Validating ref.regions file for unique genome names and sequence IDs...")
-input_file = REF_REGIONS
+if not _is_unlock:
+    print("Validating ref.regions file for unique genome names and sequence IDs...")
+    input_file = REF_REGIONS
 
-seqid_to_genomes = defaultdict(set)
-seen_genomes = set()
-duplicate_genomes = set()
+    seqid_to_genomes = defaultdict(set)
+    seen_genomes = set()
+    duplicate_genomes = set()
 
-with open(input_file) as f:
-    for line_number, line in enumerate(f, 1):
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split()
-        genome = parts[0]
-        seq_ids = parts[1:]
+    with open(input_file) as f:
+        for line_number, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            genome = parts[0]
+            seq_ids = parts[1:]
 
-        # Check for repeated genome names
-        if genome in seen_genomes:
-            duplicate_genomes.add(genome)
-        seen_genomes.add(genome)
+            # Check for repeated genome names
+            if genome in seen_genomes:
+                duplicate_genomes.add(genome)
+            seen_genomes.add(genome)
 
-        # Track which genomes each sequence ID appears under
-        for seq in seq_ids:
-            seqid_to_genomes[seq].add(genome)
+            # Track which genomes each sequence ID appears under
+            for seq in seq_ids:
+                seqid_to_genomes[seq].add(genome)
 
-# Detect conflicts in sequence IDs
-conflicts = {seq: genomes for seq, genomes in seqid_to_genomes.items() if len(genomes) > 1}
+    # Detect conflicts in sequence IDs
+    conflicts = {seq: genomes for seq, genomes in seqid_to_genomes.items() if len(genomes) > 1}
 
-# Report issues
-if duplicate_genomes:
-    print("\n❌ The following genome names are repeated:")
-    for g in sorted(duplicate_genomes):
-        print(f"  {g}")
+    # Report issues
+    if duplicate_genomes:
+        print("\n❌ The following genome names are repeated:")
+        for g in sorted(duplicate_genomes):
+            print(f"  {g}")
 
-if conflicts:
-    print("\n❌ The following sequence IDs are assigned to multiple genomes:")
-    for seq, genomes in sorted(conflicts.items()):
-        print(f"  {seq}: {', '.join(sorted(genomes))}")
+    if conflicts:
+        print("\n❌ The following sequence IDs are assigned to multiple genomes:")
+        for seq, genomes in sorted(conflicts.items()):
+            print(f"  {seq}: {', '.join(sorted(genomes))}")
 
-if not duplicate_genomes and not conflicts:
-    print("\n✅ All genome names are unique and sequence IDs are uniquely assigned.")
-else:
-    sys.exit(1)
+    if not duplicate_genomes and not conflicts:
+        print("\n✅ All genome names are unique and sequence IDs are uniquely assigned.")
+    else:
+        sys.exit(1)
 
 ###################################################################################################
 
