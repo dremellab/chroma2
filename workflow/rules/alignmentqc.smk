@@ -164,7 +164,7 @@ rule ataqv_virus:
 
 rule ataqv_report_host:
     input:
-        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"), sample=SAMPLES),
+        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"), sample=CASE_SAMPLES),
     output:
         report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.host")),
     params:
@@ -192,7 +192,7 @@ rule ataqv_report_virus:
     input:
         jsons=lambda wc: expand(
             join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=wc.virus,
         ),
     output:

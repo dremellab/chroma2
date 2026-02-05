@@ -64,6 +64,7 @@ def oncomplete():
         print("❌ File not found:", e)
 
 include: "rules/init.smk"
+include: "rules/inputs.smk"
 include: "rules/preprocess.smk"
 include: "rules/initqc.smk"
 include: "rules/align.smk"
@@ -74,16 +75,16 @@ include: "rules/postprocessing.smk"
 HOST_PEAKS = []
 if HOST != "":
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"), sample=CASE_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"), sample=CASE_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"), sample=CASE_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"), sample=CASE_SAMPLES)
     )
 
 VIRUS_PEAKS = []
@@ -91,28 +92,28 @@ if len(VIRUS_LIST) > 0:
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
@@ -168,11 +169,24 @@ rule all:
         VIRUS_TSS,
         # alignment qc summary
         join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
+        # pooled input controls (host + per-virus)
+        expand(join(RESULTSDIR, "inputs", "host", "{pool}.qname.bam"), pool=HOST_INPUT_POOLS),
+        expand(join(RESULTSDIR, "inputs", "host", "{pool}.filtered.bam"), pool=HOST_INPUT_POOLS),
+        expand(
+            join(RESULTSDIR, "inputs", "virus", "{pool}", "{virus}.qname.bam"),
+            pool=VIRUS_INPUT_POOLS,
+            virus=VIRUS_LIST,
+        ),
+        expand(
+            join(RESULTSDIR, "inputs", "virus", "{pool}", "{virus}.filtered.bam"),
+            pool=VIRUS_INPUT_POOLS,
+            virus=VIRUS_LIST,
+        ),
         # ataqv sample-level qc
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"),
-                sample=SAMPLES,
+                sample=CASE_SAMPLES,
             )
             if HOST != ""
             else []
@@ -180,7 +194,7 @@ rule all:
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
-                sample=SAMPLES,
+                sample=CASE_SAMPLES,
                 virus=VIRUS_LIST,
             )
             if len(VIRUS_LIST) > 0
@@ -199,10 +213,10 @@ rule all:
         HOST_PEAKS,
         VIRUS_PEAKS,
         # bigWig outputs (host + viruses)
-        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=CASE_SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=CASE_SAMPLES),
         expand(
             join(RESULTSDIR, "{sample}", "bigwig", "{sample}.virus.{virus}.bw"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         ),

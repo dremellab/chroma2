@@ -328,8 +328,13 @@ SAMPLESDF = pd.read_csv(MANIFEST_FILE, sep="\t", dtype=str).fillna("")
 required_columns = [
     "sampleName",
     "groupName",
+    "batch",
     "path_to_R1_fastq",
-    "path_to_R2_fastq"
+    "path_to_R2_fastq",
+    "role",
+    "target",
+    "host_input_pool",
+    "virus_input_pool",
 ]
 # Check if all required columns are present
 missing_columns = [col for col in required_columns if col not in SAMPLESDF.columns]
@@ -349,6 +354,20 @@ SAMPLES = list(SAMPLESDF["sampleName"])
 # Step 3: Ensure each sampleName has a non-empty groupName
 if (SAMPLESDF['groupName'].str.strip() == "").any():
     raise ValueError("Some sampleNames have empty groupName!")
+
+# Step 3b: Normalize batch column (empty -> single batch)
+if (SAMPLESDF['batch'].str.strip() == "").any():
+    SAMPLESDF['batch'] = SAMPLESDF['batch'].replace("", "batch1")
+
+# Step 3c: Validate role and target columns
+valid_roles = {"case", "control"}
+valid_targets = {"host", "virus", "both"}
+if not SAMPLESDF['role'].isin(valid_roles).all():
+    bad = sorted(SAMPLESDF.loc[~SAMPLESDF['role'].isin(valid_roles), 'role'].unique())
+    raise ValueError(f"Invalid role values found: {bad}. Allowed: {sorted(valid_roles)}")
+if not SAMPLESDF['target'].isin(valid_targets).all():
+    bad = sorted(SAMPLESDF.loc[~SAMPLESDF['target'].isin(valid_targets), 'target'].unique())
+    raise ValueError(f"Invalid target values found: {bad}. Allowed: {sorted(valid_targets)}")
 
 # Step 4: Check if files in R1 and R2 paths exist and are readable
 def check_file(path):
@@ -377,6 +396,58 @@ for sample, group in zip(SAMPLESDF['sampleName'], SAMPLESDF['groupName']):
 
 # Step 8: Create SAMPLENAMEISPE
 SAMPLENAMEISPE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['PEorSE']))
+
+# Step 9: Case/control splits and input pools
+CASE_SAMPLES = SAMPLESDF.loc[SAMPLESDF['role'] == "case", 'sampleName'].tolist()
+CONTROL_SAMPLES = SAMPLESDF.loc[SAMPLESDF['role'] == "control", 'sampleName'].tolist()
+
+HOST_INPUT_POOL_BY_SAMPLE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['host_input_pool']))
+VIRUS_INPUT_POOL_BY_SAMPLE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['virus_input_pool']))
+
+HOST_POOL_CONTROLS = defaultdict(list)
+VIRUS_POOL_CONTROLS = defaultdict(list)
+for _, row in SAMPLESDF.iterrows():
+    if row['role'] != "control":
+        continue
+    if row['target'] in ["host", "both"] and row['host_input_pool'].strip() != "":
+        HOST_POOL_CONTROLS[row['host_input_pool']].append(row['sampleName'])
+    if row['target'] in ["virus", "both"] and row['virus_input_pool'].strip() != "":
+        VIRUS_POOL_CONTROLS[row['virus_input_pool']].append(row['sampleName'])
+
+HOST_INPUT_POOLS = sorted(HOST_POOL_CONTROLS.keys())
+VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
+
+
+def _opt_input(path):
+    return [] if path == "" else path
+
+
+def get_host_control_qname_bam(wildcards):
+    pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
+    if pool == "" or pool not in HOST_POOL_CONTROLS:
+        return ""
+    return join(RESULTSDIR, "inputs", "host", f"{pool}.qname.bam")
+
+
+def get_host_control_filtered_bam(wildcards):
+    pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
+    if pool == "" or pool not in HOST_POOL_CONTROLS:
+        return ""
+    return join(RESULTSDIR, "inputs", "host", f"{pool}.filtered.bam")
+
+
+def get_virus_control_qname_bam(wildcards):
+    pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
+    if pool == "" or pool not in VIRUS_POOL_CONTROLS:
+        return ""
+    return join(RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.qname.bam")
+
+
+def get_virus_control_filtered_bam(wildcards):
+    pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
+    if pool == "" or pool not in VIRUS_POOL_CONTROLS:
+        return ""
+    return join(RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.filtered.bam")
 
 DUMMYFILE = join(RESOURCES_DIR, "dummy")
 RESULTSDIR = join(WORKDIR, "results")
