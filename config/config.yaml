@@ -8,7 +8,7 @@ workdir: "WORKDIR"
 tempdir: "TEMP_DIR"
 
 # tab delimited samples file ... should have the following columns:
-# sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq
+# sampleName\tgroupName\tbatch\tpath_to_R1_fastq\tpath_to_R2_fastq\trole\ttarget\thost_input_pool\tvirus_input_pool
 samples: "WORKDIR/samples.tsv"
 
 # select references .... host + viruses(comma-separated):
@@ -52,6 +52,11 @@ macs2:
   extsize: 200
   keep_dup: "all"
   extra_args: ""
+
+# pooled input usage for peak calling
+peakcalling:
+  use_host_input: false
+  use_virus_input: true
 
 # Genrich parameters (ATAC-seq)
 genrich:

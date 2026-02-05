@@ -150,3 +150,13 @@ set-resources:
     mem_mb: 122880 # 120 GB
     threads: 2
     runtime: 240
+
+  pool_virus_filtered_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_virus_qname_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
