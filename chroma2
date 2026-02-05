@@ -679,13 +679,6 @@ def main() -> None:
     env = build_env(profile_dir, apptainer_vars)
 
     if runmode in {"dryrun", "dry"}:
-        write_run_metadata(
-            workdir,
-            runmode,
-            cluster_profile,
-            platform,
-            " ".join(shlex.quote(str(c)) for c in sys.argv),
-        )
         create_runinfo(workdir)
         if is_workdir_locked(workdir):
             print(
