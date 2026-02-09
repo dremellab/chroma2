@@ -595,14 +595,14 @@ def main() -> None:
     conda_activate = ""
     path_prepend = ""
     temp_dir = f"/scratch/{getpass.getuser()}/"
-    refs_dir = "/standard/dremel_lab/workflows/reference_data/fasta_gtf/"
-    kraken2_db = "/standard/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
+    refs_dir = "/project/dremel_lab/workflows/reference_data/fasta_gtf/"
+    kraken2_db = "/project/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
 
     if platform == "shen":
         cluster_profile = "rivanna"
         partition = "standard"
         py_bin = "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin"
-        path_prepend = f'export PATH="{py_bin}:/standard/dremel_lab/scripts/bin:$PATH"'
+        path_prepend = f'export PATH="{py_bin}:/project/dremel_lab/scripts/bin:$PATH"'
         module_load = "module load apptainer"
     else:
         print(
