@@ -610,7 +610,7 @@ def main() -> None:
             "Please edit config/ and config.yaml for compatibility with your environment."
         )
 
-    host = args.host or "hg38"
+    host = args.host or "hg38_basic"
     additives = args.additives or ""
     viruses = args.viruses or "KT899744.1"
 
