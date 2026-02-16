@@ -32,7 +32,7 @@ fastp:
 # bowtie2 alignment + filtering parameters
 bowtie2_align:
   preset: "--very-sensitive"
-  k: 10
+  k: 20
   max_insert: 2000
   no_mixed: true
   no_discordant: true
