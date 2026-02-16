@@ -168,7 +168,7 @@ rule all:
         HOST_TSS,
         VIRUS_TSS,
         # alignment qc summary
-        join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
+        join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
         # pooled input controls (host + per-virus)
         expand(join(RESULTSDIR, "inputs", "host", "{pool}.qname.bam"), pool=HOST_INPUT_POOLS),
         expand(join(RESULTSDIR, "inputs", "host", "{pool}.filtered.bam"), pool=HOST_INPUT_POOLS),

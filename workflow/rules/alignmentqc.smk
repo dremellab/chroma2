@@ -5,27 +5,33 @@
 rule alignment_flagstat_summary:
     input:
         aligned=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.idxstats.txt"),
             sample=SAMPLES,
         ),
         clean=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.flagstat.txt"),
-            sample=SAMPLES,
-        ),
-        fixmate=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.fixmate.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.idxstats.txt"),
             sample=SAMPLES,
         ),
         dedup=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.dedup.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.dedup.idxstats.txt"),
             sample=SAMPLES,
         ),
         final=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.idxstats.txt"),
             sample=SAMPLES,
         ),
+        raw_fastqc_r1=expand(
+            join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R1_fastqc.zip"),
+            sample=SAMPLES,
+        ),
+        trimmed_fastqc_r1=expand(
+            join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R1_fastqc.zip"),
+            sample=SAMPLES,
+        ),
+        regions_host=join(REF_DIR, "ref.fa.regions.host"),
+        regions_viruses=join(REF_DIR, "ref.fa.regions.viruses"),
     output:
-        tsv=join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
+        tsv=join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
     params:
         outdir=join(RESULTSDIR, "alignmentqc"),
     threads:
@@ -40,8 +46,10 @@ rule alignment_flagstat_summary:
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
-        python {SCRIPTS_DIR}/summarize_flagstat.py \
+        python {SCRIPTS_DIR}/summarize_idxstats.py \
           --results-dir {RESULTSDIR} \
+          --regions-host {input.regions_host} \
+          --regions-viruses {input.regions_viruses} \
           --output {output.tsv}
         """
 
