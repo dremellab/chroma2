@@ -101,6 +101,36 @@ set-resources:
     threads: 1
     runtime: 60
 
+  tss_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  tss_virus_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  macs2_summits_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  macs2_summits_virus_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  narrowpeak_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  narrowpeak_virus_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
   ataqv_host:
     mem_mb: 40960 # 40 GB
     threads: 8

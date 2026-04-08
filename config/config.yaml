@@ -93,6 +93,7 @@ containers:
   fastp: "docker://staphb/fastp:0.24.1"
   fastqc: "docker://seqinfomics/fastqc:0.12.1"
   bowtie2: "docker://seqinfomics/bowtie2:2.5.0"
+  bedToBigBed: "docker://seqinfomics/bedtobigbed:latest"
   py311: "docker://seqinfomics/py311:latest"
   macs2: "docker://seqinfomics/macs2:2.2.9.1"
   genrich: "docker://seqinfomics/genrich:0.6.1"
