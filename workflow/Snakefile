@@ -64,6 +64,7 @@ include: "rules/alignmentqc.smk"
 include: "rules/peakcalling.smk"
 include: "rules/postprocessing.smk"
 include: "rules/bigbed.smk"
+include: "rules/tn5motif.smk"
 
 HOST_PEAKS = []
 if HOST != "":
@@ -159,6 +160,8 @@ rule all:
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"), sample=SAMPLES),
         # BigBed browser tracks
         BIGBED_OUTPUTS,
+        # Tn5 motif outputs
+        TN5_MOTIF_OUTPUTS,
         # reference TSS + chrom sizes
         HOST_TSS,
         VIRUS_TSS,

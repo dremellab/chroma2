@@ -83,6 +83,15 @@ postprocessing:
   host_bw_extra_args: ""
   virus_bw_extra_args: ""
 
+# Tn5 motif extraction
+tn5_motif:
+  flank_size: 10
+  mapq_min: 0
+  dedup: false
+  exclude_secondary: false
+  exclude_supplementary: false
+  logo_format: "png"
+
 # ataqv parameters
 ataqv:
   extra_args: ""
@@ -95,6 +104,7 @@ containers:
   bowtie2: "docker://seqinfomics/bowtie2:2.5.0"
   bedToBigBed: "docker://seqinfomics/bedtobigbed:latest"
   py311: "docker://seqinfomics/py311:latest"
+  pysam: "docker://seqinfomics/pysam:0.22.1"
   macs2: "docker://seqinfomics/macs2:2.2.9.1"
   genrich: "docker://seqinfomics/genrich:0.6.1"
   deeptools: "docker://seqinfomics/deeptools:3.5.6"

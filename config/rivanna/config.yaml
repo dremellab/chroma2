@@ -68,6 +68,7 @@ set-threads:
   fastqc_raw: 8
   fastqc_trimmed: 8
   bowtie2_index: 8
+  extract_tn5_motifs: 4
 
 set-resources:
   fastp:
@@ -100,6 +101,11 @@ set-resources:
     mem_mb: 8192
     threads: 1
     runtime: 60
+
+  extract_tn5_motifs:
+    mem_mb: 122880
+    threads: 4
+    runtime: 480
 
   tss_host_to_bigbed:
     mem_mb: 8192
