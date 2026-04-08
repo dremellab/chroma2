@@ -68,7 +68,8 @@ set-threads:
   fastqc_raw: 8
   fastqc_trimmed: 8
   bowtie2_index: 8
-  extract_tn5_motifs: 4
+  extract_tn5_motifs_host: 4
+  extract_tn5_motifs_virus: 4
 
 set-resources:
   fastp:
@@ -102,10 +103,60 @@ set-resources:
     threads: 1
     runtime: 60
 
-  extract_tn5_motifs:
+  extract_tn5_motifs_host:
     mem_mb: 122880
     threads: 4
     runtime: 480
+
+  extract_tn5_motifs_virus:
+    mem_mb: 122880
+    threads: 4
+    runtime: 480
+
+  build_host_tn5_gene_bins:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  count_tn5_host_genrich_bins:
+    mem_mb: 16384
+    threads: 2
+    runtime: 120
+
+  count_tn5_host_macs2_bins:
+    mem_mb: 16384
+    threads: 2
+    runtime: 120
+
+  count_tn5_bins_genrich_virus:
+    mem_mb: 16384
+    threads: 2
+    runtime: 120
+
+  count_tn5_bins_macs2_virus:
+    mem_mb: 16384
+    threads: 2
+    runtime: 120
+
+  build_tn5_host_genrich_count_matrix:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  build_tn5_host_macs2_count_matrix:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  build_tn5_bins_genrich_virus_count_matrix:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  build_tn5_bins_macs2_virus_count_matrix:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
 
   tss_host_to_bigbed:
     mem_mb: 8192

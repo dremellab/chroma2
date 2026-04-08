@@ -21,6 +21,15 @@ scriptsdir: "PIPELINE_HOME/workflow/scripts"
 resourcesdir: "PIPELINE_HOME/resources"
 fastas_gtfs_dir: "REFS_DIR"
 
+# optional host annotations by host genome (relative to fastas_gtfs_dir unless absolute path)
+trnas_gtf:
+  hg38: "hg38.tRNAs.hg38chroms.gtf"
+  mm39: "mm39.tRNAs.mm39chroms.gtf"
+chrr_gtf:
+  hg38: "hg38.chrR.gtf"
+  mm39: "mm39.chrR.gtf"
+include_trnas_gtf_in_ref: true
+
 # kraken2 db
 kraken2_db: "KRAKEN2_DB"
 
@@ -86,6 +95,8 @@ postprocessing:
 # Tn5 motif extraction
 tn5_motif:
   flank_size: 10
+  virus_bin_size: 100
+  host_gene_flank_size: 250
   mapq_min: 0
   dedup: false
   exclude_secondary: false

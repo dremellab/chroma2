@@ -2,7 +2,8 @@
 """
 Extract Tn5 nicking sites from a BAM, split them into host and per-virus groups,
 write BED and strand-aware FASTA windows, build a position frequency matrix, and
-render a sequence logo for a single scenario.
+render a sequence logo for a single caller-labeled output set. The same helper
+can also emit virus-only fixed-width Tn5 bin counts from peak-caller input BAMs.
 
 Outputs are written under:
   <outdir>/<group>/
@@ -15,8 +16,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, TextIO
 
-import pandas as pd
 import pysam
+
+try:
+    import pandas as pd
+except ImportError:  # pragma: no cover
+    pd = None
 
 try:
     import matplotlib
@@ -91,7 +96,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Extract Tn5 nicking sites from a BAM, write BED/FASTA/PFM outputs, "
-            "and render sequence logos per host/virus group."
+            "render caller-specific sequence logos per host/virus group, or emit "
+            "virus-only fixed-width Tn5 bin counts."
         )
     )
     parser.add_argument("--bam", required=True, help="Input BAM file")
@@ -100,10 +106,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sample", required=True, help="Sample name for output naming")
     parser.add_argument(
-        "--scenario-name", required=True, help="Scenario label for output naming"
+        "--scenario-name", required=True, help="Caller label for output naming"
     )
     parser.add_argument(
-        "--outdir", required=True, help="Scenario-specific output directory"
+        "--outdir", required=True, help="Caller-specific output directory"
     )
     parser.add_argument(
         "--host-regions",
@@ -121,6 +127,22 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_FLANK_SIZE,
         help="Bases to include on each side of the nick site (default: 10)",
+    )
+    parser.add_argument(
+        "--virus-bin-size",
+        type=int,
+        default=100,
+        help="Fixed bin size used for viral Tn5 site count matrices (default: 100)",
+    )
+    parser.add_argument(
+        "--bin-counts-only",
+        action="store_true",
+        help="Only write viral bin-count matrices; skip BED/FASTA/PFM/logo outputs",
+    )
+    parser.add_argument(
+        "--bin-counts-output",
+        default=None,
+        help="Output TSV path used with --bin-counts-only",
     )
     parser.add_argument(
         "--threads",
@@ -291,6 +313,26 @@ def cut_sites_from_records(
     return sites
 
 
+def cut_sites_from_record(
+    rec: pysam.AlignedSegment,
+    mapq_min: int,
+    exclude_secondary: bool,
+    exclude_supplementary: bool,
+) -> List[CutSite]:
+    if not alignment_passes_filters(
+        rec,
+        mapq_min=mapq_min,
+        exclude_secondary=exclude_secondary,
+        exclude_supplementary=exclude_supplementary,
+    ):
+        return []
+    if rec.is_paired and rec.is_proper_pair:
+        if rec.is_read1:
+            return paired_cut_sites(rec, 1)
+        return []
+    return single_cut_site(rec, 1)
+
+
 def assign_group(chrom: str, group_contigs: Dict[str, set[str]]) -> Optional[str]:
     hits = [group for group, contigs in group_contigs.items() if chrom in contigs]
     if not hits:
@@ -375,6 +417,26 @@ def write_pfm(path: Path, pfm: List[Dict[str, int]]) -> None:
             )
 
 
+def write_bin_counts(
+    path: Path,
+    sample: str,
+    bin_counts: Dict[str, List[int]],
+    chrom_lengths: Dict[str, int],
+    bin_size: int,
+) -> None:
+    with path.open("w", encoding="utf-8") as out:
+        out.write("sample\tchrom\tstart\tend\tbin_id\tbin_index\ttn5_site_count\n")
+        for chrom, counts in bin_counts.items():
+            chrom_len = chrom_lengths[chrom]
+            for bin_idx, count in enumerate(counts):
+                bin_start = bin_idx * bin_size
+                bin_end = min(chrom_len, bin_start + bin_size)
+                bin_id = f"{chrom}:{bin_start}-{bin_end}"
+                out.write(
+                    f"{sample}\t{chrom}\t{bin_start}\t{bin_end}\t{bin_id}\t{bin_idx}\t{count}\n"
+                )
+
+
 def pfm_to_probability_df(pfm: List[Dict[str, int]]) -> pd.DataFrame:
     rows = []
     for counts in pfm:
@@ -389,7 +451,7 @@ def pfm_to_probability_df(pfm: List[Dict[str, int]]) -> pd.DataFrame:
 
 
 def write_logo(path: Path, pfm: List[Dict[str, int]], title: str) -> bool:
-    if logomaker is None or plt is None:
+    if logomaker is None or plt is None or pd is None:
         return False
     df = pfm_to_probability_df(pfm)
     fig, ax = plt.subplots(figsize=(max(6, len(df) * 0.35), 3.5))
@@ -408,6 +470,10 @@ def main() -> None:
     args = parse_args()
     if args.flank_size < 0:
         raise ValueError("--flank-size must be >= 0")
+    if args.virus_bin_size <= 0:
+        raise ValueError("--virus-bin-size must be > 0")
+    if args.bin_counts_only and not args.bin_counts_output:
+        raise ValueError("--bin-counts-output is required with --bin-counts-only")
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -416,6 +482,57 @@ def main() -> None:
         pysam.faidx(args.fasta)
 
     group_contigs = load_group_contigs(args)
+    virus_groups = {item.split("=", 1)[0] for item in args.virus_regions}
+    if args.bin_counts_only:
+        if len(virus_groups) != 1:
+            raise ValueError(
+                "--bin-counts-only expects exactly one virus group/input per invocation"
+            )
+        virus_group = next(iter(virus_groups))
+        bin_counts_output = Path(args.bin_counts_output)
+        chrom_lengths: Dict[str, int] = {}
+        bin_counts: Dict[str, List[int]] = {}
+
+        with pysam.FastaFile(args.fasta) as fasta:
+            chrom_lengths = {
+                chrom: fasta.get_reference_length(chrom)
+                for chrom in sorted(group_contigs[virus_group])
+            }
+            bin_counts = {
+                chrom: [0]
+                * ((chrom_len + args.virus_bin_size - 1) // args.virus_bin_size)
+                for chrom, chrom_len in chrom_lengths.items()
+            }
+
+            with pysam.AlignmentFile(args.bam, "rb", threads=args.threads) as bam:
+                for rec in bam.fetch(until_eof=True):
+                    for site in cut_sites_from_record(
+                        rec=rec,
+                        mapq_min=args.mapq_min,
+                        exclude_secondary=args.exclude_secondary,
+                        exclude_supplementary=args.exclude_supplementary,
+                    ):
+                        group = assign_group(site.chrom, group_contigs)
+                        if group != virus_group:
+                            continue
+                        bin_idx = site.start // args.virus_bin_size
+                        bin_counts[site.chrom][bin_idx] += 1
+
+        bin_counts_output.parent.mkdir(parents=True, exist_ok=True)
+        write_bin_counts(
+            bin_counts_output,
+            args.sample,
+            bin_counts,
+            chrom_lengths,
+            args.virus_bin_size,
+        )
+        total_sites = sum(sum(counts) for counts in bin_counts.values())
+        print(
+            f"[{args.scenario_name}][{virus_group}] bin_counts_only total_sites={total_sites} "
+            f"bin_counts={bin_counts_output}"
+        )
+        return
+
     writers: Dict[str, GroupWriter] = {}
 
     with pysam.FastaFile(args.fasta) as fasta, pysam.AlignmentFile(
