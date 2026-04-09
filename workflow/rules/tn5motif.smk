@@ -251,11 +251,15 @@ rule extract_tn5_motifs_host:
     params:
         outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "{caller}"),
         flank_size=str(config.get("tn5_motif", {}).get("flank_size", 10)),
-        dedup_arg=("--dedup" if TN5_DEDUP else ""),
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        extra_args=" ".join(
+            flag
+            for flag in (
+                "--dedup" if TN5_DEDUP else "",
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
         logo_format=TN5_LOGO_FORMAT,
     wildcard_constraints:
@@ -282,10 +286,7 @@ rule extract_tn5_motifs_host:
           --host-regions {input.host_regions} \
           --flank-size {params.flank_size} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.dedup_arg} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg} \
+          --mapq-min {params.mapq_min} {params.extra_args} \
           --logo-format {params.logo_format}
         """
 
@@ -305,11 +306,15 @@ rule extract_tn5_motifs_virus:
         outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "{caller}"),
         virus_regions_arg=lambda wc, input: f"--virus-regions {wc.virus}={input.virus_regions}",
         flank_size=str(config.get("tn5_motif", {}).get("flank_size", 10)),
-        dedup_arg=("--dedup" if TN5_DEDUP else ""),
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        extra_args=" ".join(
+            flag
+            for flag in (
+                "--dedup" if TN5_DEDUP else "",
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
         logo_format=TN5_LOGO_FORMAT,
     wildcard_constraints:
@@ -336,10 +341,7 @@ rule extract_tn5_motifs_virus:
           {params.virus_regions_arg} \
           --flank-size {params.flank_size} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.dedup_arg} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg} \
+          --mapq-min {params.mapq_min} {params.extra_args} \
           --logo-format {params.logo_format}
         """
 
@@ -364,9 +366,13 @@ rule count_tn5_host_genrich_bins:
         ),
     params:
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        filter_args=" ".join(
+            flag
+            for flag in (
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
     threads:
         _get_threads("count_tn5_host_genrich_bins", profile_config)
@@ -385,9 +391,7 @@ rule count_tn5_host_genrich_bins:
           --output {output.tsv} \
           --sample {wildcards.sample} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg}
+          --mapq-min {params.mapq_min} {params.filter_args}
         """
 
 
@@ -411,9 +415,13 @@ rule count_tn5_host_macs2_bins:
         ),
     params:
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        filter_args=" ".join(
+            flag
+            for flag in (
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
     threads:
         _get_threads("count_tn5_host_macs2_bins", profile_config)
@@ -432,9 +440,7 @@ rule count_tn5_host_macs2_bins:
           --output {output.tsv} \
           --sample {wildcards.sample} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg}
+          --mapq-min {params.mapq_min} {params.filter_args}
         """
 
 
