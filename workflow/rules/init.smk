@@ -180,11 +180,55 @@ else:
 TRNAS_GTF_BY_HOST = config.get("trnas_gtf", {})
 CHRR_GTF_BY_HOST = config.get("chrr_gtf", {})
 INCLUDE_TRNAS_GTF_IN_REF = _is_true(config.get("include_trnas_gtf_in_ref", True))
+
+
+def _host_annotation_aliases(host_name):
+    aliases = []
+    if host_name:
+        aliases.append(host_name)
+        if "_" in host_name:
+            aliases.append(host_name.split("_", 1)[0])
+    return aliases
+
+
+def _resolve_optional_host_annotation(mapping, host_name, fallback_templates):
+    if host_name == "":
+        return ""
+
+    for alias in _host_annotation_aliases(host_name):
+        mapped_name = mapping.get(alias)
+        if mapped_name:
+            mapped_path = (
+                mapped_name if os.path.isabs(mapped_name) else join(FASTAS_GTFS_DIR, mapped_name)
+            )
+            if os.path.exists(mapped_path):
+                return mapped_path
+
+    for alias in _host_annotation_aliases(host_name):
+        for template in fallback_templates:
+            candidate_name = template.format(host=alias)
+            candidate_path = (
+                candidate_name
+                if os.path.isabs(candidate_name)
+                else join(FASTAS_GTFS_DIR, candidate_name)
+            )
+            if os.path.exists(candidate_path):
+                return candidate_path
+
+    return ""
+
+
 if HOST != "":
-    trnas_gtf_name = TRNAS_GTF_BY_HOST.get(HOST, HOST + ".tRNAs." + HOST + "chroms.gtf")
-    TRNAS_GTF = trnas_gtf_name if os.path.isabs(trnas_gtf_name) else join(FASTAS_GTFS_DIR, trnas_gtf_name)
-    chrr_gtf_name = CHRR_GTF_BY_HOST.get(HOST, HOST + ".chrR.gtf")
-    CHRR_GTF = chrr_gtf_name if os.path.isabs(chrr_gtf_name) else join(FASTAS_GTFS_DIR, chrr_gtf_name)
+    TRNAS_GTF = _resolve_optional_host_annotation(
+        TRNAS_GTF_BY_HOST,
+        HOST,
+        ["{host}.tRNAs.{host}chroms.gtf"],
+    )
+    CHRR_GTF = _resolve_optional_host_annotation(
+        CHRR_GTF_BY_HOST,
+        HOST,
+        ["{host}.chrR.gtf"],
+    )
 else:
     TRNAS_GTF = ""
     CHRR_GTF = ""

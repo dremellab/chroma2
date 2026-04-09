@@ -540,9 +540,13 @@ rule count_tn5_bins_genrich_virus:
         outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "genrich"),
         virus_regions_arg=lambda wc, input: f"--virus-regions {wc.virus}={input.virus_regions}",
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        filter_args=" ".join(
+            flag
+            for flag in (
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
     threads:
         _get_threads("count_tn5_bins_genrich_virus", profile_config)
@@ -566,9 +570,7 @@ rule count_tn5_bins_genrich_virus:
           --bin-counts-only \
           --bin-counts-output {output.tsv} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg}
+          --mapq-min {params.mapq_min} {params.filter_args}
         """
 
 
@@ -592,9 +594,13 @@ rule count_tn5_bins_macs2_virus:
         outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "macs2"),
         virus_regions_arg=lambda wc, input: f"--virus-regions {wc.virus}={input.virus_regions}",
         mapq_min=str(TN5_MAPQ_MIN),
-        exclude_secondary_arg=("--exclude-secondary" if TN5_EXCLUDE_SECONDARY else ""),
-        exclude_supplementary_arg=(
-            "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
+        filter_args=" ".join(
+            flag
+            for flag in (
+                "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+            )
+            if flag
         ),
     threads:
         _get_threads("count_tn5_bins_macs2_virus", profile_config)
@@ -618,22 +624,20 @@ rule count_tn5_bins_macs2_virus:
           --bin-counts-only \
           --bin-counts-output {output.tsv} \
           --threads {threads} \
-          --mapq-min {params.mapq_min} \
-          {params.exclude_secondary_arg} \
-          {params.exclude_supplementary_arg}
+          --mapq-min {params.mapq_min} {params.filter_args}
         """
 
 
 rule build_tn5_bins_genrich_virus_count_matrix:
     input:
-        counts=expand(
+        counts=lambda wc: expand(
             join(
                 RESULTSDIR,
                 "{sample}",
                 "tn5_motif",
                 "genrich",
-                "{virus}",
-                "{sample}.{virus}.genrich.tn5_sites.bin_counts."
+                wc.virus,
+                "{sample}." + wc.virus + ".genrich.tn5_sites.bin_counts."
                 + str(TN5_VIRUS_BIN_SIZE)
                 + "bp.tsv",
             ),
@@ -667,14 +671,14 @@ rule build_tn5_bins_genrich_virus_count_matrix:
 
 rule build_tn5_bins_macs2_virus_count_matrix:
     input:
-        counts=expand(
+        counts=lambda wc: expand(
             join(
                 RESULTSDIR,
                 "{sample}",
                 "tn5_motif",
                 "macs2",
-                "{virus}",
-                "{sample}.{virus}.macs2.tn5_sites.bin_counts."
+                wc.virus,
+                "{sample}." + wc.virus + ".macs2.tn5_sites.bin_counts."
                 + str(TN5_VIRUS_BIN_SIZE)
                 + "bp.tsv",
             ),
