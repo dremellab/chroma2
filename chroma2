@@ -594,7 +594,7 @@ def main() -> None:
     module_load = ""
     conda_activate = ""
     path_prepend = ""
-    temp_dir = f"/scratch/{getpass.getuser()}/"
+    temp_dir = f"/scratch/{getpass.getuser()}/tmpdir"
     refs_dir = "/project/dremel_lab/workflows/reference_data/fasta_gtf/"
     kraken2_db = "/project/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
 
