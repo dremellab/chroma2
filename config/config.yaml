@@ -108,6 +108,28 @@ ataqv:
   extra_args: ""
   virus_tss_extension: 200
 
+# DESeq2 contrast reporting
+deseq2:
+  enabled: false
+  contrasts_tsv: ""
+  outdir: "results/deseq2"
+  alpha: 0.05
+  lfc_threshold: 1.0
+  min_replicates_per_group: 2
+  min_total_count: 1
+  size_factor_type: "poscounts"
+  fit_type: "parametric"
+  shrink_type: "apeglm"
+  p_adjust_method: "BH"
+  cooks_cutoff: true
+  independent_filtering: true
+  vst_blind: true
+  report_top_n: 50
+  report_label_top_n: 15
+  report_max_table_rows: 50000
+  html_self_contained: true
+  design_factors: ["group"]
+
 # containers
 containers:
   fastp: "docker://staphb/fastp:0.24.1"
@@ -120,3 +142,4 @@ containers:
   genrich: "docker://seqinfomics/genrich:0.6.1"
   deeptools: "docker://seqinfomics/deeptools:3.5.6"
   ataqv: "docker://seqinfomics/ataqv:1.3.1"
+  deseq2_report: "docker://seqinfomics/deseq2:1.48.2"

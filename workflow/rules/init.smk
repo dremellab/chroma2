@@ -518,6 +518,226 @@ TMPDIR = join(WORKDIR, "tmp")
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
+def _resolve_workdir_path(path_value):
+    path_str = str(path_value or "").strip()
+    if path_str == "":
+        return ""
+    if os.path.isabs(path_str):
+        return path_str
+    return join(WORKDIR, path_str)
+
+
+def _slugify_label(value):
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value).strip())
+    slug = re.sub(r"_+", "_", slug).strip("._-")
+    return slug or "group"
+
+
+def _parse_bool_config(section_name, key, default):
+    if key not in section_name:
+        return default
+    value = section_name.get(key)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    raise ValueError(f"deseq2.{key} must be a boolean. Found: {value!r}")
+
+
+def _parse_int_config(section_name, key, default, minimum=None):
+    try:
+        parsed = int(section_name.get(key, default))
+    except (TypeError, ValueError):
+        raise ValueError(f"deseq2.{key} must be an integer. Found: {section_name.get(key)!r}")
+    if minimum is not None and parsed < minimum:
+        raise ValueError(f"deseq2.{key} must be >= {minimum}. Found: {parsed}")
+    return parsed
+
+
+def _parse_float_config(section_name, key, default, minimum=None, maximum=None, inclusive_max=True):
+    try:
+        parsed = float(section_name.get(key, default))
+    except (TypeError, ValueError):
+        raise ValueError(f"deseq2.{key} must be numeric. Found: {section_name.get(key)!r}")
+    if minimum is not None and parsed < minimum:
+        raise ValueError(f"deseq2.{key} must be >= {minimum}. Found: {parsed}")
+    if maximum is not None:
+        if inclusive_max and parsed > maximum:
+            raise ValueError(f"deseq2.{key} must be <= {maximum}. Found: {parsed}")
+        if not inclusive_max and parsed >= maximum:
+            raise ValueError(f"deseq2.{key} must be < {maximum}. Found: {parsed}")
+    return parsed
+
+
+DESEQ2_CONFIG = config.get("deseq2", {}) or {}
+if not isinstance(DESEQ2_CONFIG, dict):
+    raise ValueError("config['deseq2'] must be a mapping if provided.")
+
+DESEQ2_ENABLED = _parse_bool_config(DESEQ2_CONFIG, "enabled", False)
+DESEQ2_CONTRASTS_FILE = _resolve_workdir_path(DESEQ2_CONFIG.get("contrasts_tsv", ""))
+DESEQ2_OUTDIR = _resolve_workdir_path(
+    DESEQ2_CONFIG.get("outdir", join("results", "deseq2"))
+)
+DESEQ2_ALPHA = _parse_float_config(DESEQ2_CONFIG, "alpha", 0.05, minimum=0.0, maximum=1.0)
+if DESEQ2_ALPHA == 0:
+    raise ValueError("deseq2.alpha must be > 0.")
+DESEQ2_LFC_THRESHOLD = _parse_float_config(
+    DESEQ2_CONFIG, "lfc_threshold", 1.0, minimum=0.0
+)
+DESEQ2_MIN_REPLICATES_PER_GROUP = _parse_int_config(
+    DESEQ2_CONFIG, "min_replicates_per_group", 2, minimum=1
+)
+DESEQ2_MIN_TOTAL_COUNT = _parse_int_config(
+    DESEQ2_CONFIG, "min_total_count", 1, minimum=0
+)
+DESEQ2_REPORT_TOP_N = _parse_int_config(
+    DESEQ2_CONFIG, "report_top_n", 50, minimum=1
+)
+DESEQ2_REPORT_LABEL_TOP_N = _parse_int_config(
+    DESEQ2_CONFIG, "report_label_top_n", 15, minimum=0
+)
+DESEQ2_REPORT_MAX_TABLE_ROWS = _parse_int_config(
+    DESEQ2_CONFIG, "report_max_table_rows", 50000, minimum=1
+)
+DESEQ2_SIZE_FACTOR_TYPE = str(
+    DESEQ2_CONFIG.get("size_factor_type", "poscounts")
+).strip()
+if DESEQ2_SIZE_FACTOR_TYPE not in {"ratio", "poscounts", "iterate"}:
+    raise ValueError(
+        "deseq2.size_factor_type must be one of ratio, poscounts, iterate."
+    )
+DESEQ2_FIT_TYPE = str(DESEQ2_CONFIG.get("fit_type", "parametric")).strip()
+if DESEQ2_FIT_TYPE not in {"parametric", "local", "mean", "glmGamPoi"}:
+    raise ValueError(
+        "deseq2.fit_type must be one of parametric, local, mean, glmGamPoi."
+    )
+DESEQ2_SHRINK_TYPE = str(DESEQ2_CONFIG.get("shrink_type", "apeglm")).strip()
+if DESEQ2_SHRINK_TYPE not in {"apeglm", "ashr", "normal"}:
+    raise ValueError("deseq2.shrink_type must be one of apeglm, ashr, normal.")
+DESEQ2_P_ADJUST_METHOD = str(
+    DESEQ2_CONFIG.get("p_adjust_method", "BH")
+).strip()
+if DESEQ2_P_ADJUST_METHOD not in {
+    "holm",
+    "hochberg",
+    "hommel",
+    "bonferroni",
+    "BH",
+    "BY",
+    "fdr",
+    "none",
+}:
+    raise ValueError(
+        "deseq2.p_adjust_method must be one of holm, hochberg, hommel, bonferroni, BH, BY, fdr, none."
+    )
+DESEQ2_COOKS_CUTOFF = _parse_bool_config(
+    DESEQ2_CONFIG, "cooks_cutoff", True
+)
+DESEQ2_INDEPENDENT_FILTERING = _parse_bool_config(
+    DESEQ2_CONFIG, "independent_filtering", True
+)
+DESEQ2_VST_BLIND = _parse_bool_config(DESEQ2_CONFIG, "vst_blind", True)
+DESEQ2_HTML_SELF_CONTAINED = _parse_bool_config(
+    DESEQ2_CONFIG, "html_self_contained", True
+)
+DESEQ2_DESIGN_FACTORS = DESEQ2_CONFIG.get("design_factors", ["group"])
+if isinstance(DESEQ2_DESIGN_FACTORS, str):
+    DESEQ2_DESIGN_FACTORS = [DESEQ2_DESIGN_FACTORS]
+if not isinstance(DESEQ2_DESIGN_FACTORS, list) or not all(
+    isinstance(item, str) for item in DESEQ2_DESIGN_FACTORS
+):
+    raise ValueError("deseq2.design_factors must be a list of strings.")
+DESEQ2_DESIGN_FACTORS = [item.strip() for item in DESEQ2_DESIGN_FACTORS if item.strip()]
+if DESEQ2_ENABLED and DESEQ2_DESIGN_FACTORS != ["group"]:
+    raise ValueError(
+        "Future DESeq2 covariates are not implemented yet. Set deseq2.design_factors to ['group']."
+    )
+
+DESEQ2_HOST_GENE_FLANK_SIZE = int(
+    config.get("tn5_motif", {}).get("host_gene_flank_size", 250)
+)
+DESEQ2_VIRUS_BIN_SIZE = int(config.get("tn5_motif", {}).get("virus_bin_size", 100))
+DESEQ2_CONTRASTS = []
+DESEQ2_CONTRASTS_BY_COMPARISON = {}
+
+if DESEQ2_ENABLED:
+    if DESEQ2_CONTRASTS_FILE == "":
+        raise ValueError(
+            "deseq2.enabled is true, but deseq2.contrasts_tsv is empty."
+        )
+    if not os.path.isfile(DESEQ2_CONTRASTS_FILE) or not os.access(
+        DESEQ2_CONTRASTS_FILE, os.R_OK
+    ):
+        raise FileNotFoundError(
+            f"deseq2.contrasts_tsv is not readable: {DESEQ2_CONTRASTS_FILE}"
+        )
+    deseq2_container = str(
+        config.get("containers", {}).get("deseq2_report", "")
+    ).strip()
+    if deseq2_container == "":
+        raise ValueError(
+            "deseq2.enabled is true, but containers.deseq2_report is not set."
+        )
+
+    try:
+        DESEQ2_CONTRASTS_DF = pd.read_csv(
+            DESEQ2_CONTRASTS_FILE, sep="\t", dtype=str
+        ).fillna("")
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to read deseq2.contrasts_tsv '{DESEQ2_CONTRASTS_FILE}': {exc}"
+        )
+
+    if list(DESEQ2_CONTRASTS_DF.columns) != ["group1", "group2"]:
+        raise ValueError(
+            "deseq2.contrasts_tsv must have exactly two tab-delimited headers: group1 and group2."
+        )
+    if DESEQ2_CONTRASTS_DF.empty:
+        raise ValueError("deseq2.contrasts_tsv does not contain any contrasts.")
+
+    known_groups = set(GROUPNAME2SAMPLENAME.keys())
+    for row_idx, row in enumerate(
+        DESEQ2_CONTRASTS_DF.itertuples(index=False), start=2
+    ):
+        group1 = str(row.group1).strip()
+        group2 = str(row.group2).strip()
+        if group1 == "" or group2 == "":
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} contains an empty group."
+            )
+        if group1 == group2:
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} compares the same group '{group1}' to itself."
+            )
+        if group1 not in known_groups or group2 not in known_groups:
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} references unknown groups: {group1!r}, {group2!r}."
+            )
+        if len(GROUPNAME2SAMPLENAME[group1]) < DESEQ2_MIN_REPLICATES_PER_GROUP:
+            raise ValueError(
+                f"Group '{group1}' has fewer than deseq2.min_replicates_per_group={DESEQ2_MIN_REPLICATES_PER_GROUP} samples."
+            )
+        if len(GROUPNAME2SAMPLENAME[group2]) < DESEQ2_MIN_REPLICATES_PER_GROUP:
+            raise ValueError(
+                f"Group '{group2}' has fewer than deseq2.min_replicates_per_group={DESEQ2_MIN_REPLICATES_PER_GROUP} samples."
+            )
+        comparison = f"{_slugify_label(group1)}_vs_{_slugify_label(group2)}"
+        if comparison in DESEQ2_CONTRASTS_BY_COMPARISON:
+            raise ValueError(
+                f"deseq2.contrasts_tsv produces duplicate comparison slug '{comparison}'."
+            )
+        contrast = {
+            "comparison": comparison,
+            "group1": group1,
+            "group2": group2,
+        }
+        DESEQ2_CONTRASTS.append(contrast)
+        DESEQ2_CONTRASTS_BY_COMPARISON[comparison] = contrast
+
 # Optional: print or return results
 if "workflow" in globals() and getattr(workflow, "dryrun", False):
     print("SAMPLENAME2GROUPNAME:", SAMPLENAME2GROUPNAME)
