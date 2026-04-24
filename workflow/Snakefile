@@ -65,6 +65,7 @@ include: "rules/peakcalling.smk"
 include: "rules/postprocessing.smk"
 include: "rules/bigbed.smk"
 include: "rules/tn5motif.smk"
+include: "rules/deseq2.smk"
 
 HOST_PEAKS = []
 if HOST != "":
@@ -169,6 +170,8 @@ rule all:
         TN5_HOST_BIN_COUNT_OUTPUTS,
         # aggregate Tn5 count matrices across samples
         TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
+        # DESeq2 contrast reports
+        DESEQ2_OUTPUTS,
         # reference TSS + chrom sizes
         HOST_TSS,
         VIRUS_TSS,

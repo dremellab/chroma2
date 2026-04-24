@@ -70,6 +70,7 @@ set-threads:
   bowtie2_index: 8
   extract_tn5_motifs_host: 4
   extract_tn5_motifs_virus: 4
+  deseq2_contrast_report: 2
 
 set-resources:
   fastp:
@@ -157,6 +158,11 @@ set-resources:
     mem_mb: 8192
     threads: 1
     runtime: 60
+
+  deseq2_contrast_report:
+    mem_mb: 32768
+    threads: 2
+    runtime: 240
 
   tss_host_to_bigbed:
     mem_mb: 8192
