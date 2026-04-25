@@ -170,6 +170,10 @@ rule all:
         TN5_HOST_BIN_COUNT_OUTPUTS,
         # aggregate Tn5 count matrices across samples
         TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
+        # tRNA-specific Tn5 gene bins, per-sample counts, and aggregate matrices
+        TN5_TRNA_HOST_GENE_BIN_OUTPUTS,
+        TN5_TRNA_HOST_BIN_COUNT_OUTPUTS,
+        TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
         # DESeq2 contrast reports
         DESEQ2_OUTPUTS,
         # reference TSS + chrom sizes

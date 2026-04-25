@@ -266,6 +266,31 @@ def read_config_template() -> str:
 
         # kraken2 db
         kraken2_db: "KRAKEN2_DB"
+
+        # DESeq2 contrast reporting
+        deseq2:
+          enabled: false
+          contrasts_tsv: ""
+          outdir: "results/deseq2"
+          alpha: 0.05
+          lfc_threshold: 1.0
+          min_replicates_per_group: 2
+          min_total_count: 1
+          size_factor_type: "poscounts"
+          fit_type: "parametric"
+          shrink_type: "apeglm"
+          p_adjust_method: "BH"
+          cooks_cutoff: true
+          independent_filtering: true
+          vst_blind: true
+          report_top_n: 50
+          report_label_top_n: 15
+          report_max_table_rows: 50000
+          html_self_contained: true
+          design_factors: ["group"]
+
+        containers:
+          deseq2_report: "docker://yourdockerhubuser/chroma2-deseq2-report:latest"
         """
         ).strip()
         + "\n"

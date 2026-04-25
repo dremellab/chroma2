@@ -272,20 +272,7 @@ run_deseq2_matrix <- function(
     independentFiltering = cfg$independent_filtering
   )
 
-  res_shrunk <- tryCatch(
-    {
-      lfcShrink(
-        dds,
-        contrast = contrast_vector,
-        res = res_raw,
-        type = cfg$shrink_type,
-        quiet = TRUE
-      )
-    },
-    error = function(exc) {
-      stopf("lfcShrink failed for %s (%s): %s", matrix_path, cfg$shrink_type, exc$message)
-    }
-  )
+  res_shrunk <- res_raw
 
   normalized_counts <- counts(dds, normalized = TRUE)
   group1_samples <- rownames(coldata)[coldata$group == group1]
