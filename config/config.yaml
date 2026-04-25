@@ -97,6 +97,7 @@ tn5_motif:
   flank_size: 10
   virus_bin_size: 100
   host_gene_flank_size: 250
+  trna_gene_flank_size: 100
   mapq_min: 0
   dedup: false
   exclude_secondary: false

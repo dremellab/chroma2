@@ -2,8 +2,7 @@
 """
 Build fixed-width host Tn5 counting bins centered on gene-level TSS positions.
 
-Protein-coding genes are derived from the host GTF. tRNA genes are added from an
-optional dedicated tRNA GTF when provided. One bin is emitted per gene.
+Protein-coding genes are derived from the host GTF. One bin is emitted per gene.
 """
 
 from __future__ import annotations
@@ -15,13 +14,6 @@ from typing import Dict, Iterable, Iterator, Optional
 
 
 PROTEIN_CODING_VALUES = {"protein_coding", "protein-coding"}
-TRNA_VALUES = {
-    "trna",
-    "trna_gene",
-    "trna_gene_segment",
-    "trna_pseudogene",
-    "trna_pseudogene",
-}
 
 
 def open_text(path: str):
@@ -40,11 +32,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host-gtf", required=True, help="Host genome GTF")
     parser.add_argument("--host-regions", required=True, help="Host .fa.regions file")
     parser.add_argument("--chromsizes", required=True, help="Host chromsizes TSV")
-    parser.add_argument(
-        "--trna-gtf",
-        default=None,
-        help="Optional tRNA GTF to merge with protein-coding host bins",
-    )
     parser.add_argument(
         "--flank-size",
         type=int,
@@ -198,12 +185,9 @@ def write_bins(
     chromsizes: Dict[str, int],
     flank_size: int,
     protein_coding: Dict[str, Dict[str, object]],
-    trna_genes: Dict[str, Dict[str, object]],
 ) -> None:
     rows = []
     for gene_id, meta in protein_coding.items():
-        rows.append((gene_id, meta))
-    for gene_id, meta in trna_genes.items():
         rows.append((gene_id, meta))
 
     rows.sort(key=lambda item: (str(item[1]["chrom"]), int(item[1]["tss"]), item[0]))
@@ -246,13 +230,6 @@ def main() -> None:
         host_contigs,
         include_types=PROTEIN_CODING_VALUES,
     )
-    trna_genes: Dict[str, Dict[str, object]] = {}
-    if args.trna_gtf:
-        trna_genes = collect_gene_tss(
-            args.trna_gtf,
-            host_contigs,
-            include_types=TRNA_VALUES,
-        )
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     write_bins(
@@ -260,7 +237,6 @@ def main() -> None:
         chromsizes,
         args.flank_size,
         protein_coding,
-        trna_genes,
     )
 
 
