@@ -5,6 +5,7 @@
 TN5_WINDOW_SIZE = 2 * int(config.get("tn5_motif", {}).get("flank_size", 10)) + 1
 TN5_VIRUS_BIN_SIZE = int(config.get("tn5_motif", {}).get("virus_bin_size", 100))
 TN5_HOST_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("host_gene_flank_size", 250))
+TN5_TRNA_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_flank_size", 100))
 TN5_MAPQ_MIN = int(config.get("tn5_motif", {}).get("mapq_min", 0))
 TN5_EXCLUDE_SECONDARY = bool(config.get("tn5_motif", {}).get("exclude_secondary", False))
 TN5_EXCLUDE_SUPPLEMENTARY = bool(
@@ -21,7 +22,7 @@ def _tn5_prefix(sample, group, caller):
 
 def _tn5_exact_bed(sample, caller, group):
     prefix = _tn5_prefix(sample, group, caller)
-    return join(RESULTSDIR, sample, "tn5_motif", caller, group, f"{prefix}.tn5_sites.1bp.bed")
+    return join(RESULTSDIR, sample, "tn5_motif", caller, group, f"{prefix}.tn5_sites.1bp.bed.gz")
 
 
 def _tn5_flank_bed(sample, caller, group):
@@ -101,12 +102,6 @@ for caller in TN5_CALLERS:
             expand(_tn5_exact_bed("{sample}", caller, "host"), sample=SAMPLES)
         )
         TN5_MOTIF_OUTPUTS.extend(
-            expand(_tn5_flank_bed("{sample}", caller, "host"), sample=SAMPLES)
-        )
-        TN5_MOTIF_OUTPUTS.extend(
-            expand(_tn5_fasta("{sample}", caller, "host"), sample=SAMPLES)
-        )
-        TN5_MOTIF_OUTPUTS.extend(
             expand(_tn5_pfm("{sample}", caller, "host"), sample=SAMPLES)
         )
         TN5_MOTIF_OUTPUTS.extend(
@@ -115,12 +110,6 @@ for caller in TN5_CALLERS:
     if len(VIRUS_LIST) > 0:
         TN5_MOTIF_OUTPUTS.extend(
             expand(_tn5_exact_bed("{sample}", caller, "{virus}"), sample=SAMPLES, virus=VIRUS_LIST)
-        )
-        TN5_MOTIF_OUTPUTS.extend(
-            expand(_tn5_flank_bed("{sample}", caller, "{virus}"), sample=SAMPLES, virus=VIRUS_LIST)
-        )
-        TN5_MOTIF_OUTPUTS.extend(
-            expand(_tn5_fasta("{sample}", caller, "{virus}"), sample=SAMPLES, virus=VIRUS_LIST)
         )
         TN5_MOTIF_OUTPUTS.extend(
             expand(_tn5_pfm("{sample}", caller, "{virus}"), sample=SAMPLES, virus=VIRUS_LIST)
@@ -200,12 +189,45 @@ for caller in TN5_CALLERS:
         )
 
 
+TN5_TRNA_HOST_GENE_BIN_OUTPUTS = []
+TN5_TRNA_HOST_BIN_COUNT_OUTPUTS = []
+TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS = []
+if HOST != "" and TRNAS_GTF != "":
+    TN5_TRNA_HOST_GENE_BIN_OUTPUTS.append(
+        join(REF_DIR, f"ref.tn5.host_trna_gene_bins.{TN5_TRNA_GENE_FLANK_SIZE}bp.bed")
+    )
+    for caller in TN5_CALLERS:
+        TN5_TRNA_HOST_BIN_COUNT_OUTPUTS.extend(
+            expand(
+                join(
+                    RESULTSDIR,
+                    "{sample}",
+                    "tn5_motif",
+                    caller,
+                    "host",
+                    "{sample}.host."
+                    + caller
+                    + ".tn5_trna_gene_counts."
+                    + str(TN5_TRNA_GENE_FLANK_SIZE)
+                    + "bp.tsv",
+                ),
+                sample=SAMPLES,
+            )
+        )
+        TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS.append(
+            join(
+                RESULTSDIR,
+                "tn5_motif",
+                f"host.{caller}.tn5_trna_gene_count_matrix.{TN5_TRNA_GENE_FLANK_SIZE}bp.tsv",
+            )
+        )
+
+
 rule build_host_tn5_gene_bins:
     input:
         host_gtf=join(FASTAS_GTFS_DIR, HOST + ".gtf"),
         host_regions=REF_REGIONS_HOST,
         chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
-        trna_gtf=([TRNAS_GTF] if HOST != "" and TRNAS_GTF != "" else []),
     output:
         bed=join(
             REF_DIR,
@@ -213,9 +235,6 @@ rule build_host_tn5_gene_bins:
         ),
     params:
         flank_size=str(config.get("tn5_motif", {}).get("host_gene_flank_size", 250)),
-        trna_gtf_arg=lambda wc, input: (
-            f"--trna-gtf {input.trna_gtf[0]}" if input.trna_gtf else ""
-        ),
     threads:
         _get_threads("build_host_tn5_gene_bins", profile_config)
     container:
@@ -231,10 +250,219 @@ rule build_host_tn5_gene_bins:
           --host-gtf {input.host_gtf} \
           --host-regions {input.host_regions} \
           --chromsizes {input.chromsizes} \
-          {params.trna_gtf_arg} \
           --flank-size {params.flank_size} \
           --output {output.bed}
         """
+
+
+if HOST != "" and TRNAS_GTF != "":
+
+    rule build_host_tn5_trna_gene_bins:
+        input:
+            trna_gtf=TRNAS_GTF,
+            host_regions=REF_REGIONS_HOST,
+            chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
+        output:
+            bed=join(
+                REF_DIR,
+                "ref.tn5.host_trna_gene_bins." + str(TN5_TRNA_GENE_FLANK_SIZE) + "bp.bed",
+            ),
+        params:
+            flank_size=str(TN5_TRNA_GENE_FLANK_SIZE),
+        threads:
+            _get_threads("build_host_tn5_trna_gene_bins", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("build_host_tn5_trna_gene_bins"), "host.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_host_trna_gene_bins.py \
+              --trna-gtf {input.trna_gtf} \
+              --host-regions {input.host_regions} \
+              --chromsizes {input.chromsizes} \
+              --flank-size {params.flank_size} \
+              --output {output.bed}
+            """
+
+    rule count_tn5_host_genrich_trna_bins:
+        input:
+            bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.host.qname.bam"),
+            bins=join(
+                REF_DIR,
+                "ref.tn5.host_trna_gene_bins." + str(TN5_TRNA_GENE_FLANK_SIZE) + "bp.bed",
+            ),
+        output:
+            tsv=join(
+                RESULTSDIR,
+                "{sample}",
+                "tn5_motif",
+                "genrich",
+                "host",
+                "{sample}.host.genrich.tn5_trna_gene_counts."
+                + str(TN5_TRNA_GENE_FLANK_SIZE)
+                + "bp.tsv",
+            ),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_tn5_host_genrich_trna_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_tn5_host_genrich_trna_bins"), "{sample}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+    rule count_tn5_host_macs2_trna_bins:
+        input:
+            bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"),
+            bins=join(
+                REF_DIR,
+                "ref.tn5.host_trna_gene_bins." + str(TN5_TRNA_GENE_FLANK_SIZE) + "bp.bed",
+            ),
+        output:
+            tsv=join(
+                RESULTSDIR,
+                "{sample}",
+                "tn5_motif",
+                "macs2",
+                "host",
+                "{sample}.host.macs2.tn5_trna_gene_counts."
+                + str(TN5_TRNA_GENE_FLANK_SIZE)
+                + "bp.tsv",
+            ),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_tn5_host_macs2_trna_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_tn5_host_macs2_trna_bins"), "{sample}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+    rule build_tn5_host_genrich_trna_count_matrix:
+        input:
+            counts=expand(
+                join(
+                    RESULTSDIR,
+                    "{sample}",
+                    "tn5_motif",
+                    "genrich",
+                    "host",
+                    "{sample}.host.genrich.tn5_trna_gene_counts."
+                    + str(TN5_TRNA_GENE_FLANK_SIZE)
+                    + "bp.tsv",
+                ),
+                sample=SAMPLES,
+            ),
+        output:
+            tsv=join(
+                RESULTSDIR,
+                "tn5_motif",
+                "host.genrich.tn5_trna_gene_count_matrix."
+                + str(TN5_TRNA_GENE_FLANK_SIZE)
+                + "bp.tsv",
+            ),
+        threads:
+            _get_threads("build_tn5_host_genrich_trna_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("build_tn5_host_genrich_trna_count_matrix"), "host.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            mkdir -p $(dirname {output.tsv})
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --counts {input.counts} \
+              --output {output.tsv}
+            """
+
+    rule build_tn5_host_macs2_trna_count_matrix:
+        input:
+            counts=expand(
+                join(
+                    RESULTSDIR,
+                    "{sample}",
+                    "tn5_motif",
+                    "macs2",
+                    "host",
+                    "{sample}.host.macs2.tn5_trna_gene_counts."
+                    + str(TN5_TRNA_GENE_FLANK_SIZE)
+                    + "bp.tsv",
+                ),
+                sample=SAMPLES,
+            ),
+        output:
+            tsv=join(
+                RESULTSDIR,
+                "tn5_motif",
+                "host.macs2.tn5_trna_gene_count_matrix."
+                + str(TN5_TRNA_GENE_FLANK_SIZE)
+                + "bp.tsv",
+            ),
+        threads:
+            _get_threads("build_tn5_host_macs2_trna_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("build_tn5_host_macs2_trna_count_matrix"), "host.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            mkdir -p $(dirname {output.tsv})
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --counts {input.counts} \
+              --output {output.tsv}
+            """
 
 
 rule extract_tn5_motifs_host:
@@ -244,8 +472,8 @@ rule extract_tn5_motifs_host:
         host_regions=REF_REGIONS_HOST,
     output:
         exact_bed=_tn5_exact_bed("{sample}", "{caller}", "host"),
-        flank_bed=_tn5_flank_bed("{sample}", "{caller}", "host"),
-        fasta=_tn5_fasta("{sample}", "{caller}", "host"),
+        flank_bed=temp(_tn5_flank_bed("{sample}", "{caller}", "host")),
+        fasta=temp(_tn5_fasta("{sample}", "{caller}", "host")),
         pfm=_tn5_pfm("{sample}", "{caller}", "host"),
         logo=_tn5_logo("{sample}", "{caller}", "host"),
     params:
@@ -262,6 +490,7 @@ rule extract_tn5_motifs_host:
             if flag
         ),
         logo_format=TN5_LOGO_FORMAT,
+        exact_bed_uncompressed=lambda wc, output: output.exact_bed[:-3],
     wildcard_constraints:
         caller="genrich|macs2",
     threads:
@@ -288,6 +517,7 @@ rule extract_tn5_motifs_host:
           --threads {threads} \
           --mapq-min {params.mapq_min} {params.extra_args} \
           --logo-format {params.logo_format}
+        bgzip -f {params.exact_bed_uncompressed}
         """
 
 
@@ -298,8 +528,8 @@ rule extract_tn5_motifs_virus:
         virus_regions=join(FASTAS_GTFS_DIR, "{virus}.fa.regions"),
     output:
         exact_bed=_tn5_exact_bed("{sample}", "{caller}", "{virus}"),
-        flank_bed=_tn5_flank_bed("{sample}", "{caller}", "{virus}"),
-        fasta=_tn5_fasta("{sample}", "{caller}", "{virus}"),
+        flank_bed=temp(_tn5_flank_bed("{sample}", "{caller}", "{virus}")),
+        fasta=temp(_tn5_fasta("{sample}", "{caller}", "{virus}")),
         pfm=_tn5_pfm("{sample}", "{caller}", "{virus}"),
         logo=_tn5_logo("{sample}", "{caller}", "{virus}"),
     params:
@@ -317,6 +547,7 @@ rule extract_tn5_motifs_virus:
             if flag
         ),
         logo_format=TN5_LOGO_FORMAT,
+        exact_bed_uncompressed=lambda wc, output: output.exact_bed[:-3],
     wildcard_constraints:
         caller="genrich|macs2",
     threads:
@@ -343,6 +574,7 @@ rule extract_tn5_motifs_virus:
           --threads {threads} \
           --mapq-min {params.mapq_min} {params.extra_args} \
           --logo-format {params.logo_format}
+        bgzip -f {params.exact_bed_uncompressed}
         """
 
 
