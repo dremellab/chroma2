@@ -18,6 +18,16 @@ DESEQ2_VIRUS_MATRICES = {
     )
     for virus in VIRUS_LIST
 }
+DESEQ2_TRNA_MATRIX = (
+    join(
+        RESULTSDIR,
+        "tn5_motif",
+        f"host.genrich.tn5_trna_gene_count_matrix.{DESEQ2_TRNA_GENE_FLANK_SIZE}bp.tsv",
+    )
+    if HOST != "" and TRNAS_GTF != ""
+    else ""
+)
+DESEQ2_TRNA_LABEL = f"host.trna.genrich.{DESEQ2_TRNA_GENE_FLANK_SIZE}bp"
 
 
 def _deseq2_host_tsv(comparison):
@@ -33,6 +43,14 @@ def _deseq2_virus_tsv(comparison, virus):
         DESEQ2_OUTDIR,
         comparison,
         f"{comparison}.{virus}.genrich.{DESEQ2_VIRUS_BIN_SIZE}bp.deseq2.tsv",
+    )
+
+
+def _deseq2_trna_tsv(comparison):
+    return join(
+        DESEQ2_OUTDIR,
+        comparison,
+        f"{comparison}.{DESEQ2_TRNA_LABEL}.deseq2.tsv",
     )
 
 
@@ -58,13 +76,16 @@ def _deseq2_host_args(wildcards):
 
 
 def _deseq2_joined_virus_paths(wildcards=None):
-    if len(VIRUS_LIST) == 0:
-        return ""
     if wildcards is None:
-        return ";;;".join(DESEQ2_VIRUS_MATRICES[virus] for virus in VIRUS_LIST)
-    return ";;;".join(
-        _deseq2_virus_tsv(wildcards.comparison, virus) for virus in VIRUS_LIST
-    )
+        entries = list(DESEQ2_VIRUS_MATRICES[virus] for virus in VIRUS_LIST)
+        if DESEQ2_TRNA_MATRIX != "":
+            entries.append(DESEQ2_TRNA_MATRIX)
+        return ";;;".join(entries) if entries else ""
+    else:
+        entries = list(_deseq2_virus_tsv(wildcards.comparison, virus) for virus in VIRUS_LIST)
+        if DESEQ2_TRNA_MATRIX != "":
+            entries.append(_deseq2_trna_tsv(wildcards.comparison))
+        return ";;;".join(entries) if entries else ""
 
 
 DESEQ2_OUTPUTS = []
@@ -73,6 +94,8 @@ if DESEQ2_ENABLED:
         comparison = contrast["comparison"]
         if HOST != "":
             DESEQ2_OUTPUTS.append(_deseq2_host_tsv(comparison))
+        if DESEQ2_TRNA_MATRIX != "":
+            DESEQ2_OUTPUTS.append(_deseq2_trna_tsv(comparison))
         for virus in VIRUS_LIST:
             DESEQ2_OUTPUTS.append(_deseq2_virus_tsv(comparison, virus))
         DESEQ2_OUTPUTS.append(_deseq2_report_html(comparison))
@@ -87,12 +110,20 @@ if DESEQ2_ENABLED:
             script=join(SCRIPTS_DIR, "run_deseq2_contrast_report.R"),
             report_template=join(SCRIPTS_DIR, "deseq2_contrast_report.Rmd"),
             host_matrix=([DESEQ2_HOST_MATRIX] if HOST != "" else []),
-            virus_matrices=[DESEQ2_VIRUS_MATRICES[virus] for virus in VIRUS_LIST],
+            virus_matrices=(
+                [DESEQ2_VIRUS_MATRICES[virus] for virus in VIRUS_LIST]
+                + ([DESEQ2_TRNA_MATRIX] if DESEQ2_TRNA_MATRIX != "" else [])
+            ),
         output:
             report=_deseq2_report_html("{comparison}"),
             host_tsv=(
                 _deseq2_host_tsv("{comparison}")
                 if HOST != ""
+                else []
+            ),
+            trna_tsv=(
+                _deseq2_trna_tsv("{comparison}")
+                if DESEQ2_TRNA_MATRIX != ""
                 else []
             ),
             virus_tsv=[
@@ -105,7 +136,11 @@ if DESEQ2_ENABLED:
             comparison=lambda wc: shlex.quote(wc.comparison),
             outdir=lambda wc: shlex.quote(_deseq2_output_dir(wc.comparison)),
             host_args=_deseq2_host_args,
-            virus_labels=shlex.quote(";;;".join(VIRUS_LIST)),
+            virus_labels=shlex.quote(
+                ";;;".join(
+                    list(VIRUS_LIST) + ([DESEQ2_TRNA_LABEL] if DESEQ2_TRNA_MATRIX != "" else [])
+                )
+            ),
             virus_matrices=shlex.quote(_deseq2_joined_virus_paths()),
             virus_outputs=lambda wc: shlex.quote(_deseq2_joined_virus_paths(wc)),
         threads:

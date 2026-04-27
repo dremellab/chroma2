@@ -661,6 +661,7 @@ DESEQ2_HOST_GENE_FLANK_SIZE = int(
     config.get("tn5_motif", {}).get("host_gene_flank_size", 250)
 )
 DESEQ2_VIRUS_BIN_SIZE = int(config.get("tn5_motif", {}).get("virus_bin_size", 100))
+DESEQ2_TRNA_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_flank_size", 100))
 DESEQ2_CONTRASTS = []
 DESEQ2_CONTRASTS_BY_COMPARISON = {}
 
