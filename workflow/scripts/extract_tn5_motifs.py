@@ -12,6 +12,7 @@ Outputs are written under:
 from __future__ import annotations
 
 import argparse
+import gzip
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, TextIO
@@ -61,6 +62,7 @@ class GroupWriter:
         flank_size: int,
         dedup: bool,
         logo_format: str,
+        skip_flank_output: bool = False,
     ) -> None:
         self.outdir = outdir / group
         self.outdir.mkdir(parents=True, exist_ok=True)
@@ -72,12 +74,20 @@ class GroupWriter:
         )
         self.flank_bed_path = self.outdir / f"{prefix}.bed"
         self.fasta_path = self.outdir / f"{prefix}.fa"
-        self.pfm_path = self.outdir / f"{prefix}.pfm.tsv"
+        self.pfm_path = self.outdir / f"{prefix}.pfm.tsv.gz"
         self.logo_path = self.outdir / f"{prefix}.logo.{logo_format}"
 
         self.exact_bed_fh = self.exact_bed_path.open("w", encoding="utf-8")
-        self.flank_bed_fh = self.flank_bed_path.open("w", encoding="utf-8")
-        self.fasta_fh = self.fasta_path.open("w", encoding="utf-8")
+        self.flank_bed_fh = (
+            self.flank_bed_path.open("w", encoding="utf-8")
+            if not skip_flank_output
+            else None
+        )
+        self.fasta_fh = (
+            self.fasta_path.open("w", encoding="utf-8")
+            if not skip_flank_output
+            else None
+        )
 
         self.flank_size = flank_size
         self.exact_bed_count = 0
@@ -88,8 +98,10 @@ class GroupWriter:
 
     def close(self) -> None:
         self.exact_bed_fh.close()
-        self.flank_bed_fh.close()
-        self.fasta_fh.close()
+        if self.flank_bed_fh is not None:
+            self.flank_bed_fh.close()
+        if self.fasta_fh is not None:
+            self.fasta_fh.close()
 
 
 def parse_args() -> argparse.Namespace:
@@ -176,6 +188,16 @@ def parse_args() -> argparse.Namespace:
         choices=("png", "pdf", "svg"),
         default="png",
         help="Output format for sequence logo image (default: png)",
+    )
+    parser.add_argument(
+        "--skip-logo",
+        action="store_true",
+        help="Skip sequence logo generation",
+    )
+    parser.add_argument(
+        "--skip-flank-output",
+        action="store_true",
+        help="Skip writing flank BED/FASTA outputs (PFM still computed in-memory)",
     )
     return parser.parse_args()
 
@@ -388,8 +410,9 @@ def update_writer(writer: GroupWriter, fasta: pysam.FastaFile, site: CutSite) ->
 
     write_exact_bed(writer.exact_bed_fh, site)
     writer.exact_bed_count += 1
-    write_flank_bed(writer.flank_bed_fh, site, writer.flank_size)
-    writer.flank_bed_count += 1
+    if writer.flank_bed_fh is not None:
+        write_flank_bed(writer.flank_bed_fh, site, writer.flank_size)
+        writer.flank_bed_count += 1
 
     seq = fetch_window_sequence(
         fasta=fasta,
@@ -401,15 +424,16 @@ def update_writer(writer: GroupWriter, fasta: pysam.FastaFile, site: CutSite) ->
     if seq is None or any(base not in BASES for base in seq):
         return
 
-    header = f"{site.name}|{site.chrom}:{site.start + 1}-{site.end}|{site.strand}"
-    writer.fasta_fh.write(f">{header}\n{seq}\n")
-    writer.fasta_count += 1
+    if writer.fasta_fh is not None:
+        header = f"{site.name}|{site.chrom}:{site.start + 1}-{site.end}|{site.strand}"
+        writer.fasta_fh.write(f">{header}\n{seq}\n")
+        writer.fasta_count += 1
     for i, base in enumerate(seq):
         writer.pfm[i][base] += 1
 
 
 def write_pfm(path: Path, pfm: List[Dict[str, int]]) -> None:
-    with path.open("w", encoding="utf-8") as out:
+    with gzip.open(path, "wt", encoding="utf-8") as out:
         out.write("position\tA\tC\tG\tT\n")
         for i, counts in enumerate(pfm, start=1):
             out.write(
@@ -562,6 +586,7 @@ def main() -> None:
                         flank_size=args.flank_size,
                         dedup=args.dedup,
                         logo_format=args.logo_format,
+                        skip_flank_output=args.skip_flank_output,
                     )
                 update_writer(writers[group], fasta, site)
 
@@ -579,11 +604,14 @@ def main() -> None:
     for group, writer in sorted(writers.items()):
         writer.close()
         write_pfm(writer.pfm_path, writer.pfm)
-        logo_written = write_logo(
-            writer.logo_path,
-            writer.pfm,
-            title=f"{args.sample} {group} Tn5 motif ({args.scenario_name})",
-        )
+        if not args.skip_logo:
+            logo_written = write_logo(
+                writer.logo_path,
+                writer.pfm,
+                title=f"{args.sample} {group} Tn5 motif ({args.scenario_name})",
+            )
+        else:
+            logo_written = False
         print(
             f"[{args.scenario_name}][{group}] exact_bed_sites={writer.exact_bed_count} "
             f"flank_bed_sites={writer.flank_bed_count} fasta_seqs={writer.fasta_count} "

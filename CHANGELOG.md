@@ -1,5 +1,15 @@
 ## dev version
 
+- fix(tn5-motif): add `generate_logo` config toggle to optionally disable Tn5 logo generation (closes #18)
+- add `generate_logo: false` config key under `tn5_motif` block; logos now only generated when explicitly enabled (default false to reduce output size)
+- feat(compression): compress PFM outputs to .pfm.tsv.gz reducing file sizes by 60-70% (closes #20)
+- updated `extract_tn5_motifs.py` to gzip-compress PFM files at write time
+- updated `_tn5_pfm()` helper in `tn5motif.smk` to declare outputs as `.pfm.tsv.gz`
+- feat(compression): compress peak call outputs reducing file sizes by 40-50% (closes #19)
+- MACS2 and Genrich peak outputs (.narrowPeak, .summits.bed) now compressed with gzip
+- MACS2/Genrich .xls files marked as temp() (not retained in final output)
+- updated 4 bigbed conversion rules to decompress peak inputs via zcat pipe before processing
+- updated ataqv rule to accept compressed peak input via bash process substitution <(zcat {input.peaks})
 - feat(deseq2): add DESeq2 contrast reporting module
 - add `deseq2_contrast_report` rule driven by a user-supplied contrasts TSV; generates per-comparison HTML reports and differential accessibility TSVs for host gene bins and per-virus bins
 - add full config schema (`deseq2` block) with validated parameters and init-time contrast validation

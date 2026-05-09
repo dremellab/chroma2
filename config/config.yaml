@@ -103,6 +103,7 @@ tn5_motif:
   exclude_secondary: false
   exclude_supplementary: false
   logo_format: "png"
+  generate_logo: false
 
 # ataqv parameters
 ataqv:

@@ -62,7 +62,7 @@ rule ataqv_host:
     input:
         bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"),
         bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam.bai"),
-        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"),
+        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"),
         tss=join(REF_DIR, "ref.tss.host.bed"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     output:
@@ -101,7 +101,7 @@ rule ataqv_host:
         echo "[ataqv_host] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
         cd {params.outdir}
         echo "[ataqv_host] running ataqv"
-        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
+        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file <(zcat {input.peaks}) \
           --autosomal-reference-file {input.chromsizes} \
           --mitochondrial-reference-name none \
           --name {wildcards.sample} \

@@ -104,7 +104,7 @@ rule tss_virus_to_bigbed:
 
 rule macs2_summits_host_to_bigbed:
     input:
-        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"),
+        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     output:
         bb=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bb"),
@@ -123,20 +123,20 @@ rule macs2_summits_host_to_bigbed:
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         sorted_bed={params.tmpdir}/{wildcards.sample}.host.macs2_summits.sorted.bed
-        if [ ! -s {input.bed} ]; then
+        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' \
+          | sort -k1,1 -k2,2n \
+          > $sorted_bed
+        if [ ! -s $sorted_bed ]; then
             touch {output.bb}
             exit 0
         fi
-        awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' {input.bed} \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
         bedToBigBed -type=bed5 $sorted_bed {input.chromsizes} {output.bb}
         """
 
 
 rule macs2_summits_virus_to_bigbed:
     input:
-        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
+        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed.gz"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
     output:
         bb=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bb"),
@@ -155,20 +155,20 @@ rule macs2_summits_virus_to_bigbed:
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         sorted_bed={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.macs2_summits.sorted.bed
-        if [ ! -s {input.bed} ]; then
+        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' \
+          | sort -k1,1 -k2,2n \
+          > $sorted_bed
+        if [ ! -s $sorted_bed ]; then
             touch {output.bb}
             exit 0
         fi
-        awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' {input.bed} \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
         bedToBigBed -type=bed5 $sorted_bed {input.chromsizes} {output.bb}
         """
 
 
 rule narrowpeak_host_to_bigbed:
     input:
-        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.{caller}.narrowPeak"),
+        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.{caller}.narrowPeak.gz"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
         autosql=BIG_NARROWPEAK_AS,
     output:
@@ -190,20 +190,20 @@ rule narrowpeak_host_to_bigbed:
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         sorted_bed={params.tmpdir}/{wildcards.sample}.host.{wildcards.caller}.sorted.narrowPeak
-        if [ ! -s {input.bed} ]; then
+        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' \
+          | sort -k1,1 -k2,2n \
+          > $sorted_bed
+        if [ ! -s $sorted_bed ]; then
             touch {output.bb}
             exit 0
         fi
-        awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' {input.bed} \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
         bedToBigBed -tab -as={input.autosql} -type=bed6+4 $sorted_bed {input.chromsizes} {output.bb}
         """
 
 
 rule narrowpeak_virus_to_bigbed:
     input:
-        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.{caller}.narrowPeak"),
+        bed=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.{caller}.narrowPeak.gz"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.{virus}.txt"),
         autosql=BIG_NARROWPEAK_AS,
     output:
@@ -225,12 +225,12 @@ rule narrowpeak_virus_to_bigbed:
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.tmpdir}
         sorted_bed={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.{wildcards.caller}.sorted.narrowPeak
-        if [ ! -s {input.bed} ]; then
+        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' \
+          | sort -k1,1 -k2,2n \
+          > $sorted_bed
+        if [ ! -s $sorted_bed ]; then
             touch {output.bb}
             exit 0
         fi
-        awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' {input.bed} \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
         bedToBigBed -tab -as={input.autosql} -type=bed6+4 $sorted_bed {input.chromsizes} {output.bb}
         """

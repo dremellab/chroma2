@@ -8,9 +8,9 @@ rule macs2_atac_callpeak_host:
         bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam.bai"),
         control=lambda wc: _opt_input(get_host_control_filtered_bam(wc)),
     output:
-        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"),
-        summits=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"),
-        xls=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"),
+        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"),
+        summits=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"),
+        xls=temp(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls")),
     params:
         outdir=join(RESULTSDIR, "{sample}", "peaks"),
         name="{sample}.host.macs2",
@@ -40,6 +40,7 @@ rule macs2_atac_callpeak_host:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         if [ "{params.peorse}" == "PE" ]; then
             fmt="BAMPE"
@@ -57,8 +58,9 @@ rule macs2_atac_callpeak_host:
           --nomodel \
           --shift {params.shift} \
           --extsize {params.extsize} \
-          -q {params.qvalue} {params.extra_args} \
-          2>&1 | tee -a {log}
+          -q {params.qvalue} {params.extra_args}
+        gzip -f {params.outdir}/{params.name}_peaks.narrowPeak
+        gzip -f {params.outdir}/{params.name}_summits.bed
         """
 
 
@@ -69,9 +71,9 @@ rule macs2_atac_callpeak_virus:
         fasta=join(FASTAS_GTFS_DIR, "{virus}.fa"),
         control=lambda wc: _opt_input(get_virus_control_filtered_bam(wc)),
     output:
-        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
-        summits=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
-        xls=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls"),
+        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak.gz"),
+        summits=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed.gz"),
+        xls=temp(join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls")),
     params:
         outdir=join(RESULTSDIR, "{sample}", "peaks"),
         name="{sample}.virus.{virus}.macs2",
@@ -96,6 +98,7 @@ rule macs2_atac_callpeak_virus:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         if [ "{params.peorse}" == "PE" ]; then
             fmt="BAMPE"
@@ -114,8 +117,9 @@ rule macs2_atac_callpeak_virus:
           --nomodel \
           --shift {params.shift} \
           --extsize {params.extsize} \
-          -q {params.qvalue} {params.extra_args} \
-          2>&1 | tee -a {log}
+          -q {params.qvalue} {params.extra_args}
+        gzip -f {params.outdir}/{params.name}_peaks.narrowPeak
+        gzip -f {params.outdir}/{params.name}_summits.bed
         """
 
 
@@ -128,10 +132,11 @@ rule genrich_atac_callpeak_host:
         bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.host.qname.bam"),
         control=lambda wc: _opt_input(get_host_control_qname_bam(wc)),
     output:
-        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"),
+        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak.gz"),
     params:
         outdir=join(RESULTSDIR, "{sample}", "peaks"),
         peorse=get_peorse,
+        narrowpeak_uncompressed=lambda wc, output: output.narrowpeak[:-3],
         control_arg=lambda wc, input: (
             f"-c {input.control}"
             if config.get("peakcalling", {}).get("use_host_input", False) and input.control
@@ -181,7 +186,7 @@ rule genrich_atac_callpeak_host:
         fi
         Genrich \
           -t {input.bam} {params.control_arg} \
-          -o {output.narrowpeak} \
+          -o {params.narrowpeak_uncompressed} \
           $junc_flag \
           $rm_flag \
           -m {params.mval} \
@@ -192,6 +197,7 @@ rule genrich_atac_callpeak_host:
           $bl_arg \
           -q {params.qvalue} {params.extra_args} \
           2>&1 | tee -a {log}
+        gzip -f {params.narrowpeak_uncompressed}
         """
 
 
@@ -200,10 +206,11 @@ rule genrich_atac_callpeak_virus:
         bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.virus.{virus}.qname.bam"),
         control=lambda wc: _opt_input(get_virus_control_qname_bam(wc)),
     output:
-        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak"),
+        narrowpeak=join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak.gz"),
     params:
         outdir=join(RESULTSDIR, "{sample}", "peaks"),
         peorse=get_peorse,
+        narrowpeak_uncompressed=lambda wc, output: output.narrowpeak[:-3],
         control_arg=lambda wc, input: (
             f"-c {input.control}"
             if config.get("peakcalling", {}).get("use_virus_input", True) and input.control
@@ -253,7 +260,7 @@ rule genrich_atac_callpeak_virus:
         fi
         Genrich \
           -t {input.bam} {params.control_arg} \
-          -o {output.narrowpeak} \
+          -o {params.narrowpeak_uncompressed} \
           $junc_flag \
           $rm_flag \
           -m {params.mval} \
@@ -264,4 +271,5 @@ rule genrich_atac_callpeak_virus:
           $bl_arg \
           -q {params.qvalue} {params.extra_args} \
           2>&1 | tee -a {log}
+        gzip -f {params.narrowpeak_uncompressed}
         """
