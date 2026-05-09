@@ -70,44 +70,34 @@ include: "rules/deseq2.smk"
 HOST_PEAKS = []
 if HOST != "":
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"), sample=CASE_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"), sample=CASE_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"), sample=CASE_SAMPLES)
-    )
-    HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak.gz"), sample=CASE_SAMPLES)
     )
 
 VIRUS_PEAKS = []
 if len(VIRUS_LIST) > 0:
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak.gz"),
             sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed.gz"),
             sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls"),
-            sample=CASE_SAMPLES,
-            virus=VIRUS_LIST,
-        )
-    )
-    VIRUS_PEAKS.extend(
-        expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak"),
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak.gz"),
             sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         )
