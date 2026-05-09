@@ -54,6 +54,30 @@ def _deseq2_trna_tsv(comparison):
     )
 
 
+def _deseq2_host_volcano_png(comparison):
+    return join(
+        DESEQ2_OUTDIR,
+        comparison,
+        f"{comparison}.host.genrich.{DESEQ2_HOST_GENE_FLANK_SIZE}bp.volcano.png",
+    )
+
+
+def _deseq2_virus_volcano_png(comparison, virus):
+    return join(
+        DESEQ2_OUTDIR,
+        comparison,
+        f"{comparison}.{virus}.genrich.{DESEQ2_VIRUS_BIN_SIZE}bp.volcano.png",
+    )
+
+
+def _deseq2_trna_volcano_png(comparison):
+    return join(
+        DESEQ2_OUTDIR,
+        comparison,
+        f"{comparison}.{DESEQ2_TRNA_LABEL}.volcano.png",
+    )
+
+
 def _deseq2_report_html(comparison):
     return join(DESEQ2_OUTDIR, comparison, f"{comparison}.report.html")
 
@@ -75,6 +99,21 @@ def _deseq2_host_args(wildcards):
     )
 
 
+def _deseq2_host_volcano_args(wildcards):
+    if HOST == "":
+        return ""
+    return f"--host-volcano {shlex.quote(_deseq2_host_volcano_png(wildcards.comparison))}"
+
+
+def _deseq2_joined_volcano_paths(wildcards=None):
+    if wildcards is None:
+        return ""
+    entries = [_deseq2_virus_volcano_png(wildcards.comparison, v) for v in VIRUS_LIST]
+    if DESEQ2_TRNA_MATRIX != "":
+        entries.append(_deseq2_trna_volcano_png(wildcards.comparison))
+    return ";;;".join(entries) if entries else ""
+
+
 def _deseq2_joined_virus_paths(wildcards=None):
     if wildcards is None:
         entries = list(DESEQ2_VIRUS_MATRICES[virus] for virus in VIRUS_LIST)
@@ -94,10 +133,13 @@ if DESEQ2_ENABLED:
         comparison = contrast["comparison"]
         if HOST != "":
             DESEQ2_OUTPUTS.append(_deseq2_host_tsv(comparison))
+            DESEQ2_OUTPUTS.append(_deseq2_host_volcano_png(comparison))
         if DESEQ2_TRNA_MATRIX != "":
             DESEQ2_OUTPUTS.append(_deseq2_trna_tsv(comparison))
+            DESEQ2_OUTPUTS.append(_deseq2_trna_volcano_png(comparison))
         for virus in VIRUS_LIST:
             DESEQ2_OUTPUTS.append(_deseq2_virus_tsv(comparison, virus))
+            DESEQ2_OUTPUTS.append(_deseq2_virus_volcano_png(comparison, virus))
         DESEQ2_OUTPUTS.append(_deseq2_report_html(comparison))
 
 
@@ -121,13 +163,27 @@ if DESEQ2_ENABLED:
                 if HOST != ""
                 else []
             ),
+            host_volcano=(
+                _deseq2_host_volcano_png("{comparison}")
+                if HOST != ""
+                else []
+            ),
             trna_tsv=(
                 _deseq2_trna_tsv("{comparison}")
                 if DESEQ2_TRNA_MATRIX != ""
                 else []
             ),
+            trna_volcano=(
+                _deseq2_trna_volcano_png("{comparison}")
+                if DESEQ2_TRNA_MATRIX != ""
+                else []
+            ),
             virus_tsv=[
                 _deseq2_virus_tsv("{comparison}", virus)
+                for virus in VIRUS_LIST
+            ],
+            virus_volcano=[
+                _deseq2_virus_volcano_png("{comparison}", virus)
                 for virus in VIRUS_LIST
             ],
         params:
@@ -136,6 +192,7 @@ if DESEQ2_ENABLED:
             comparison=lambda wc: shlex.quote(wc.comparison),
             outdir=lambda wc: shlex.quote(_deseq2_output_dir(wc.comparison)),
             host_args=_deseq2_host_args,
+            host_volcano_args=_deseq2_host_volcano_args,
             virus_labels=shlex.quote(
                 ";;;".join(
                     list(VIRUS_LIST) + ([DESEQ2_TRNA_LABEL] if DESEQ2_TRNA_MATRIX != "" else [])
@@ -143,6 +200,7 @@ if DESEQ2_ENABLED:
             ),
             virus_matrices=shlex.quote(_deseq2_joined_virus_paths()),
             virus_outputs=lambda wc: shlex.quote(_deseq2_joined_virus_paths(wc)),
+            virus_volcanos=lambda wc: shlex.quote(_deseq2_joined_volcano_paths(wc)),
         threads:
             _get_threads("deseq2_contrast_report", profile_config)
         container:
@@ -165,7 +223,9 @@ if DESEQ2_ENABLED:
               --report-template "{input.report_template}" \
               --report-output "{output.report}" \
               {params.host_args} \
+              {params.host_volcano_args} \
               --virus-labels {params.virus_labels} \
               --virus-matrices {params.virus_matrices} \
-              --virus-outputs {params.virus_outputs}
+              --virus-outputs {params.virus_outputs} \
+              --virus-volcanos {params.virus_volcanos}
             """

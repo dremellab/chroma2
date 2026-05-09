@@ -1,5 +1,15 @@
 ## dev version
 
+- feat(deseq2): add volcano plot generation for DESeq2 contrast reporting
+- generate caller-agnostic volcano plots for host gene bins, viral bins, and tRNA gene bins in DESeq2 output
+- add `save_enhanced_volcano_png()` function to `run_deseq2_contrast_report.R` with LFC and significance thresholds
+- extend deseq2 rule outputs to include `.volcano.png` files for all three bin types
+- feat(tn5-count): add input/output validation to count matrix builder
+- validate input Tn5 count TSVs exist, are regular files, and are non-empty before matrix construction
+- validate output matrix TSV exists, is non-empty, and has expected row/line counts after build
+- feat(tn5-count): add progress logging with timestamps to Tn5 site counting
+- add configurable `--progress-every` argument (default 1M BAM records) to report batch counting progress
+- add timestamped logging of bin loading, sample metrics, and final output summary
 - fix(tn5-motif): add `generate_logo` config toggle to optionally disable Tn5 logo generation (closes #18)
 - add `generate_logo: false` config key under `tn5_motif` block; logos now only generated when explicitly enabled (default false to reduce output size)
 - feat(compression): compress PFM outputs to .pfm.tsv.gz reducing file sizes by 60-70% (closes #20)

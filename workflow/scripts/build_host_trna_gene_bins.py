@@ -2,8 +2,25 @@
 """
 Build fixed-width host Tn5 counting bins centered on tRNA gene body midpoints.
 
-Bins are centered on the gene center (midpoint of start..end), not the TSS.
-One bin is emitted per tRNA gene. GTF gene_type filtering is case-insensitive.
+Extracts all genes/transcripts from a tRNA-specific GTF file and creates bins
+centered on the gene body midpoint (not TSS). One bin per tRNA gene, filtered
+to host contigs only.
+
+Output columns:
+
++-----+-----------+-----------------------------------------------------+
+| Col | Name      | Description                                         |
++=====+===========+=====================================================+
+| 1   | chrom     | Host contig/chromosome name.                       |
+| 2   | start     | 0-based bin start, clipped at 0.                   |
+| 3   | end       | BED-style end, clipped at chromosome length.       |
+| 4   | bin_id    | Synthetic ID: "{gene_id}|{gene_type}".             |
+| 5   | gene_id   | GTF gene/transcript identifier.                    |
+| 6   | gene_name | GTF gene name, or gene_id if no name is present.   |
+| 7   | gene_type | GTF gene_type attribute, defaulting to "tRNA".     |
+| 8   | strand    | GTF strand value.                                  |
+| 9   | center    | 0-based midpoint used to create the bin.           |
++-----+-----------+-----------------------------------------------------+
 """
 
 from __future__ import annotations
@@ -12,14 +29,6 @@ import argparse
 import gzip
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional
-
-
-TRNA_VALUES = {
-    "trna",
-    "trna_gene",
-    "trna_gene_segment",
-    "trna_pseudogene",
-}
 
 
 def open_text(path: str):
@@ -90,17 +99,7 @@ def load_chromsizes(path: str) -> Dict[str, int]:
 
 
 def gene_type(attrs: Dict[str, str]) -> str:
-    for key in (
-        "gene_type",
-        "gene_biotype",
-        "transcript_type",
-        "transcript_biotype",
-        "gene_biotype_ENSEMBL",
-    ):
-        value = attrs.get(key)
-        if value:
-            return value
-    return ""
+    return attrs.get("gene_type", "tRNA")
 
 
 def feature_name(attrs: Dict[str, str], fallback: str) -> str:
@@ -139,9 +138,9 @@ def iter_gtf_records(path: str) -> Iterator[list[str]]:
 def collect_trna_genes(
     gtf_path: str,
     host_contigs: set[str],
-    include_types: Iterable[str],
+    include_types: Optional[Iterable[str]] = None,
 ) -> Dict[str, Dict[str, object]]:
-    include = {item.lower() for item in include_types}
+    include = {item.lower() for item in include_types} if include_types else None
     genes: Dict[str, Dict[str, object]] = {}
 
     for fields in iter_gtf_records(gtf_path):
@@ -155,8 +154,8 @@ def collect_trna_genes(
         gid = feature_id(attrs)
         if not gid:
             continue
-        gtype = gene_type(attrs).lower()
-        if gtype not in include:
+        gtype = gene_type(attrs)
+        if include is not None and gtype.lower() not in include:
             continue
 
         strand = fields[6]
@@ -183,22 +182,27 @@ def collect_trna_genes(
     return genes
 
 
-def write_bins(
-    path: str,
-    chromsizes: Dict[str, int],
-    flank_size: int,
-    trna_genes: Dict[str, Dict[str, object]],
-) -> None:
+def main() -> None:
+    args = parse_args()
+    if args.flank_size < 0 or args.flank_size > 1000:
+        raise ValueError("--flank-size must be between 0 and 1000 bp")
+
+    host_contigs = load_host_contigs(args.host_regions)
+    chromsizes = load_chromsizes(args.chromsizes)
+
+    trna_genes = collect_trna_genes(args.trna_gtf, host_contigs)
+
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     rows = list(trna_genes.items())
     rows.sort(key=lambda item: (str(item[1]["chrom"]), int(item[1]["center"]), item[0]))
 
-    with open(path, "w", encoding="utf-8") as out:
+    with open(args.output, "w", encoding="utf-8") as out:
         for gene_id, meta in rows:
             chrom = str(meta["chrom"])
             center = int(meta["center"])
-            start = max(0, center - flank_size)
-            end = min(chromsizes[chrom], center + flank_size + 1)
-            bin_id = f"{gene_id}|center"
+            start = max(0, center - args.flank_size)
+            end = min(chromsizes[chrom], center + args.flank_size + 1)
+            bin_id = f'{gene_id}|{meta["gene_type"]}'
             out.write(
                 "\t".join(
                     [
@@ -215,29 +219,6 @@ def write_bins(
                 )
                 + "\n"
             )
-
-
-def main() -> None:
-    args = parse_args()
-    if args.flank_size < 0 or args.flank_size > 1000:
-        raise ValueError("--flank-size must be between 0 and 1000 bp")
-
-    host_contigs = load_host_contigs(args.host_regions)
-    chromsizes = load_chromsizes(args.chromsizes)
-
-    trna_genes = collect_trna_genes(
-        args.trna_gtf,
-        host_contigs,
-        include_types=TRNA_VALUES,
-    )
-
-    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    write_bins(
-        args.output,
-        chromsizes,
-        args.flank_size,
-        trna_genes,
-    )
 
 
 if __name__ == "__main__":

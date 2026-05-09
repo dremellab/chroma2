@@ -233,6 +233,9 @@ else:
     TRNAS_GTF = ""
     CHRR_GTF = ""
 
+# print (f"Using TRNAS_GTF: {TRNAS_GTF}")
+# exit()
+
 HOST_ADDITIVES_VIRUSES = HOST_ADDITIVES_VIRUSES.split(",")
 HOST_VIRUSES = HOST_VIRUSES.split(",")
 HOST_LIST = [h for h in HOST.split(",") if h] if HOST != "" else []

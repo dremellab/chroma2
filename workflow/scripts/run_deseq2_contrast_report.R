@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(tibble)
   library(DESeq2)
+  library(EnhancedVolcano)
   library(rmarkdown)
 })
 
@@ -82,6 +83,50 @@ safe_feature_labels <- function(df, preferred_column) {
 
   labels[is.na(labels)] <- paste0("feature_", seq_len(sum(is.na(labels))))
   labels
+}
+
+save_enhanced_volcano_png <- function(result_tbl, feature_labels, png_path, comparison,
+                                      group1, group2, alpha, lfc_threshold, label_top_n) {
+  padj_safe <- ifelse(is.na(result_tbl$padj), 1, result_tbl$padj)
+
+  sig_mask <- !is.na(result_tbl$padj) &
+    result_tbl$padj < alpha &
+    !is.na(result_tbl$log2FoldChange_shrunk) &
+    abs(result_tbl$log2FoldChange_shrunk) >= lfc_threshold
+
+  select_lab <- rep("", nrow(result_tbl))
+  if (sum(sig_mask) > 0) {
+    sig_idx <- which(sig_mask)
+    ord <- order(result_tbl$padj[sig_idx], -abs(result_tbl$log2FoldChange_shrunk[sig_idx]))
+    top_idx <- sig_idx[ord][seq_len(min(label_top_n, length(sig_idx)))]
+    select_lab[top_idx] <- feature_labels[top_idx]
+  }
+
+  p <- EnhancedVolcano::EnhancedVolcano(
+    toptable        = data.frame(log2FC = result_tbl$log2FoldChange_shrunk,
+                                 padj   = padj_safe,
+                                 stringsAsFactors = FALSE),
+    lab             = select_lab,
+    x               = "log2FC",
+    y               = "padj",
+    title           = sprintf("%s  |  %s vs %s", comparison, group1, group2),
+    subtitle        = bquote(alpha == .(alpha) ~ "| LFC ==" ~ .(lfc_threshold)),
+    pCutoff         = alpha,
+    FCcutoff        = lfc_threshold,
+    xlab            = bquote(Shrunken ~ log[2] ~ fold ~ change),
+    ylab            = bquote(-log[10] ~ p[adj]),
+    legendPosition  = "right",
+    drawConnectors  = TRUE,
+    widthConnectors = 0.5,
+    colConnectors   = "grey30",
+    pointSize       = 1.5,
+    labSize         = 3.0,
+    max.overlaps    = Inf
+  )
+
+  ggplot2::ggsave(filename = png_path, plot = p,
+                  width = 10, height = 8, dpi = 150, units = "in")
+  invisible(png_path)
 }
 
 read_config <- function(path) {
@@ -354,9 +399,11 @@ option_list <- list(
   make_option("--report-output", dest = "report_output", type = "character"),
   make_option("--host-matrix", dest = "host_matrix", type = "character", default = ""),
   make_option("--host-output", dest = "host_output", type = "character", default = ""),
+  make_option("--host-volcano", dest = "host_volcano", type = "character", default = ""),
   make_option("--virus-labels", dest = "virus_labels", type = "character", default = ""),
   make_option("--virus-matrices", dest = "virus_matrices", type = "character", default = ""),
-  make_option("--virus-outputs", dest = "virus_outputs", type = "character", default = "")
+  make_option("--virus-outputs", dest = "virus_outputs", type = "character", default = ""),
+  make_option("--virus-volcanos", dest = "virus_volcanos", type = "character", default = "")
 )
 
 opts <- parse_args(OptionParser(option_list = option_list))
@@ -385,10 +432,12 @@ manifest_data <- read_manifest(opts$manifest, opts$group1, opts$group2)
 virus_labels <- split_delimited(opts$virus_labels)
 virus_matrices <- split_delimited(opts$virus_matrices)
 virus_outputs <- split_delimited(opts$virus_outputs)
+virus_volcanos <- split_delimited(opts$virus_volcanos)
 
 if (length(virus_labels) != length(virus_matrices) ||
-    length(virus_labels) != length(virus_outputs)) {
-  stopf("Virus labels, matrix paths, and output paths must have the same length.")
+    length(virus_labels) != length(virus_outputs) ||
+    (length(virus_volcanos) > 0 && length(virus_volcanos) != length(virus_labels))) {
+  stopf("Virus labels, matrix paths, output paths, and volcano paths must have the same length.")
 }
 
 dir.create(dirname(opts$report_output), recursive = TRUE, showWarnings = FALSE)
@@ -410,6 +459,15 @@ if (nzchar(trimws(opts$host_matrix))) {
     feature_type = "host",
     cfg = deseq2_cfg
   )
+  if (!is.null(host_section) && nzchar(trimws(opts$host_volcano))) {
+    save_enhanced_volcano_png(
+      result_tbl = host_section$results, feature_labels = host_section$feature_labels,
+      png_path = opts$host_volcano, comparison = opts$comparison,
+      group1 = opts$group1, group2 = opts$group2,
+      alpha = deseq2_cfg$alpha, lfc_threshold = deseq2_cfg$lfc_threshold,
+      label_top_n = deseq2_cfg$report_label_top_n
+    )
+  }
 }
 
 virus_sections <- list()
@@ -427,6 +485,16 @@ if (length(virus_labels) > 0) {
       feature_type = virus_labels[[idx]],
       cfg = deseq2_cfg
     )
+    if (length(virus_volcanos) == length(virus_labels) && nzchar(trimws(virus_volcanos[[idx]]))) {
+      save_enhanced_volcano_png(
+        result_tbl = virus_sections[[virus_labels[[idx]]]]$results,
+        feature_labels = virus_sections[[virus_labels[[idx]]]]$feature_labels,
+        png_path = virus_volcanos[[idx]], comparison = opts$comparison,
+        group1 = opts$group1, group2 = opts$group2,
+        alpha = deseq2_cfg$alpha, lfc_threshold = deseq2_cfg$lfc_threshold,
+        label_top_n = deseq2_cfg$report_label_top_n
+      )
+    }
   }
 }
 

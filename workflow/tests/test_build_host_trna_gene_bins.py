@@ -1,20 +1,17 @@
 """Unit tests for build_host_trna_gene_bins.py"""
 
+import subprocess
 import sys
-import tempfile
-import textwrap
 from pathlib import Path
 
-import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+SCRIPT_DIR = Path(__file__).parent.parent / "scripts"
+SCRIPT_PATH = SCRIPT_DIR / "build_host_trna_gene_bins.py"
+sys.path.insert(0, str(SCRIPT_DIR))
 
 from build_host_trna_gene_bins import (
     collect_trna_genes,
     gene_center_from_fields,
-    load_chromsizes,
     load_host_contigs,
-    write_bins,
 )
 
 
@@ -53,6 +50,28 @@ def _write_gtf(tmp_path, records):
             attrs = f'gene_id "{gid}"; gene_type "{gtype}";'
             f.write(f"{chrom}\t.\tgene\t{start}\t{end}\t.\t{strand}\t.\t{attrs}\n")
     return str(p)
+
+
+def _run_script(tmp_path, gtf, regions, chromsizes_file, flank_size=100):
+    out = tmp_path / "out.bed"
+    subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--trna-gtf",
+            gtf,
+            "--host-regions",
+            regions,
+            "--chromsizes",
+            chromsizes_file,
+            "--flank-size",
+            str(flank_size),
+            "--output",
+            str(out),
+        ],
+        check=True,
+    )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +155,7 @@ def test_off_host_contig_excluded(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# write_bins: bin coordinates
+# output bin coordinates
 # ---------------------------------------------------------------------------
 
 
@@ -147,11 +166,7 @@ def test_bin_centered_correctly(tmp_path):
     contigs = {"ref": ["chr1"]}
     regions = _write_regions(tmp_path, contigs)
     chromsizes_file = _write_chromsizes(tmp_path, {"chr1": 200000})
-    host_contigs = load_host_contigs(regions)
-    chromsizes = load_chromsizes(chromsizes_file)
-    genes = collect_trna_genes(gtf, host_contigs, {"trna"})
-    out = tmp_path / "out.bed"
-    write_bins(str(out), chromsizes, 100, genes)
+    out = _run_script(tmp_path, gtf, regions, chromsizes_file)
     row = out.read_text().strip().split("\t")
     assert row[0] == "chr1"
     assert int(row[1]) == 949  # 1049 - 100
@@ -164,11 +179,7 @@ def test_bin_clamped_at_zero(tmp_path):
     contigs = {"ref": ["chr1"]}
     regions = _write_regions(tmp_path, contigs)
     chromsizes_file = _write_chromsizes(tmp_path, {"chr1": 200000})
-    host_contigs = load_host_contigs(regions)
-    chromsizes = load_chromsizes(chromsizes_file)
-    genes = collect_trna_genes(gtf, host_contigs, {"trna"})
-    out = tmp_path / "out.bed"
-    write_bins(str(out), chromsizes, 100, genes)
+    out = _run_script(tmp_path, gtf, regions, chromsizes_file)
     row = out.read_text().strip().split("\t")
     assert int(row[1]) == 0
 
@@ -180,27 +191,19 @@ def test_bin_clamped_at_chrom_end(tmp_path):
     contigs = {"ref": ["chr1"]}
     regions = _write_regions(tmp_path, contigs)
     chromsizes_file = _write_chromsizes(tmp_path, {"chr1": 10000})
-    host_contigs = load_host_contigs(regions)
-    chromsizes = load_chromsizes(chromsizes_file)
-    genes = collect_trna_genes(gtf, host_contigs, {"trna"})
-    out = tmp_path / "out.bed"
-    write_bins(str(out), chromsizes, 100, genes)
+    out = _run_script(tmp_path, gtf, regions, chromsizes_file)
     row = out.read_text().strip().split("\t")
     assert int(row[2]) == 10000
 
 
-def test_bin_id_uses_center_suffix(tmp_path):
-    gtf = _write_gtf(tmp_path, [("chr1", 1001, 1100, "+", "tRNA", "g1")])
+def test_bin_id_uses_gene_type_suffix(tmp_path):
+    gtf = _write_gtf(tmp_path, [("chr1", 1001, 1100, "+", "tRNA_gene", "g1")])
     contigs = {"ref": ["chr1"]}
     regions = _write_regions(tmp_path, contigs)
     chromsizes_file = _write_chromsizes(tmp_path, {"chr1": 200000})
-    host_contigs = load_host_contigs(regions)
-    chromsizes = load_chromsizes(chromsizes_file)
-    genes = collect_trna_genes(gtf, host_contigs, {"trna"})
-    out = tmp_path / "out.bed"
-    write_bins(str(out), chromsizes, 100, genes)
+    out = _run_script(tmp_path, gtf, regions, chromsizes_file)
     row = out.read_text().strip().split("\t")
-    assert row[3].endswith("|center")
+    assert row[3] == "g1|tRNA_gene"
 
 
 # ---------------------------------------------------------------------------
@@ -218,11 +221,9 @@ def test_integration_two_genes(tmp_path):
     regions = _write_regions(tmp_path, contigs)
     chromsizes_file = _write_chromsizes(tmp_path, {"chr1": 200000, "chr2": 200000})
     host_contigs = load_host_contigs(regions)
-    chromsizes = load_chromsizes(chromsizes_file)
     genes = collect_trna_genes(gtf, host_contigs, {"trna", "trna_gene"})
     assert len(genes) == 2
-    out = tmp_path / "out.bed"
-    write_bins(str(out), chromsizes, 100, genes)
+    out = _run_script(tmp_path, gtf, regions, chromsizes_file)
     lines = out.read_text().strip().splitlines()
     assert len(lines) == 2
     chroms = {line.split("\t")[0] for line in lines}
