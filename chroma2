@@ -661,12 +661,18 @@ def main() -> None:
             else:
                 write_samples_template(workdir / "samples.tsv")
 
+        default_contrasts = PIPELINE_HOME / "config" / "contrasts.tsv"
+        if default_contrasts.exists():
+            shutil.copy2(default_contrasts, workdir / "contrasts.tsv")
+
         (workdir / "logs").mkdir(exist_ok=True)
         (workdir / "stats").mkdir(exist_ok=True)
         print(f"Done initializing {workdir}")
         print("You can now edit:")
         print(f"  {workdir}/config.yaml")
         print(f"  {workdir}/samples.tsv")
+        if (workdir / "contrasts.tsv").exists():
+            print(f"  {workdir}/contrasts.tsv")
 
     if runmode == "init":
         do_init()
