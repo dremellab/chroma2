@@ -543,8 +543,6 @@ else:
             host_regions=REF_REGIONS_HOST,
         output:
             exact_bed=_tn5_exact_bed("{sample}", "{caller}", "host"),
-            flank_bed=temp(_tn5_flank_bed("{sample}", "{caller}", "host")),
-            fasta=temp(_tn5_fasta("{sample}", "{caller}", "host")),
             pfm=_tn5_pfm("{sample}", "{caller}", "host"),
         params:
             outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "{caller}"),
@@ -657,8 +655,6 @@ else:
             virus_regions=join(FASTAS_GTFS_DIR, "{virus}.fa.regions"),
         output:
             exact_bed=_tn5_exact_bed("{sample}", "{caller}", "{virus}"),
-            flank_bed=temp(_tn5_flank_bed("{sample}", "{caller}", "{virus}")),
-            fasta=temp(_tn5_fasta("{sample}", "{caller}", "{virus}")),
             pfm=_tn5_pfm("{sample}", "{caller}", "{virus}"),
         params:
             outdir=join(RESULTSDIR, "{sample}", "tn5_motif", "{caller}"),
