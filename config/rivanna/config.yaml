@@ -278,3 +278,8 @@ set-resources:
     mem_mb: 122880 # 120 GB
     threads: 4
     runtime: 240
+
+  s3_transfer_if_enabled:
+    mem_mb: 4096 # 4 GB (minimal, just AWS CLI)
+    runtime: 480 # 8 hours (for large transfers)
+    threads: 1

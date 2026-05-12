@@ -1,5 +1,12 @@
 ## dev version
 
+- feat(s3): add S3 output deposition for pipeline results (closes #17)
+- implement conditional S3 transfer of final outputs to AWS S3 bucket with configurable namespace hierarchy (`_HTS/CHROMA/sample_set/...`)
+- add `s3_transfer_chroma2.py` script with 14 transfer rules covering config, QC reports, BAMs (GLACIER storage), BigWigs, peaks, Tn5 counts, and DESeq2 reports
+- add `s3_transfer.smk` rule with guarded execution (requires both `push_to_s3: true` AND non-empty `s3_sample_set_name` in config)
+- configure Rivanna resources (4 GB mem, 1 thread, 480 min runtime) in profile `set-resources`
+- add 8 S3 config keys to `config.yaml`: `push_to_s3`, `s3_pipeline_name`, `s3_sample_set_name`, `s3_aws_credentials_file`, `s3_bucket`, `s3_output_prefix`, `s3_default_storage_class`, `s3_large_file_storage_class`
+- apply consistent S3 integration to HAROLD pipeline with matching namespace hierarchy and resource settings
 - fix(tn5-motif): fix `extract_tn5_motifs` output declarations to match `--skip-flank-output` behavior
 - removed undeclared `flank_bed` and `fasta` outputs from rules when `TN5_GENERATE_LOGO=false` to prevent job failures
 - feat(init): auto-copy `contrasts.tsv` to workflow output directory during initialization

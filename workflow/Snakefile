@@ -66,6 +66,7 @@ include: "rules/postprocessing.smk"
 include: "rules/bigbed.smk"
 include: "rules/tn5motif.smk"
 include: "rules/deseq2.smk"
+include: "rules/s3_transfer.smk"
 
 HOST_PEAKS = []
 if HOST != "":
@@ -222,3 +223,5 @@ rule all:
             sample=CASE_SAMPLES,
             virus=VIRUS_LIST,
         ),
+        # S3 transfer sentinel (only if push_to_s3=true AND s3_sample_set_name is set)
+        ".s3_transfer.done" if (config.get("push_to_s3", False) and config.get("s3_sample_set_name", "")) else [],
