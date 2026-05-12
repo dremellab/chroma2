@@ -1,5 +1,9 @@
 ## dev version
 
+- fix(tn5-motif): fix `extract_tn5_motifs` output declarations to match `--skip-flank-output` behavior
+- removed undeclared `flank_bed` and `fasta` outputs from rules when `TN5_GENERATE_LOGO=false` to prevent job failures
+- feat(init): auto-copy `contrasts.tsv` to workflow output directory during initialization
+- `chroma2 init` now copies `config/contrasts.tsv` to the output workdir (matching `samples.tsv` behavior) for self-contained workflow runs
 - feat(deseq2): add volcano plot generation for DESeq2 contrast reporting
 - generate caller-agnostic volcano plots for host gene bins, viral bins, and tRNA gene bins in DESeq2 output
 - add `save_enhanced_volcano_png()` function to `run_deseq2_contrast_report.R` with LFC and significance thresholds
