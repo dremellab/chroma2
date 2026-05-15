@@ -8,7 +8,7 @@ rule s3_transfer_if_enabled:
         join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
         TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
         TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
-        DESEQ2_OUTPUTS,
+        *DESEQ2_OUTPUTS,
     output:
         sentinel=".s3_transfer.done",
     container:
