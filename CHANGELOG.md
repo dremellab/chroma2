@@ -1,5 +1,21 @@
 ## dev version
 
+- feat(deseq2): add global feature filtering with configurable skip list for DESeq2 analysis
+  - add `min_total_count: 10` (was 1) to filter features with insufficient signal before DESeq2 analysis
+  - add `min_features_per_matrix: 50` threshold to require minimum number of features for reliable dispersion estimation
+  - add `skip_features: [tRNA]` configurable list to exclude specific feature types (host, virus, tRNA, ALU, transposable elements, etc.) from analysis
+  - tRNA analyses now skipped by default (insufficient ATAC-seq signal in condensed chromatin regions)
+  - implement detailed logging of feature filtering: total features before/after, count distributions, and filtered feature details
+  - distinguish between two skip types: user-configured skip vs. insufficient features after filtering
+  - modify `prepare_counts()` to return feature count for downstream minimum threshold checking
+  - add early skip check in `run_deseq2_matrix()` before matrix loading (skip_features list)
+  - create placeholder output files with skip reason explanations for skipped analyses
+- feat(deseq2-report): display skipped analyses in HTML report with skip reason and type
+  - add `extract_skip_info()` function to detect and parse skip information from TSV file headers
+  - modify report script to detect and handle skipped analyses (empty result files) separately from successful analyses
+  - add `render_skipped_section()` function to display skipped analyses with clear formatting and icons
+  - use `⏭️` icon for user-configured skips and `⚠️` icon for insufficient feature skips
+  - include skip reason in report for transparency and documentation
 - feat(s3): add S3 output deposition for pipeline results (closes #17)
 - implement conditional S3 transfer of final outputs to AWS S3 bucket with configurable namespace hierarchy (`_HTS/CHROMA/sample_set/...`)
 - add `s3_transfer_chroma2.py` script with 14 transfer rules covering config, QC reports, BAMs (GLACIER storage), BigWigs, peaks, Tn5 counts, and DESeq2 reports

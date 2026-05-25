@@ -101,7 +101,8 @@ tn5_motif:
   mapq_min: 0
   dedup: false
   exclude_secondary: false
-  exclude_supplementary: false
+  exclude_supplementary: true
+  fractional_counting: true
   logo_format: "png"
   generate_logo: false
 
@@ -118,7 +119,8 @@ deseq2:
   alpha: 0.05
   lfc_threshold: 1.0
   min_replicates_per_group: 2
-  min_total_count: 1
+  min_total_count: 10
+  min_features_per_matrix: 50
   size_factor_type: "poscounts"
   fit_type: "parametric"
   shrink_type: "apeglm"
@@ -131,11 +133,17 @@ deseq2:
   report_max_table_rows: 50000
   html_self_contained: true
   design_factors: ["group"]
+  # Feature types to skip analysis for (e.g., host, virus, tRNA, ALU, transposable elements)
+  # tRNA is skipped by default (insufficient signal in ATAC-seq)
+  skip_features:
+    - tRNA
 
 # containers
 containers:
   fastp: "docker://staphb/fastp:0.24.1"
   fastqc: "docker://seqinfomics/fastqc:0.12.1"
+  multiqc: "docker://multiqc/multiqc:v1.25"
+  featurecounts: "docker://seqinfomics/featurecounts:2.0.6"
   bowtie2: "docker://seqinfomics/bowtie2:2.5.0"
   bedToBigBed: "docker://seqinfomics/bedtobigbed:latest"
   py311: "docker://seqinfomics/py311:latest"

@@ -1,0 +1,293 @@
+---
+title: "DESeq2 Analysis Report"
+output:
+  html_document:
+    df_print: paged
+params:
+  context_path: NULL
+---
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(ggrepel)
+  library(plotly)
+  library(DT)
+  library(htmltools)
+  library(knitr)
+  library(tibble)
+})
+
+context <- readRDS(params$context_path)
+
+sig_mask <- function(df, alpha, lfc_threshold) {
+  !is.na(df$padj) &
+    df$padj < alpha &
+    !is.na(df$log2FoldChange_shrunk) &
+    abs(df$log2FoldChange_shrunk) >= lfc_threshold
+}
+
+ordered_hits <- function(df) {
+  df %>%
+    dplyr::mutate(
+      abs_lfc = abs(.data$log2FoldChange_shrunk),
+      padj_sort = ifelse(is.na(.data$padj), Inf, .data$padj)
+    ) %>%
+    dplyr::arrange(.data$padj_sort, dplyr::desc(.data$abs_lfc))
+}
+
+make_volcano <- function(results_df, feature_labels, comparison, group1, group2, alpha, lfc_threshold, label_top_n) {
+  df <- results_df %>%
+    dplyr::mutate(
+      significant = sig_mask(results_df, alpha, lfc_threshold),
+      direction = dplyr::case_when(
+        .data$significant & .data$log2FoldChange_shrunk > 0 ~ paste("Up in", group1),
+        .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", group2),
+        TRUE ~ "Not significant"
+      ),
+      neg_log10_padj = dplyr::if_else(
+        !is.na(.data$padj) & .data$padj > 0,
+        -log10(.data$padj),
+        NA_real_
+      ),
+      feature_label = feature_labels
+    )
+
+  top_labels <- ordered_hits(df %>% dplyr::filter(.data$significant)) %>%
+    dplyr::slice_head(n = label_top_n)
+
+  plot_obj <- ggplot(df, aes(
+    x = .data$log2FoldChange_shrunk,
+    y = .data$neg_log10_padj,
+    color = .data$direction,
+    text = paste0(
+      feature_labels,
+      "<br>padj: ", signif(.data$padj, 3),
+      "<br>log2FC: ", signif(.data$log2FoldChange_shrunk, 3)
+    )
+  )) +
+    geom_point(alpha = 0.7, na.rm = TRUE) +
+    geom_vline(xintercept = c(-lfc_threshold, lfc_threshold), linetype = "dashed", color = "grey40") +
+    geom_hline(yintercept = -log10(alpha), linetype = "dashed", color = "grey40") +
+    scale_color_manual(
+      values = c(
+        paste("Up in", group1) = "#c0392b",
+        paste("Up in", group2) = "#1f618d",
+        "Not significant" = "#9e9e9e"
+      )
+    ) +
+    labs(
+      x = "Shrunken log2 fold change",
+      y = "-log10 adjusted p-value",
+      color = "Call"
+    ) +
+    theme_minimal(base_size = 12)
+
+  if (nrow(top_labels) > 0) {
+    plot_obj <- plot_obj +
+      ggrepel::geom_text_repel(
+        data = top_labels,
+        aes(label = .data$feature_label),
+        size = 3,
+        show.legend = FALSE,
+        max.overlaps = Inf
+      )
+  }
+
+  plotly::ggplotly(plot_obj, tooltip = "text")
+}
+
+make_ma <- function(results_df, comparison, group1, group2, alpha, lfc_threshold) {
+  df <- results_df %>%
+    dplyr::mutate(
+      significant = sig_mask(results_df, alpha, lfc_threshold),
+      direction = dplyr::case_when(
+        .data$significant & .data$log2FoldChange_shrunk > 0 ~ paste("Up in", group1),
+        .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", group2),
+        TRUE ~ "Not significant"
+      )
+    )
+
+  ggplot(df, aes(x = .data$baseMean, y = .data$log2FoldChange_shrunk, color = .data$direction)) +
+    geom_point(alpha = 0.7, na.rm = TRUE) +
+    scale_x_log10() +
+    scale_color_manual(
+      values = c(
+        paste("Up in", group1) = "#c0392b",
+        paste("Up in", group2) = "#1f618d",
+        "Not significant" = "#9e9e9e"
+      )
+    ) +
+    labs(x = "baseMean", y = "Shrunken log2 fold change", color = "Call") +
+    theme_minimal(base_size = 12)
+}
+
+summary_table <- function(results_df, group1, group2, alpha, lfc_threshold) {
+  sig_mask_vals <- sig_mask(results_df, alpha, lfc_threshold)
+  tibble::tibble(
+    metric = c(
+      "Features tested",
+      "Significant",
+      paste("Up in", group1),
+      paste("Up in", group2)
+    ),
+    value = c(
+      nrow(results_df),
+      sum(sig_mask_vals),
+      sum(sig_mask_vals & results_df$log2FoldChange_shrunk > 0, na.rm = TRUE),
+      sum(sig_mask_vals & results_df$log2FoldChange_shrunk < 0, na.rm = TRUE)
+    )
+  )
+}
+
+top_hits_table <- function(results_df, top_n) {
+  ordered_hits(results_df) %>% dplyr::slice_head(n = top_n)
+}
+
+full_results_table <- function(results_df, max_rows) {
+  if (nrow(results_df) <= max_rows) return(results_df)
+  results_df %>% dplyr::slice_head(n = max_rows)
+}
+
+download_link <- function(tsv_path) {
+  htmltools::tags$p(
+    htmltools::tags$a(
+      href = basename(tsv_path),
+      target = "_blank",
+      "Download TSV"
+    )
+  )
+}
+
+render_skipped_section <- function(matrix_label, skip_info, tsv_path) {
+  cat(sprintf("### %s\n\n", matrix_label))
+
+  skip_icon <- "⏭️"
+  if (skip_info$skip_type == "skip_list") {
+    skip_msg <- "User-configured skip (in skip_features list)"
+  } else if (skip_info$skip_type == "insufficient_features") {
+    skip_msg <- "Skipped due to insufficient features after filtering"
+    skip_icon <- "⚠️"
+  } else {
+    skip_msg <- "Skipped (reason unknown)"
+  }
+
+  cat(sprintf("> **%s ANALYSIS SKIPPED** — %s\n>\n> %s\n\n",
+              skip_icon, matrix_label, skip_msg))
+
+  if (!is.na(skip_info$reason)) {
+    cat(sprintf("> **Reason:** %s\n\n", skip_info$reason))
+  }
+
+  print(download_link(tsv_path))
+  cat("\n")
+}
+
+render_matrix_section <- function(matrix_section, matrix_label, group1, group2, alpha, lfc_threshold, report_top_n, report_label_top_n, report_max_table_rows) {
+  results_df <- matrix_section$results
+  feature_labels <- safe_feature_labels(results_df)
+
+  cat(sprintf("### %s\n\n", matrix_label))
+  print(download_link(matrix_section$tsv_path))
+
+  cat("#### Summary\n\n")
+  print(knitr::kable(summary_table(results_df, group1, group2, alpha, lfc_threshold)))
+
+  cat("\n#### Volcano Plot\n\n")
+  print(make_volcano(results_df, feature_labels, "Comparison", group1, group2, alpha, lfc_threshold, report_label_top_n))
+
+  cat("\n#### MA Plot\n\n")
+  print(make_ma(results_df, "Comparison", group1, group2, alpha, lfc_threshold))
+
+  cat("\n#### Top Hits\n\n")
+  print(knitr::kable(top_hits_table(results_df, report_top_n)))
+
+  cat("\n#### Full Results\n\n")
+  print(
+    DT::datatable(
+      full_results_table(results_df, report_max_table_rows),
+      extensions = "Buttons",
+      options = list(
+        pageLength = 25,
+        dom = "Bfrtip",
+        buttons = c("copy", "csv")
+      ),
+      rownames = FALSE
+    )
+  )
+
+  if (nrow(results_df) > report_max_table_rows) {
+    cat(sprintf("\nFull results table truncated to first %d rows.\n\n", report_max_table_rows))
+  }
+}
+
+safe_feature_labels <- function(df) {
+  candidates <- c("gene_name", "gene_id", "bin_id", "chrom")
+  preferred_column <- NA_character_
+  for (candidate in candidates) {
+    if (candidate %in% colnames(df)) {
+      values <- as.character(df[[candidate]])
+      if (any(nzchar(values))) {
+        preferred_column <- candidate
+        break
+      }
+    }
+  }
+
+  if (!is.na(preferred_column) && preferred_column %in% colnames(df)) {
+    labels <- as.character(df[[preferred_column]])
+    labels[!nzchar(labels)] <- NA_character_
+  } else {
+    labels <- rep(NA_character_, nrow(df))
+  }
+
+  if ("bin_id" %in% colnames(df)) {
+    labels[is.na(labels)] <- as.character(df$bin_id[is.na(labels)])
+  }
+
+  has_coords <- all(c("chrom", "start", "end") %in% colnames(df))
+  if (has_coords) {
+    coord_labels <- paste0(df$chrom, ":", df$start, "-", df$end)
+    labels[is.na(labels)] <- coord_labels[is.na(labels)]
+  }
+
+  labels[is.na(labels)] <- paste0("feature_", seq_len(sum(is.na(labels))))
+  labels
+}
+```
+
+# DESeq2 Analysis Results {.tabset}
+
+```{r render-contrasts, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+for (comparison in names(context$result_sections)) {
+  section <- context$result_sections[[comparison]]
+  group1 <- section$group1
+  group2 <- section$group2
+
+  cat(sprintf("## %s {.tabset}\n\n", comparison))
+
+  for (matrix_label in names(section$matrices)) {
+    matrix_section <- section$matrices[[matrix_label]]
+
+    if (isTRUE(matrix_section$skipped)) {
+      render_skipped_section(
+        matrix_label = matrix_label,
+        skip_info = matrix_section$skip_info,
+        tsv_path = matrix_section$tsv_path
+      )
+    } else {
+      render_matrix_section(
+        matrix_section = matrix_section,
+        matrix_label = matrix_label,
+        group1 = group1, group2 = group2,
+        alpha = context$config$alpha,
+        lfc_threshold = context$config$lfc_threshold,
+        report_top_n = context$config$report_top_n,
+        report_label_top_n = context$config$report_label_top_n,
+        report_max_table_rows = context$config$report_max_table_rows
+      )
+    }
+  }
+}
+```
