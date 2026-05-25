@@ -154,9 +154,11 @@ rule genome_coverage_mqc:
         bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"),
         bai=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam.bai"),
     output:
-        expand(
-            join(RESULTSDIR, "{{sample}}", "multiqc", "{{sample}}.coverage_q{mapq}.txt"),
-            mapq=MAPQ_THRESHOLDS,
+        temp(
+            expand(
+                join(RESULTSDIR, "{{sample}}", "multiqc", "{{sample}}.coverage_q{mapq}.txt"),
+                mapq=MAPQ_THRESHOLDS,
+            )
         ),
     params:
         outpfx=lambda wc: join(RESULTSDIR, wc.sample, "multiqc", f"{wc.sample}"),
