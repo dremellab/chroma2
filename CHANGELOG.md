@@ -1,5 +1,16 @@
 ## dev version
 
+- feat(tn5-count): implement NH-weighted fractional counting for multi-mapping reads (closes #25)
+  - add `--fractional-counting` flag to count_tn5_sites_in_bins.py for NH-weighted read handling
+  - implement `get_nh_value()` helper to safely extract NH tag from BAM records (returns 1 if missing)
+  - calculate per-alignment weight as 1/NH when fractional counting enabled, else 1.0 for integer counting
+  - accumulate fractional weights into bin counts (Dict[str, float])
+  - round fractional sums to nearest integer before output for DESeq2 compatibility
+  - update all 4 bin counting rules to conditionally pass --fractional-counting based on config
+  - add `fractional_counting` config key under `tn5_motif` block (default false)
+- fix(s3-transfer): add MultiQC outputs as explicit dependencies (closes #21)
+  - add multiqc_report.html and multiqc_data as inputs to s3_transfer_if_enabled rule
+  - ensures S3 transfer waits for MultiQC report completion before attempting output deposition
 - feat(multiqc): implement interactive Fragment/Insert Size Distribution visualization (closes #27)
   - add per-sample fragment size extraction from BAM files with 7 size range bins
   - aggregate fragment size data across samples into interactive MultiQC linegraph
