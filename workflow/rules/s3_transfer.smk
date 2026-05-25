@@ -9,6 +9,15 @@ rule s3_transfer_if_enabled:
         TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
         TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
         *DESEQ2_OUTPUTS,
+        # MultiQC report and data (closes #21)
+        join(RESULTSDIR, "multiqc", "multiqc_report.html"),
+        directory(join(RESULTSDIR, "multiqc", "multiqc_data")),
+        # Custom QC files required by MultiQC
+        join(RESULTSDIR, "multiqc", "custom", "alignment_stats_mqc.tsv"),
+        join(RESULTSDIR, "multiqc", "custom", "host_virus_ratio_mqc.tsv"),
+        join(RESULTSDIR, "multiqc", "custom", "tn5_counts_mqc.tsv"),
+        join(RESULTSDIR, "multiqc", "custom", "peak_size_mqc.tsv"),
+        join(RESULTSDIR, "multiqc", "custom", "genome_coverage_mqc.tsv"),
     output:
         sentinel=".s3_transfer.done",
     container:
