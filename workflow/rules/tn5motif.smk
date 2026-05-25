@@ -14,6 +14,7 @@ TN5_EXCLUDE_SUPPLEMENTARY = bool(
 TN5_DEDUP = bool(config.get("tn5_motif", {}).get("dedup", False))
 TN5_LOGO_FORMAT = str(config.get("tn5_motif", {}).get("logo_format", "png"))
 TN5_GENERATE_LOGO = bool(config.get("tn5_motif", {}).get("generate_logo", False))
+TN5_FRACTIONAL_COUNTING = bool(config.get("tn5_motif", {}).get("fractional_counting", False))
 TN5_CALLERS = ("genrich", "macs2")
 
 
@@ -319,6 +320,7 @@ if HOST != "" and TRNAS_GTF != "":
                 for flag in (
                     "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
                     "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
                 )
                 if flag
             ),
@@ -370,6 +372,7 @@ if HOST != "" and TRNAS_GTF != "":
                 for flag in (
                     "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
                     "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
                 )
                 if flag
             ),
@@ -732,6 +735,7 @@ rule count_tn5_host_genrich_bins:
             for flag in (
                 "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
                 "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
             )
             if flag
         ),
@@ -784,6 +788,7 @@ rule count_tn5_host_macs2_bins:
             for flag in (
                 "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
                 "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
             )
             if flag
         ),

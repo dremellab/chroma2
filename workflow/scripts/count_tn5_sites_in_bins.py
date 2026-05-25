@@ -43,6 +43,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Exclude supplementary alignments",
     )
+    parser.add_argument(
+        "--fractional-counting",
+        action="store_true",
+        help="Use NH-weighted fractional counting for multi-mapping reads (1/NH per alignment)",
+    )
     return parser.parse_args()
 
 
@@ -54,7 +59,7 @@ def log(message: str) -> None:
 def load_bins(path: str):
     bins_by_chrom: Dict[str, List[Tuple[int, int, List[str]]]] = {}
     starts_by_chrom: Dict[str, List[int]] = {}
-    counts: Dict[str, int] = {}
+    counts: Dict[str, float] = {}
     max_width = 0
 
     with open(path, "r", encoding="utf-8") as handle:
@@ -101,11 +106,22 @@ def overlapping_bin_ids(
     return hits
 
 
+def get_nh_value(rec: pysam.AlignmentSegment) -> int:
+    """
+    Safely extract NH tag (number of reported alignments) from BAM record.
+    Returns 1 if NH tag is missing (single alignment).
+    """
+    try:
+        return rec.get_tag("NH")
+    except KeyError:
+        return 1
+
+
 def write_counts(
     path: str,
     sample: str,
     bins_bed: str,
-    counts: Dict[str, int],
+    counts: Dict[str, float],
 ) -> int:
     rows_written = 0
     with open(bins_bed, "r", encoding="utf-8") as inp, open(
@@ -119,6 +135,7 @@ def write_counts(
             if not line:
                 continue
             fields = line.split("\t")
+            rounded_count = round(counts[fields[3]])
             out.write(
                 "\t".join(
                     [
@@ -132,7 +149,7 @@ def write_counts(
                         fields[6],
                         fields[7],
                         fields[8],
-                        str(counts[fields[3]]),
+                        str(rounded_count),
                     ]
                 )
                 + "\n"
@@ -175,6 +192,9 @@ def main() -> None:
     log(f"Input BAM: {args.bam}")
     log(f"Input bins: {args.bins_bed}")
     log(f"Output TSV: {args.output}")
+    log(
+        f"Counting mode: {'NH-weighted fractional' if args.fractional_counting else 'integer'}"
+    )
     bins_by_chrom, starts_by_chrom, counts, max_width = load_bins(args.bins_bed)
     log(f"Loaded {len(counts)} bins across {len(bins_by_chrom)} contigs")
 
@@ -191,10 +211,11 @@ def main() -> None:
                 exclude_supplementary=args.exclude_supplementary,
             ):
                 cut_sites_seen += 1
+                weight = 1.0 / get_nh_value(rec) if args.fractional_counting else 1.0
                 for bin_id in overlapping_bin_ids(
                     site.chrom, site.start, bins_by_chrom, starts_by_chrom, max_width
                 ):
-                    counts[bin_id] += 1
+                    counts[bin_id] += weight
                     overlapping_sites += 1
             if args.progress_every > 0 and records_processed % args.progress_every == 0:
                 log(

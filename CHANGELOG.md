@@ -1,5 +1,25 @@
 ## dev version
 
+- feat(multiqc): implement interactive Fragment/Insert Size Distribution visualization (closes #27)
+  - add per-sample fragment size extraction from BAM files with 7 size range bins
+  - aggregate fragment size data across samples into interactive MultiQC linegraph
+  - new scripts: `extract_fragment_sizes.py`, `aggregate_fragment_sizes_mqc.py`
+  - new rules: `extract_fragment_size_data`, `fragment_size_aggregate_mqc`
+  - replaces static per-sample PNG images with interactive cross-sample visualization
+- fix(multiqc): switch pandas-dependent rules from py311 to pysam container
+  - pysam container includes pandas, numpy, scipy as core dependencies
+  - fixes CalledProcessError in Singularity environment when running alignment_stats_mqc, peak_size_mqc, tn5_counts_mqc, genome_coverage_aggregate_mqc
+  - affected rules now execute successfully in HPC Singularity runtime
+- fix(multiqc): mark genome coverage intermediates as temporary files
+  - per-sample coverage_q\*.txt files (624M each) now marked as temp()
+  - automatically deleted after genome_coverage_aggregate_mqc completes
+  - saves ~2.5GB per sample after successful pipeline completion
+- fix: add params to rerun-triggers for Tn5 config changes (closes #26)
+  - changes to Tn5 motif config parameters now trigger automatic rule re-execution
+  - supports exclude_supplementary, exclude_secondary, fractional_counting, mapq_min config changes
+- feat(multiqc): ensure MultiQC report always generated as top-level output
+  - added multiqc_report.html and multiqc_data to rule all
+  - guarantees all MultiQC components generated regardless of S3 configuration
 - feat(deseq2): add global feature filtering with configurable skip list for DESeq2 analysis
   - add `min_total_count: 10` (was 1) to filter features with insufficient signal before DESeq2 analysis
   - add `min_features_per_matrix: 50` threshold to require minimum number of features for reliable dispersion estimation
