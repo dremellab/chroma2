@@ -35,6 +35,7 @@ trnas_gtf:
 chrr_gtf:
   hg38: "hg38.chrR.gtf"
   mm39: "mm39.chrR.gtf"
+  hs1: "hs1.chrR.gtf"
 pol3_gtf:
   Pol3_T1:
     hg38: "T1_Genes.hg38.gtf"
