@@ -46,6 +46,31 @@ pol3_gtf:
   Pol3_T3:
     hg38: "T3_Genes.hg38.gtf"
     hs1: "T3_Genes.hs1.gtf"
+repeat_elements_gtf:
+  SINE_Alu:
+    hg38: "hg38.repeatMasker.SINE_Alu.gtf"
+    mm39: "mm39.repeatMasker.SINE_Alu.gtf"
+    hs1: "hs1.repeatMasker.SINE_Alu.gtf"
+  SINE_MIR:
+    hg38: "hg38.repeatMasker.SINE_MIR.gtf"
+    mm39: "mm39.repeatMasker.SINE_MIR.gtf"
+    hs1: "hs1.repeatMasker.SINE_MIR.gtf"
+  LINE_L1:
+    hg38: "hg38.repeatMasker.LINE_L1.gtf"
+    mm39: "mm39.repeatMasker.LINE_L1.gtf"
+    hs1: "hs1.repeatMasker.LINE_L1.gtf"
+  LINE_L2:
+    hg38: "hg38.repeatMasker.LINE_L2.gtf"
+    mm39: "mm39.repeatMasker.LINE_L2.gtf"
+    hs1: "hs1.repeatMasker.LINE_L2.gtf"
+  LTR:
+    hg38: "hg38.repeatMasker.LTR.gtf"
+    mm39: "mm39.repeatMasker.LTR.gtf"
+    hs1: "hs1.repeatMasker.LTR.gtf"
+  other_repeat_elements:
+    hg38: "hg38.repeatMasker.other_repeat_elements.gtf"
+    mm39: "mm39.repeatMasker.other_repeat_elements.gtf"
+    hs1: "hs1.repeatMasker.other_repeat_elements.gtf"
 include_trnas_gtf_in_ref: true
 
 # kraken2 db
