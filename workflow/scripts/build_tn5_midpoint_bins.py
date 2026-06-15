@@ -49,6 +49,13 @@ def parse_args() -> argparse.Namespace:
         help="Flank size around midpoint in bp (default: 100). Bin will span midpoint±flank_size. "
         "Use -1 to use the actual feature start and end coordinates (full gene span).",
     )
+    parser.add_argument(
+        "--max-size",
+        type=int,
+        default=1000,
+        help="Maximum feature size in bp (default: 1000). Only features smaller than this are included. "
+        "Use 0 or negative to disable size filtering.",
+    )
     parser.add_argument("--output", required=True, help="Output BED path")
     return parser.parse_args()
 
@@ -203,6 +210,7 @@ def write_bins(
     path: str,
     chromsizes: Dict[str, int],
     flank_size: int,
+    max_size: int,
     genes: Dict[str, Dict[str, object]],
 ) -> None:
     rows = []
@@ -220,7 +228,8 @@ def write_bins(
             file=sys.stderr,
         )
 
-    # Track truncation statistics (only applies when not using full feature span)
+    # Track filtering and truncation statistics
+    filtered_by_size = 0
     truncated_count = 0
     truncated_start = 0
     truncated_end = 0
@@ -230,6 +239,14 @@ def write_bins(
             chrom = str(meta["chrom"])
             if chrom not in chromsizes:
                 continue
+
+            # Apply size filter
+            if max_size > 0:
+                feature_size = int(meta["end"]) - int(meta["start"])
+                if feature_size > max_size:
+                    filtered_by_size += 1
+                    continue
+
             if flank_size == -1:
                 # Use full feature span
                 start = int(meta["start"])
@@ -269,6 +286,13 @@ def write_bins(
                 + "\n"
             )
 
+    # Report size filtering statistics
+    if max_size > 0 and filtered_by_size > 0:
+        print(
+            f"ℹ️  SIZE FILTER REPORT: {filtered_by_size} features excluded (larger than {max_size} bp)",
+            file=sys.stderr,
+        )
+
     # Report truncation statistics (only for midpoint mode, not full feature span)
     if flank_size != -1 and truncated_count > 0:
         print(
@@ -306,6 +330,7 @@ def main() -> None:
         args.output,
         chromsizes,
         args.flank_size,
+        args.max_size,
         genes,
     )
 
