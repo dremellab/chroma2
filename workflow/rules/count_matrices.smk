@@ -970,6 +970,10 @@ rule consolidate_count_matrices:
         rrna=join(COUNT_MATRICES_FINAL_DIR, "rrna_count_matrix.tsv")
         if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != ""
         else [],
+    params:
+        host=HOST,
+        num_samples=len(SAMPLES),
+        mapq_min=TN5_MAPQ_MIN,
     threads:
         _get_threads("consolidate_count_matrices", profile_config)
     container:
@@ -1019,22 +1023,22 @@ with open(os.path.join(outdir, "COUNT_MATRICES_INDEX.txt"), "w") as idx:
     idx.write("=" * 80 + "\n")
     idx.write("Tn5 Count Matrices Index\n")
     idx.write("=" * 80 + "\n")
-    idx.write(f"Host: {HOST}\n")
-    idx.write(f"Samples: {len(SAMPLES)}\n")
-    idx.write(f"Output Folder: {outdir}\n\n")
+    idx.write(f"Host: {params.host}\n")
+    idx.write(f"Samples: {params.num_samples}\n")
+    idx.write(f"Output Folder: {{outdir}}\n\n")
     idx.write("=" * 80 + "\n")
     idx.write("AVAILABLE MATRICES\n")
     idx.write("=" * 80 + "\n\n")
 
     for name in sorted(matrices.keys()):
-        idx.write(f"✓ {name}\n")
+        idx.write(f"✓ {{name}}\n")
 
     idx.write("\n" + "=" * 80 + "\n")
     idx.write("CONFIGURATION\n")
     idx.write("=" * 80 + "\n")
     idx.write("Genrich BAM files used for all counting\n")
     idx.write("Fractional counting (NH-weighted): ENABLED\n")
-    idx.write(f"Mapq minimum: {TN5_MAPQ_MIN}\n\n")
+    idx.write(f"Mapq minimum: {params.mapq_min}\n\n")
     idx.write("For detailed documentation, see: COUNT_MATRICES_README.md\n")
     idx.write("=" * 80 + "\n")
 
