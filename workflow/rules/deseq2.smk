@@ -68,72 +68,69 @@ DESEQ2_OUTPUTS = []
 if DESEQ2_ENABLED and DESEQ2_CONTRASTS:
     for contrast in DESEQ2_CONTRASTS:
         comparison = contrast["comparison"]
-        # Generate outputs for each available matrix
-        for matrix_type in DESEQ2_AVAILABLE_MATRICES.keys():
-            DESEQ2_OUTPUTS.append(
-                join(DESEQ2_OUTDIR, f"{matrix_type}_{comparison}", f"{matrix_type}_{comparison}.deseq2_results.tsv")
-            )
-            DESEQ2_OUTPUTS.append(
-                join(DESEQ2_OUTDIR, f"{matrix_type}_{comparison}", f"{matrix_type}_{comparison}.volcano.png")
-            )
-        DESEQ2_OUTPUTS.append(join(DESEQ2_OUTDIR, comparison, f"{comparison}.deseq2_summary.html"))
+        DESEQ2_OUTPUTS.append(join(DESEQ2_OUTDIR, comparison, f"{comparison}.deseq2_report.html"))
 
 
 if DESEQ2_ENABLED:
 
-    rule deseq2_analysis:
+    rule deseq2_contrast_report:
         input:
-            count_matrix=lambda wc: DESEQ2_AVAILABLE_MATRICES.get(wc.matrix_type, ""),
+            config_yaml=configfilepath,
             manifest=MANIFEST_FILE,
-            contrasts_file=DESEQ2_CONTRASTS_FILE,
+            contrasts=DESEQ2_CONTRASTS_FILE,
+            script=join(SCRIPTS_DIR, "run_deseq2_contrast_report.R"),
+            report_template=join(SCRIPTS_DIR, "deseq2_contrast_report.Rmd"),
+            # Include all available matrices as inputs
+            matrices=list(DESEQ2_AVAILABLE_MATRICES.values()),
         output:
-            results_tsv=join(
-                DESEQ2_OUTDIR,
-                "{matrix_type}_{comparison}",
-                "{matrix_type}_{comparison}.deseq2_results.tsv",
-            ),
-            volcano_png=join(
-                DESEQ2_OUTDIR,
-                "{matrix_type}_{comparison}",
-                "{matrix_type}_{comparison}.volcano.png",
-            ),
+            report=join(DESEQ2_OUTDIR, "{comparison}", "{comparison}.deseq2_report.html"),
         params:
             group1=lambda wc: shlex.quote(_deseq2_contrast_group(wc.comparison, "group1")),
             group2=lambda wc: shlex.quote(_deseq2_contrast_group(wc.comparison, "group2")),
-            matrix_type="{matrix_type}",
-            comparison="{comparison}",
-            alpha=str(DESEQ2_ALPHA),
-            lfc_threshold=str(DESEQ2_LFC_THRESHOLD),
-            min_replicates=str(DESEQ2_MIN_REPLICATES_PER_GROUP),
-            size_factor_type=str(DESEQ2_SIZE_FACTOR_TYPE),
-            fit_type=str(DESEQ2_FIT_TYPE),
-            p_adjust_method=str(DESEQ2_P_ADJUST_METHOD),
+            comparison=lambda wc: shlex.quote(wc.comparison),
+            outdir=lambda wc: shlex.quote(join(DESEQ2_OUTDIR, wc.comparison)),
+            # Map available matrices to R script parameters
+            # For now, pass gene as host-matrix, others as virus-matrices (flexible approach)
+            host_matrix=shlex.quote(DESEQ2_AVAILABLE_MATRICES.get("gene", "")),
+            host_output=shlex.quote(
+                join(DESEQ2_OUTDIR, "{comparison}", "{comparison}.gene.deseq2_results.tsv")
+            ),
+            host_volcano=shlex.quote(
+                join(DESEQ2_OUTDIR, "{comparison}", "{comparison}.gene.volcano.png")
+            ),
+            virus_matrices=shlex.quote(
+                ";;;".join([str(v) for k, v in DESEQ2_AVAILABLE_MATRICES.items() if k != "gene"])
+            ),
+            virus_labels=shlex.quote(
+                ";;;".join([k for k in DESEQ2_AVAILABLE_MATRICES.keys() if k != "gene"])
+            ),
         threads:
-            _get_threads("deseq2_analysis", profile_config)
+            _get_threads("deseq2_contrast_report", profile_config)
         container:
             config["containers"]["deseq2_report"]
         log:
-            join(_logdir("deseq2_analysis"), "{matrix_type}_{comparison}.log")
+            join(_logdir("deseq2_contrast_report"), "{comparison}.log")
         shell:
             r"""
             set -exo pipefail
-            mkdir -p $(dirname {log}) $(dirname {output.results_tsv})
+            mkdir -p $(dirname {log}) {params.outdir}
             exec > >(tee -a {log}) 2>&1
-
-            python3 {SCRIPTS_DIR}/run_deseq2_analysis.py \
-              --count-matrix {input.count_matrix} \
-              --manifest {input.manifest} \
-              --contrasts-file {input.contrasts_file} \
+            Rscript "{input.script}" \
+              --config-yaml "{input.config_yaml}" \
+              --manifest "{input.manifest}" \
+              --contrast-file "{input.contrasts}" \
               --comparison {params.comparison} \
               --group1 {params.group1} \
               --group2 {params.group2} \
-              --matrix-type {params.matrix_type} \
-              --alpha {params.alpha} \
-              --lfc-threshold {params.lfc_threshold} \
-              --min-replicates {params.min_replicates} \
-              --size-factor-type {params.size_factor_type} \
-              --output-results {output.results_tsv} \
-              --output-volcano {output.volcano_png}
+              --report-template "{input.report_template}" \
+              --report-output "{output.report}" \
+              --host-matrix {params.host_matrix} \
+              --host-output {params.host_output} \
+              --host-volcano {params.host_volcano} \
+              --virus-labels {params.virus_labels} \
+              --virus-matrices {params.virus_matrices} \
+              --virus-outputs "" \
+              --virus-volcanos ""
             """
 
 
