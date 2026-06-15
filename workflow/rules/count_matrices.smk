@@ -146,7 +146,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
                 join(
                     COUNT_MATRICES_DIR,
                     f"pol3_{pol3_lower}",
-                    "{sample}.pol3_{pol3_lower}_counts.tsv",
+                    f"{{sample}}.pol3_{pol3_lower}_counts.tsv",
                 ),
                 sample=SAMPLES,
             )
@@ -170,7 +170,7 @@ if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
                 join(
                     COUNT_MATRICES_DIR,
                     f"repeat_{repeat_lower}",
-                    "{sample}.repeat_{repeat_lower}_counts.tsv",
+                    f"{{sample}}.repeat_{repeat_lower}_counts.tsv",
                 ),
                 sample=SAMPLES,
             )
@@ -193,7 +193,7 @@ if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
                 join(
                     COUNT_MATRICES_DIR,
                     f"viral_{virus}",
-                    "{sample}.viral_{virus}_counts.tsv",
+                    f"{{sample}}.viral_{virus}_counts.tsv",
                 ),
                 sample=SAMPLES,
             )
@@ -793,84 +793,95 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
 
 
 if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
+    for pol3_type in POL3_TYPES_AVAILABLE:
+        pol3_lower = pol3_type.lower()
 
-    rule aggregate_pol3_count_matrix:
-        input:
-            expand(
-                join(COUNT_MATRICES_DIR, "pol3_{{pol3_type}}", "{{sample}}.pol3_{{pol3_type}}_counts.tsv"),
-                sample=SAMPLES,
-            ),
-        output:
-            join(COUNT_MATRICES_DIR, "pol3_{pol3_type}", "pol3_{pol3_type}_count_matrix.tsv"),
-        threads:
-            _get_threads("aggregate_pol3_count_matrix", profile_config)
-        container:
-            config["containers"]["py311"]
-        log:
-            join(_logdir("aggregate_pol3_count_matrix"), "{pol3_type}.log")
-        shell:
-            r"""
-            set -exo pipefail
-            mkdir -p $(dirname {log})
-            exec > >(tee -a {log}) 2>&1
-            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
-              --output {output}
-            """
+        rule:
+            name:
+                f"aggregate_pol3_{pol3_lower}_count_matrix"
+            input:
+                expand(
+                    join(COUNT_MATRICES_DIR, f"pol3_{pol3_lower}", f"{{sample}}.pol3_{pol3_lower}_counts.tsv"),
+                    sample=SAMPLES,
+                ),
+            output:
+                join(COUNT_MATRICES_DIR, f"pol3_{pol3_lower}", f"pol3_{pol3_lower}_count_matrix.tsv"),
+            threads:
+                _get_threads(f"aggregate_pol3_{pol3_lower}_count_matrix", profile_config)
+            container:
+                config["containers"]["py311"]
+            log:
+                join(_logdir(f"aggregate_pol3_{pol3_lower}_count_matrix"), "aggregate.log")
+            shell:
+                r"""
+                set -exo pipefail
+                mkdir -p $(dirname {log})
+                exec > >(tee -a {log}) 2>&1
+                python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+                  --input-files {input} \
+                  --output {output}
+                """
 
 
 if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
+    for repeat_type in REPEAT_TYPES_AVAILABLE:
+        repeat_lower = repeat_type.lower()
 
-    rule aggregate_repeat_count_matrix:
-        input:
-            expand(
-                join(COUNT_MATRICES_DIR, "repeat_{{repeat_type}}", "{{sample}}.repeat_{{repeat_type}}_counts.tsv"),
-                sample=SAMPLES,
-            ),
-        output:
-            join(COUNT_MATRICES_DIR, "repeat_{repeat_type}", "repeat_{repeat_type}_count_matrix.tsv"),
-        threads:
-            _get_threads("aggregate_repeat_count_matrix", profile_config)
-        container:
-            config["containers"]["py311"]
-        log:
-            join(_logdir("aggregate_repeat_count_matrix"), "{repeat_type}.log")
-        shell:
-            r"""
-            set -exo pipefail
-            mkdir -p $(dirname {log})
-            exec > >(tee -a {log}) 2>&1
-            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
-              --output {output}
-            """
+        rule:
+            name:
+                f"aggregate_repeat_{repeat_lower}_count_matrix"
+            input:
+                expand(
+                    join(COUNT_MATRICES_DIR, f"repeat_{repeat_lower}", f"{{sample}}.repeat_{repeat_lower}_counts.tsv"),
+                    sample=SAMPLES,
+                ),
+            output:
+                join(COUNT_MATRICES_DIR, f"repeat_{repeat_lower}", f"repeat_{repeat_lower}_count_matrix.tsv"),
+            threads:
+                _get_threads(f"aggregate_repeat_{repeat_lower}_count_matrix", profile_config)
+            container:
+                config["containers"]["py311"]
+            log:
+                join(_logdir(f"aggregate_repeat_{repeat_lower}_count_matrix"), "aggregate.log")
+            shell:
+                r"""
+                set -exo pipefail
+                mkdir -p $(dirname {log})
+                exec > >(tee -a {log}) 2>&1
+                python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+                  --input-files {input} \
+                  --output {output}
+                """
 
 
 if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
+    for virus in VIRAL_TYPES_AVAILABLE:
 
-    rule aggregate_viral_count_matrix:
-        input:
-            expand(
-                join(COUNT_MATRICES_DIR, "viral_{{virus}}", "{{sample}}.viral_{{virus}}_counts.tsv"),
-                sample=SAMPLES,
-            ),
-        output:
-            join(COUNT_MATRICES_DIR, "viral_{virus}", "viral_{virus}_count_matrix.tsv"),
-        threads:
-            _get_threads("aggregate_viral_count_matrix", profile_config)
-        container:
-            config["containers"]["py311"]
-        log:
-            join(_logdir("aggregate_viral_count_matrix"), "{virus}.log")
-        shell:
-            r"""
-            set -exo pipefail
-            mkdir -p $(dirname {log})
-            exec > >(tee -a {log}) 2>&1
-            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
-              --output {output}
-            """
+        rule:
+            name:
+                f"aggregate_viral_{virus}_count_matrix"
+            input:
+                expand(
+                    join(COUNT_MATRICES_DIR, f"viral_{virus}", f"{{sample}}.viral_{virus}_counts.tsv"),
+                    sample=SAMPLES,
+                ),
+            output:
+                join(COUNT_MATRICES_DIR, f"viral_{virus}", f"viral_{virus}_count_matrix.tsv"),
+            threads:
+                _get_threads(f"aggregate_viral_{virus}_count_matrix", profile_config)
+            container:
+                config["containers"]["py311"]
+            log:
+                join(_logdir(f"aggregate_viral_{virus}_count_matrix"), "aggregate.log")
+            shell:
+                r"""
+                set -exo pipefail
+                mkdir -p $(dirname {log})
+                exec > >(tee -a {log}) 2>&1
+                python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+                  --input-files {input} \
+                  --output {output}
+                """
 
 
 if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
