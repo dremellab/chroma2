@@ -6,6 +6,7 @@ TN5_WINDOW_SIZE = 2 * int(config.get("tn5_motif", {}).get("flank_size", 10)) + 1
 TN5_VIRUS_BIN_SIZE = int(config.get("tn5_motif", {}).get("virus_bin_size", 100))
 TN5_HOST_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("host_gene_flank_size", 250))
 TN5_TRNA_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_flank_size", 100))
+TN5_TRNA_GENE_MAX_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_max_size", 1000))
 TN5_MAPQ_MIN = int(config.get("tn5_motif", {}).get("mapq_min", 0))
 TN5_EXCLUDE_SECONDARY = bool(config.get("tn5_motif", {}).get("exclude_secondary", False))
 TN5_EXCLUDE_SUPPLEMENTARY = bool(
@@ -273,6 +274,7 @@ if HOST != "" and TRNAS_GTF != "":
             ),
         params:
             flank_size=str(TN5_TRNA_GENE_FLANK_SIZE),
+            max_size=str(TN5_TRNA_GENE_MAX_SIZE),
         threads:
             _get_threads("build_host_tn5_trna_gene_bins", profile_config)
         container:
@@ -284,11 +286,12 @@ if HOST != "" and TRNAS_GTF != "":
             set -exo pipefail
             mkdir -p $(dirname {log})
             exec > >(tee -a {log}) 2>&1
-            python {SCRIPTS_DIR}/build_host_trna_gene_bins.py \
-              --trna-gtf {input.trna_gtf} \
+            python {SCRIPTS_DIR}/build_tn5_midpoint_bins.py \
+              --gtf {input.trna_gtf} \
               --host-regions {input.host_regions} \
               --chromsizes {input.chromsizes} \
               --flank-size {params.flank_size} \
+              --max-size {params.max_size} \
               --output {output.bed}
             """
 
