@@ -224,6 +224,9 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
         join(COUNT_MATRICES_DIR, "rrna", "rrna_count_matrix.tsv")
     )
 
+# Final consolidated output folder
+COUNT_MATRICES_FINAL_DIR = join(COUNT_MATRICES_DIR, "final_matrices")
+
 # Aggregate all count matrix outputs
 COUNT_MATRIX_ALL_OUTPUTS = (
     GENE_BIN_OUTPUTS
@@ -245,6 +248,30 @@ COUNT_MATRIX_ALL_OUTPUTS = (
     + RRNA_COUNT_OUTPUTS
     + RRNA_MATRIX_OUTPUTS
 )
+
+# Add final consolidated outputs
+COUNT_MATRIX_ALL_OUTPUTS.append(join(COUNT_MATRICES_FINAL_DIR, "COUNT_MATRICES_INDEX.txt"))
+if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
+    COUNT_MATRIX_ALL_OUTPUTS.append(join(COUNT_MATRICES_FINAL_DIR, "gene_count_matrix.tsv"))
+if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
+    COUNT_MATRIX_ALL_OUTPUTS.append(join(COUNT_MATRICES_FINAL_DIR, "trna_count_matrix.tsv"))
+if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
+    for pol3_type in POL3_TYPES_AVAILABLE:
+        COUNT_MATRIX_ALL_OUTPUTS.append(
+            join(COUNT_MATRICES_FINAL_DIR, f"pol3_{pol3_type.lower()}_count_matrix.tsv")
+        )
+if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
+    for repeat_type in REPEAT_TYPES_AVAILABLE:
+        COUNT_MATRIX_ALL_OUTPUTS.append(
+            join(COUNT_MATRICES_FINAL_DIR, f"repeat_{repeat_type.lower()}_count_matrix.tsv")
+        )
+if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
+    for virus in VIRAL_TYPES_AVAILABLE:
+        COUNT_MATRIX_ALL_OUTPUTS.append(
+            join(COUNT_MATRICES_FINAL_DIR, f"viral_{virus}_count_matrix.tsv")
+        )
+if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
+    COUNT_MATRIX_ALL_OUTPUTS.append(join(COUNT_MATRICES_FINAL_DIR, "rrna_count_matrix.tsv"))
 
 
 # ====== BIN BUILDING RULES ======
@@ -868,3 +895,139 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
               --input-files {input} \
               --output {output}
             """
+
+
+# ====== FINAL CONSOLIDATION & DOCUMENTATION ======
+
+
+rule consolidate_count_matrices:
+    """Consolidate all count matrices to final_matrices folder with index."""
+    input:
+        gene=join(COUNT_MATRICES_DIR, "gene", "gene_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("gene", True) and HOST != ""
+        else [],
+        trna=join(COUNT_MATRICES_DIR, "trna", "trna_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != ""
+        else [],
+        pol3=[
+            join(COUNT_MATRICES_DIR, f"pol3_{t.lower()}", f"pol3_{t.lower()}_count_matrix.tsv")
+            for t in POL3_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != ""
+        else [],
+        repeat=[
+            join(COUNT_MATRICES_DIR, f"repeat_{r.lower()}", f"repeat_{r.lower()}_count_matrix.tsv")
+            for r in REPEAT_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != ""
+        else [],
+        viral=[
+            join(COUNT_MATRICES_DIR, f"viral_{v}", f"viral_{v}_count_matrix.tsv")
+            for v in VIRAL_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0
+        else [],
+        rrna=join(COUNT_MATRICES_DIR, "rrna", "rrna_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != ""
+        else [],
+    output:
+        index=join(COUNT_MATRICES_FINAL_DIR, "COUNT_MATRICES_INDEX.txt"),
+        gene=join(COUNT_MATRICES_FINAL_DIR, "gene_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("gene", True) and HOST != ""
+        else [],
+        trna=join(COUNT_MATRICES_FINAL_DIR, "trna_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != ""
+        else [],
+        pol3=[
+            join(COUNT_MATRICES_FINAL_DIR, f"pol3_{t.lower()}_count_matrix.tsv")
+            for t in POL3_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != ""
+        else [],
+        repeat=[
+            join(COUNT_MATRICES_FINAL_DIR, f"repeat_{r.lower()}_count_matrix.tsv")
+            for r in REPEAT_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != ""
+        else [],
+        viral=[
+            join(COUNT_MATRICES_FINAL_DIR, f"viral_{v}_count_matrix.tsv")
+            for v in VIRAL_TYPES_AVAILABLE
+        ]
+        if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0
+        else [],
+        rrna=join(COUNT_MATRICES_FINAL_DIR, "rrna_count_matrix.tsv")
+        if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != ""
+        else [],
+    threads:
+        _get_threads("consolidate_count_matrices", profile_config)
+    container:
+        config["containers"]["py311"]
+    log:
+        join(_logdir("consolidate_count_matrices"), "consolidate.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {output.index}) $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
+
+        outdir=$(dirname {output.index})
+
+        # Create symlinks for all matrices
+        [ -f "{input.gene}" ] && ln -sf {input.gene} $outdir/gene_count_matrix.tsv || true
+        [ -f "{input.trna}" ] && ln -sf {input.trna} $outdir/trna_count_matrix.tsv || true
+        [ -f "{input.rrna}" ] && ln -sf {input.rrna} $outdir/rrna_count_matrix.tsv || true
+
+        for f in {input.pol3}; do
+          [ -f "$f" ] && ln -sf "$f" "$outdir/$(basename $f)" || true
+        done
+
+        for f in {input.repeat}; do
+          [ -f "$f" ] && ln -sf "$f" "$outdir/$(basename $f)" || true
+        done
+
+        for f in {input.viral}; do
+          [ -f "$f" ] && ln -sf "$f" "$outdir/$(basename $f)" || true
+        done
+
+        # Generate index file
+        python3 << 'PYTHON_EOF'
+import os
+from pathlib import Path
+
+outdir = "{output.index}"
+outdir = os.path.dirname(outdir)
+
+# Collect all symlinked matrices
+matrices = {{}}
+for f in Path(outdir).glob("*.tsv"):
+    matrices[f.name] = f
+
+# Write index
+with open(os.path.join(outdir, "COUNT_MATRICES_INDEX.txt"), "w") as idx:
+    idx.write("=" * 80 + "\n")
+    idx.write("Tn5 Count Matrices Index\n")
+    idx.write("=" * 80 + "\n")
+    idx.write(f"Host: {HOST}\n")
+    idx.write(f"Samples: {len(SAMPLES)}\n")
+    idx.write(f"Output Folder: {outdir}\n\n")
+    idx.write("=" * 80 + "\n")
+    idx.write("AVAILABLE MATRICES\n")
+    idx.write("=" * 80 + "\n\n")
+
+    for name in sorted(matrices.keys()):
+        idx.write(f"✓ {name}\n")
+
+    idx.write("\n" + "=" * 80 + "\n")
+    idx.write("CONFIGURATION\n")
+    idx.write("=" * 80 + "\n")
+    idx.write("Genrich BAM files used for all counting\n")
+    idx.write("Fractional counting (NH-weighted): ENABLED\n")
+    idx.write(f"Mapq minimum: {TN5_MAPQ_MIN}\n\n")
+    idx.write("For detailed documentation, see: COUNT_MATRICES_README.md\n")
+    idx.write("=" * 80 + "\n")
+
+PYTHON_EOF
+
+        echo "✓ Consolidated count matrices to $outdir"
+        """
