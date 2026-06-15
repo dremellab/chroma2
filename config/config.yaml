@@ -73,6 +73,41 @@ repeat_elements_gtf:
     hs1: "hs1.repeatMasker.other_repeat_elements.gtf"
 include_trnas_gtf_in_ref: true
 
+# Tn5 count matrices configuration
+count_matrices:
+  # Gene count matrix: Tn5 insertions around TSS of protein-coding genes (±250bp)
+  gene_counts:
+    enabled: true
+    flank_size: 250
+    # Exclude specific gene biotypes from protein-coding gene matrix
+    exclude_features: [rRNA, tRNA, Mt_tRNA]
+  # tRNA count matrix: Tn5 insertions within tRNA gene bodies (±100bp around midpoint)
+  trna_counts:
+    enabled: true
+    flank_size: 100
+    max_size: 1000
+  # POL3 count matrices (3 separate: T1, T2, T3)
+  # Tn5 insertions within Pol III genes (full feature span, max 1000bp)
+  pol3_counts:
+    enabled: true
+    flank_size: -1 # -1 = full feature span (no flanking)
+    max_size: 1000
+  # Repeat element count matrices (6 separate per repeat type)
+  # Tn5 insertions within repeat elements (full feature span, max 1000bp)
+  repeat_element_counts:
+    enabled: true
+    flank_size: -1 # -1 = full feature span
+    max_size: 1000
+  # Viral genome bin count matrix (per virus)
+  # Tn5 insertions in fixed-size non-overlapping bins across viral genomes
+  viral_genome_counts:
+    enabled: true
+    bin_size: 200
+  # rRNA count matrix: Tn5 insertions around TSS of rRNA genes (±250bp)
+  rrna_counts:
+    enabled: true
+    flank_size: 250
+
 # kraken2 db
 kraken2_db: "KRAKEN2_DB"
 

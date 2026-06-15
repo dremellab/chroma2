@@ -8,6 +8,17 @@ TN5_HOST_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("host_gene_flank_
 TN5_TRNA_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_flank_size", 100))
 TN5_TRNA_GENE_MAX_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_max_size", 1000))
 TN5_MAPQ_MIN = int(config.get("tn5_motif", {}).get("mapq_min", 0))
+
+# Count matrices configuration
+COUNT_MATRICES = config.get("count_matrices", {})
+COUNT_MATRIX_TYPES = {
+    "gene": COUNT_MATRICES.get("gene_counts", {}).get("enabled", True),
+    "trna": COUNT_MATRICES.get("trna_counts", {}).get("enabled", True),
+    "pol3": COUNT_MATRICES.get("pol3_counts", {}).get("enabled", True),
+    "repeat_elements": COUNT_MATRICES.get("repeat_element_counts", {}).get("enabled", True),
+    "viral": COUNT_MATRICES.get("viral_genome_counts", {}).get("enabled", True),
+    "rrna": COUNT_MATRICES.get("rrna_counts", {}).get("enabled", True),
+}
 TN5_EXCLUDE_SECONDARY = bool(config.get("tn5_motif", {}).get("exclude_secondary", False))
 TN5_EXCLUDE_SUPPLEMENTARY = bool(
     config.get("tn5_motif", {}).get("exclude_supplementary", False)
