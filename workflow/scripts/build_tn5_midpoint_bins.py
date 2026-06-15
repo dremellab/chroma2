@@ -45,7 +45,8 @@ def parse_args() -> argparse.Namespace:
         "--flank-size",
         type=int,
         default=100,
-        help="Flank size around midpoint in bp (default: 100). Bin will span midpoint±flank_size.",
+        help="Flank size around midpoint in bp (default: 100). Bin will span midpoint±flank_size. "
+        "Use -1 to use the actual feature start and end coordinates (full gene span).",
     )
     parser.add_argument("--output", required=True, help="Output BED path")
     return parser.parse_args()
@@ -168,7 +169,9 @@ def collect_gene_centers(
             continue
 
         strand = fields[6]
-        center = gene_center_from_fields(fields)
+        start_0based = int(fields[3]) - 1
+        end_0based = int(fields[4]) - 1
+        center = (start_0based + end_0based) // 2
         name = feature_name(attrs, gid)
 
         existing = genes.get(gid)
@@ -177,6 +180,8 @@ def collect_gene_centers(
                 "chrom": chrom,
                 "strand": strand,
                 "center": center,
+                "start": start_0based,
+                "end": end_0based,
                 "gene_name": name,
                 "gene_type": gtype,
             }
@@ -184,9 +189,11 @@ def collect_gene_centers(
 
         if existing["chrom"] != chrom or existing["strand"] != strand:
             continue
-        # keep the outermost span → recompute center from min start / max end
+        # keep the outermost span → recompute center and expand start/end
         existing_center = int(existing["center"])
         existing["center"] = (existing_center + center) // 2
+        existing["start"] = min(int(existing["start"]), start_0based)
+        existing["end"] = max(int(existing["end"]), end_0based)
 
     return genes
 
@@ -206,9 +213,17 @@ def write_bins(
     with open(path, "w", encoding="utf-8") as out:
         for gene_id, meta in rows:
             chrom = str(meta["chrom"])
-            center = int(meta["center"])
-            start = max(0, center - flank_size)
-            end = min(chromsizes[chrom], center + flank_size + 1)
+            if flank_size == -1:
+                # Use full feature span
+                start = int(meta["start"])
+                end = int(meta["end"]) + 1
+                reference_pos = int(meta["center"])
+            else:
+                # Use midpoint ± flank_size
+                center = int(meta["center"])
+                start = max(0, center - flank_size)
+                end = min(chromsizes[chrom], center + flank_size + 1)
+                reference_pos = center
             bin_id = f'{gene_id}|{meta["gene_type"]}'
             out.write(
                 "\t".join(
@@ -221,7 +236,7 @@ def write_bins(
                         str(meta["gene_name"]),
                         str(meta["gene_type"]),
                         str(meta["strand"]),
-                        str(center),
+                        str(reference_pos),
                     ]
                 )
                 + "\n"
@@ -230,8 +245,10 @@ def write_bins(
 
 def main() -> None:
     args = parse_args()
-    if args.flank_size < 0 or args.flank_size > 1000:
-        raise ValueError("--flank-size must be between 0 and 1000 bp")
+    if args.flank_size < -1 or (args.flank_size > 1000 and args.flank_size != -1):
+        raise ValueError(
+            "--flank-size must be between 0 and 1000 bp, or -1 to use full feature span"
+        )
 
     host_contigs = load_host_contigs(args.host_regions)
     chromsizes = load_chromsizes(args.chromsizes)
