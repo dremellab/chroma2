@@ -21,6 +21,12 @@ scriptsdir: "PIPELINE_HOME/workflow/scripts"
 resourcesdir: "PIPELINE_HOME/resources"
 fastas_gtfs_dir: "REFS_DIR"
 
+# reference GTF files by host genome (relative to fastas_gtfs_dir unless absolute path)
+reference_gtf:
+  hg38: "hg38.no_tRNA.gtf"
+  mm39: "mm39.no_tRNA.gtf"
+  hs1: "hs1.gtf" # this inherently excludes tRNAs
+
 # optional host annotations by host genome (relative to fastas_gtfs_dir unless absolute path)
 trnas_gtf:
   hg38: "hg38.tRNAs.hg38chroms.gtf"

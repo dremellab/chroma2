@@ -177,6 +177,7 @@ else:
     else:
         raise ValueError("Both host and viruses are not set. Please set at least one of them.")
 
+REFERENCE_GTF_BY_HOST = config.get("reference_gtf", {})
 TRNAS_GTF_BY_HOST = config.get("trnas_gtf", {})
 CHRR_GTF_BY_HOST = config.get("chrr_gtf", {})
 INCLUDE_TRNAS_GTF_IN_REF = _is_true(config.get("include_trnas_gtf_in_ref", True))
@@ -251,7 +252,15 @@ if VIRUSES != "":
     REGIONS_VIRUSES = [join(FASTAS_GTFS_DIR, f + ".fa.regions") for f in VIRUSES.split(",")]
 else:
     REGIONS_VIRUSES = []
-GTFS = [join(FASTAS_GTFS_DIR, f + ".gtf") for f in HOST_ADDITIVES_VIRUSES]
+def _get_genome_gtf(genome_name):
+    # First check if explicitly defined in reference_gtf config
+    if genome_name in REFERENCE_GTF_BY_HOST:
+        gtf_file = REFERENCE_GTF_BY_HOST[genome_name]
+        return gtf_file if os.path.isabs(gtf_file) else join(FASTAS_GTFS_DIR, gtf_file)
+    # Fall back to default {genome}.gtf
+    return join(FASTAS_GTFS_DIR, genome_name + ".gtf")
+
+GTFS = [_get_genome_gtf(f) for f in HOST_ADDITIVES_VIRUSES]
 if CHRR_GTF != "":
     GTFS.append(CHRR_GTF)
 if INCLUDE_TRNAS_GTF_IN_REF and TRNAS_GTF != "":
