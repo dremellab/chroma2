@@ -305,7 +305,74 @@ run_deseq2_matrix <- function(
     design = ~ group
   )
   dds <- estimateSizeFactors(dds, type = cfg$size_factor_type)
-  dds <- DESeq(dds, fitType = cfg$fit_type, quiet = TRUE)
+
+  fit_types_to_try <- c(cfg$fit_type, "local", "mean")
+  fit_types_to_try <- unique(fit_types_to_try)
+  dds_result <- NULL
+  fit_errors <- list()
+
+  for (fit_type in fit_types_to_try) {
+    dds_result <- tryCatch(
+      {
+        DESeq(dds, fitType = fit_type, quiet = TRUE)
+      },
+      error = function(err) {
+        fit_errors[[fit_type]] <<- conditionMessage(err)
+        NULL
+      }
+    )
+
+    if (!is.null(dds_result)) {
+      if (fit_type != cfg$fit_type) {
+        cat(sprintf(
+          "\nNote: '%s' fit type failed. Successfully used '%s' as fallback.\n",
+          cfg$fit_type, fit_type
+        ))
+      }
+      dds <- dds_result
+      break
+    }
+  }
+
+  if (is.null(dds_result)) {
+    n_group1 <- nrow(coldata[coldata$group == group1, ])
+    n_group2 <- nrow(coldata[coldata$group == group2, ])
+    failed_list <- paste(names(fit_errors), collapse = ", ")
+    msg <- sprintf(
+      paste(
+        "\n=== DESeq2 DISPERSION ESTIMATION FAILURE ===",
+        "Comparison: %s (%s vs %s)",
+        "\nReplicates in this contrast:",
+        "  %s: %d samples",
+        "  %s: %d samples",
+        "  (Recommended minimum: ≥3 per group)",
+        "\nAll dispersion fitting methods failed: %s",
+        "\nThis indicates a fundamental data quality issue:",
+        "  • Sample groups are too similar or have too low variation",
+        "  • Too few replicates per group (%d+%d total)",
+        "  • Insufficient biological variation between samples",
+        "  • Potential problems with the count matrix itself",
+        "\nDebugging steps:",
+        "  1. Verify this contrast is biologically meaningful",
+        "  2. Check for data quality issues in the Tn5 matrices",
+        "  3. Inspect actual peak counts for %s vs %s samples",
+        "  4. Ensure samples are correctly labeled and distinct",
+        "  5. Consider whether this comparison should be analyzed",
+        "\nRecommendations:",
+        "  • Add more replicates to this group",
+        "  • Combine this contrast with others (if biologically justified)",
+        "  • Skip this problematic contrast entirely",
+        sep = "\n"
+      ),
+      comparison, group1, group2,
+      group1, n_group1,
+      group2, n_group2,
+      failed_list,
+      n_group1, n_group2,
+      group1, group2
+    )
+    stop(msg, call. = FALSE)
+  }
 
   contrast_vector <- c("group", group1, group2)
   res_raw <- results(
@@ -448,16 +515,23 @@ if (nzchar(trimws(opts$host_matrix))) {
     stopf("--host-output is required when --host-matrix is provided.")
   }
   dir.create(dirname(opts$host_output), recursive = TRUE, showWarnings = FALSE)
-  host_section <- run_deseq2_matrix(
-    matrix_path = opts$host_matrix,
-    output_path = opts$host_output,
-    manifest = manifest_data$manifest,
-    selected_manifest = manifest_data$selected,
-    comparison = opts$comparison,
-    group1 = opts$group1,
-    group2 = opts$group2,
-    feature_type = "host",
-    cfg = deseq2_cfg
+  host_section <- tryCatch(
+    {
+      run_deseq2_matrix(
+        matrix_path = opts$host_matrix,
+        output_path = opts$host_output,
+        manifest = manifest_data$manifest,
+        selected_manifest = manifest_data$selected,
+        comparison = opts$comparison,
+        group1 = opts$group1,
+        group2 = opts$group2,
+        feature_type = "host",
+        cfg = deseq2_cfg
+      )
+    },
+    error = function(err) {
+      stopf("Host analysis failed for comparison '%s': %s", opts$comparison, conditionMessage(err))
+    }
   )
   if (!is.null(host_section) && nzchar(trimws(opts$host_volcano))) {
     save_enhanced_volcano_png(
@@ -474,16 +548,26 @@ virus_sections <- list()
 if (length(virus_labels) > 0) {
   for (idx in seq_along(virus_labels)) {
     dir.create(dirname(virus_outputs[[idx]]), recursive = TRUE, showWarnings = FALSE)
-    virus_sections[[virus_labels[[idx]]]] <- run_deseq2_matrix(
-      matrix_path = virus_matrices[[idx]],
-      output_path = virus_outputs[[idx]],
-      manifest = manifest_data$manifest,
-      selected_manifest = manifest_data$selected,
-      comparison = opts$comparison,
-      group1 = opts$group1,
-      group2 = opts$group2,
-      feature_type = virus_labels[[idx]],
-      cfg = deseq2_cfg
+    virus_sections[[virus_labels[[idx]]]] <- tryCatch(
+      {
+        run_deseq2_matrix(
+          matrix_path = virus_matrices[[idx]],
+          output_path = virus_outputs[[idx]],
+          manifest = manifest_data$manifest,
+          selected_manifest = manifest_data$selected,
+          comparison = opts$comparison,
+          group1 = opts$group1,
+          group2 = opts$group2,
+          feature_type = virus_labels[[idx]],
+          cfg = deseq2_cfg
+        )
+      },
+      error = function(err) {
+        stopf(
+          "Analysis failed for %s in comparison '%s': %s",
+          virus_labels[[idx]], opts$comparison, conditionMessage(err)
+        )
+      }
     )
     if (length(virus_volcanos) == length(virus_labels) && nzchar(trimws(virus_volcanos[[idx]]))) {
       save_enhanced_volcano_png(
