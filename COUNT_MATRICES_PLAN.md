@@ -302,3 +302,21 @@ if COUNT_MATRIX_TYPES['gene']:
 3. **Update tn5motif.smk** with conditional rules and parameters
 4. **Test** with subset of samples
 5. **Document** final matrix outputs and interpretation
+
+---
+
+## CLARIFICATIONS
+
+### chrR GTFs are rRNA GTFs
+
+The `chrR_gtf` (Chromatin Reference) in config.yaml already contains rRNA genes for all
+three genomes (hg38, mm39, hs1). These are the same GTFs used for rRNA count matrix.
+No additional rRNA GTF configuration needed.
+
+### Actual Prerequisites (Simplified)
+
+1. Add `count_matrices` config section with toggles and parameters
+2. Write `build_viral_genome_bins.py` script
+3. Add ~20 Snakemake rules (3 per matrix type: build → count → aggregate)
+
+That's it. All GTF files already exist and are configured.
