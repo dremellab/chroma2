@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional
 
@@ -205,12 +206,38 @@ def write_bins(
 
     rows.sort(key=lambda item: (str(item[1]["chrom"]), int(item[1]["tss"]), item[0]))
 
+    # Check for chromosomes in GTF that aren't in chromsizes
+    chroms_in_genes = set(str(meta["chrom"]) for _, meta in rows)
+    missing_chroms = chroms_in_genes - set(chromsizes.keys())
+    if missing_chroms:
+        print(
+            f"⚠️  WARNING: {len(missing_chroms)} chromosome(s) in GTF not found in chromsizes: {sorted(missing_chroms)}",
+            file=sys.stderr,
+        )
+
+    # Track truncation statistics
+    truncated_count = 0
+    truncated_start = 0
+    truncated_end = 0
+
     with open(path, "w", encoding="utf-8") as out:
         for gene_id, meta in rows:
             chrom = str(meta["chrom"])
+            if chrom not in chromsizes:
+                continue
             tss = int(meta["tss"])
-            start = max(0, tss - flank_size)
-            end = min(chromsizes[chrom], tss + flank_size + 1)
+            desired_start = tss - flank_size
+            desired_end = tss + flank_size + 1
+            start = max(0, desired_start)
+            end = min(chromsizes[chrom], desired_end)
+
+            if start != desired_start or end != desired_end:
+                truncated_count += 1
+                if start != desired_start:
+                    truncated_start += 1
+                if end != desired_end:
+                    truncated_end += 1
+
             bin_id = f"{gene_id}|tss"
             out.write(
                 "\t".join(
@@ -228,6 +255,21 @@ def write_bins(
                 )
                 + "\n"
             )
+
+    # Report truncation statistics
+    if truncated_count > 0:
+        print(
+            f"⚠️  TRUNCATION REPORT: {truncated_count} bins were truncated to fit chromosome boundaries",
+            file=sys.stderr,
+        )
+        print(
+            f"   - {truncated_start} truncated at start (TSS near chromosome start)",
+            file=sys.stderr,
+        )
+        print(
+            f"   - {truncated_end} truncated at end (TSS near chromosome end)",
+            file=sys.stderr,
+        )
 
 
 def main() -> None:
@@ -251,7 +293,24 @@ def main() -> None:
         args.flank_size,
         genes,
     )
-    print(f"Created {len(genes)} TSS bins in {args.output}", flush=True)
+
+    # Count bins actually written (excluding those on missing chromosomes)
+    chroms_in_genes = set(str(meta["chrom"]) for meta in genes.values())
+    missing_chroms = chroms_in_genes - set(chromsizes.keys())
+    skipped_genes = sum(
+        1 for meta in genes.values() if str(meta["chrom"]) in missing_chroms
+    )
+    written_bins = len(genes) - skipped_genes
+
+    print(
+        f"✓ Created {written_bins} TSS bins in {args.output}",
+        flush=True,
+    )
+    if skipped_genes > 0:
+        print(
+            f"  ({skipped_genes} genes skipped due to missing chromosome in chromsizes)",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

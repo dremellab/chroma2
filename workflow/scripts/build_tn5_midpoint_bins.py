@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional
 
@@ -210,9 +211,25 @@ def write_bins(
 
     rows.sort(key=lambda item: (str(item[1]["chrom"]), int(item[1]["center"]), item[0]))
 
+    # Check for chromosomes in GTF that aren't in chromsizes
+    chroms_in_genes = set(str(meta["chrom"]) for _, meta in rows)
+    missing_chroms = chroms_in_genes - set(chromsizes.keys())
+    if missing_chroms:
+        print(
+            f"⚠️  WARNING: {len(missing_chroms)} chromosome(s) in GTF not found in chromsizes: {sorted(missing_chroms)}",
+            file=sys.stderr,
+        )
+
+    # Track truncation statistics (only applies when not using full feature span)
+    truncated_count = 0
+    truncated_start = 0
+    truncated_end = 0
+
     with open(path, "w", encoding="utf-8") as out:
         for gene_id, meta in rows:
             chrom = str(meta["chrom"])
+            if chrom not in chromsizes:
+                continue
             if flank_size == -1:
                 # Use full feature span
                 start = int(meta["start"])
@@ -221,9 +238,19 @@ def write_bins(
             else:
                 # Use midpoint ± flank_size
                 center = int(meta["center"])
-                start = max(0, center - flank_size)
-                end = min(chromsizes[chrom], center + flank_size + 1)
+                desired_start = center - flank_size
+                desired_end = center + flank_size + 1
+                start = max(0, desired_start)
+                end = min(chromsizes[chrom], desired_end)
                 reference_pos = center
+
+                if start != desired_start or end != desired_end:
+                    truncated_count += 1
+                    if start != desired_start:
+                        truncated_start += 1
+                    if end != desired_end:
+                        truncated_end += 1
+
             bin_id = f'{gene_id}|{meta["gene_type"]}'
             out.write(
                 "\t".join(
@@ -241,6 +268,21 @@ def write_bins(
                 )
                 + "\n"
             )
+
+    # Report truncation statistics (only for midpoint mode, not full feature span)
+    if flank_size != -1 and truncated_count > 0:
+        print(
+            f"⚠️  TRUNCATION REPORT: {truncated_count} bins were truncated to fit chromosome boundaries",
+            file=sys.stderr,
+        )
+        print(
+            f"   - {truncated_start} truncated at start (midpoint near chromosome start)",
+            file=sys.stderr,
+        )
+        print(
+            f"   - {truncated_end} truncated at end (midpoint near chromosome end)",
+            file=sys.stderr,
+        )
 
 
 def main() -> None:
@@ -266,7 +308,29 @@ def main() -> None:
         args.flank_size,
         genes,
     )
-    print(f"Created {len(genes)} midpoint bins in {args.output}", flush=True)
+
+    # Count bins actually written (excluding those on missing chromosomes)
+    chroms_in_genes = set(str(meta["chrom"]) for meta in genes.values())
+    missing_chroms = chroms_in_genes - set(chromsizes.keys())
+    skipped_genes = sum(
+        1 for meta in genes.values() if str(meta["chrom"]) in missing_chroms
+    )
+    written_bins = len(genes) - skipped_genes
+
+    mode = (
+        "full feature span"
+        if args.flank_size == -1
+        else f"midpoint±{args.flank_size}bp"
+    )
+    print(
+        f"✓ Created {written_bins} bins ({mode}) in {args.output}",
+        flush=True,
+    )
+    if skipped_genes > 0:
+        print(
+            f"  ({skipped_genes} genes skipped due to missing chromosome in chromsizes)",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
