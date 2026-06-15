@@ -37,8 +37,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--gene-types",
         nargs="+",
-        default=["protein_coding", "protein-coding"],
-        help="Gene types to include (default: protein_coding, protein-coding)",
+        default=None,
+        help="Gene types to include (default: None = all gene types). If specified, only these types are included.",
     )
     parser.add_argument(
         "--flank-size",
@@ -148,9 +148,9 @@ def iter_gtf_records(path: str) -> Iterator[list[str]]:
 def collect_gene_tss(
     gtf_path: str,
     host_contigs: set[str],
-    include_types: Iterable[str],
+    include_types: Iterable[str] | None,
 ) -> Dict[str, Dict[str, object]]:
-    include = {item.lower() for item in include_types}
+    include = {item.lower() for item in include_types} if include_types else None
     genes: Dict[str, Dict[str, object]] = {}
 
     for fields in iter_gtf_records(gtf_path):
@@ -165,7 +165,7 @@ def collect_gene_tss(
         if not gid:
             continue
         gtype = gene_type(attrs).lower()
-        if gtype not in include:
+        if include is not None and gtype not in include:
             continue
 
         strand = fields[6]

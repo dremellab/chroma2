@@ -38,8 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--gene-types",
         nargs="+",
-        default=["Mt_tRNA", "tRNA"],
-        help="Gene types to include (default: Mt_tRNA, tRNA)",
+        default=None,
+        help="Gene types to include (default: None = all gene types). If specified, only these types are included.",
     )
     parser.add_argument(
         "--flank-size",
@@ -147,9 +147,9 @@ def iter_gtf_records(path: str) -> Iterator[list[str]]:
 def collect_gene_centers(
     gtf_path: str,
     host_contigs: set[str],
-    include_types: Iterable[str],
+    include_types: Iterable[str] | None,
 ) -> Dict[str, Dict[str, object]]:
-    include = {item.lower() for item in include_types}
+    include = {item.lower() for item in include_types} if include_types else None
     genes: Dict[str, Dict[str, object]] = {}
 
     for fields in iter_gtf_records(gtf_path):
@@ -164,7 +164,7 @@ def collect_gene_centers(
         if not gid:
             continue
         gtype = gene_type(attrs)
-        if gtype.lower() not in include:
+        if include is not None and gtype.lower() not in include:
             continue
 
         strand = fields[6]
