@@ -6,8 +6,7 @@ rule s3_transfer_if_enabled:
     input:
         # Depend on key final outputs to ensure all pipeline stages are complete
         join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
-        TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
-        TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
+        COUNT_MATRIX_ALL_OUTPUTS,
         *DESEQ2_OUTPUTS,
         # MultiQC report and data (closes #21)
         join(RESULTSDIR, "multiqc", "multiqc_report.html"),

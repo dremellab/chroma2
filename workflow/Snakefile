@@ -156,17 +156,6 @@ rule all:
         BIGBED_OUTPUTS,
         # Tn5 motif outputs
         TN5_MOTIF_OUTPUTS,
-        # caller-specific viral Tn5 bin count matrices
-        TN5_BIN_COUNT_OUTPUTS,
-        # host Tn5 gene bins and caller-specific per-sample counts
-        TN5_HOST_GENE_BIN_OUTPUTS,
-        TN5_HOST_BIN_COUNT_OUTPUTS,
-        # aggregate Tn5 count matrices across samples
-        TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
-        # tRNA-specific Tn5 gene bins, per-sample counts, and aggregate matrices
-        TN5_TRNA_HOST_GENE_BIN_OUTPUTS,
-        TN5_TRNA_HOST_BIN_COUNT_OUTPUTS,
-        TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
         # Tn5 count matrices (6 types: gene, tRNA, Pol3, repeat elements, viral, rRNA)
         COUNT_MATRIX_ALL_OUTPUTS,
         # DESeq2 contrast reports

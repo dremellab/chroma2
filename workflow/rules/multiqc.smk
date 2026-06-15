@@ -124,7 +124,7 @@ rule alignment_stats_mqc:
 
 rule tn5_counts_mqc:
     input:
-        TN5_AGGREGATE_COUNT_MATRIX_OUTPUTS,
+        COUNT_MATRIX_ALL_OUTPUTS,
     output:
         join(MULTIQC_CUSTOM, "tn5_counts_mqc.tsv"),
     container:
