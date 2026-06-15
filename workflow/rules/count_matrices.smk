@@ -1,6 +1,7 @@
 ###################################################################################
-# Tn5 count matrix generation from BAM files
+# Tn5 count matrix generation from BAM files (Genrich only)
 # Generates 6 types of matrices: gene, tRNA, Pol3, repeat elements, viral, rRNA
+# Output folder: results/count_matrices
 ###################################################################################
 
 # Extract count matrices configuration
@@ -57,7 +58,8 @@ REPEAT_TYPES = [
     "other_repeat_elements",
 ]
 
-TN5_CALLERS = ("genrich", "macs2")
+# Output folder for count matrices
+COUNT_MATRICES_DIR = join(RESULTSDIR, "count_matrices")
 
 # Filter references by current host
 POL3_TYPES_AVAILABLE = [
@@ -76,6 +78,13 @@ def _resolve_gtf_path(gtf_file: str) -> str:
     return join(FASTAS_GTFS_DIR, gtf_file)
 
 
+# Get Genrich BAM for a sample
+def _get_genrich_bam(sample: str, group: str = "host") -> str:
+    if group == "host":
+        return join(RESULTSDIR, sample, "align", f"{sample}.aligned.host.qname.bam")
+    return join(RESULTSDIR, sample, "align", f"{sample}.aligned.virus.{group}.qname.bam")
+
+
 # Build output tracking lists for all matrix types
 
 # Gene counts
@@ -86,23 +95,19 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
     GENE_BIN_OUTPUTS.append(
         join(REF_DIR, f"ref.tn5.host_gene_bins.{GENE_FLANK_SIZE}bp.bed")
     )
-    for caller in TN5_CALLERS:
-        GENE_COUNT_OUTPUTS.extend(
-            expand(
-                join(
-                    RESULTSDIR,
-                    "{sample}",
-                    "tn5_motif",
-                    caller,
-                    "host",
-                    "{sample}.host." + caller + f".tn5_gene_counts.{GENE_FLANK_SIZE}bp.tsv",
-                ),
-                sample=SAMPLES,
-            )
+    GENE_COUNT_OUTPUTS.extend(
+        expand(
+            join(
+                COUNT_MATRICES_DIR,
+                "gene",
+                "{sample}.gene_counts.tsv",
+            ),
+            sample=SAMPLES,
         )
-        GENE_MATRIX_OUTPUTS.append(
-            join(RESULTSDIR, "tn5_motif", f"host.{caller}.tn5_gene_count_matrix.{GENE_FLANK_SIZE}bp.tsv")
-        )
+    )
+    GENE_MATRIX_OUTPUTS.append(
+        join(COUNT_MATRICES_DIR, "gene", "gene_count_matrix.tsv")
+    )
 
 # tRNA counts
 TRNA_BIN_OUTPUTS = []
@@ -112,23 +117,19 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
     TRNA_BIN_OUTPUTS.append(
         join(REF_DIR, f"ref.tn5.host_trna_bins.{TRNA_FLANK_SIZE}bp.bed")
     )
-    for caller in TN5_CALLERS:
-        TRNA_COUNT_OUTPUTS.extend(
-            expand(
-                join(
-                    RESULTSDIR,
-                    "{sample}",
-                    "tn5_motif",
-                    caller,
-                    "host",
-                    "{sample}.host." + caller + f".tn5_trna_counts.{TRNA_FLANK_SIZE}bp.tsv",
-                ),
-                sample=SAMPLES,
-            )
+    TRNA_COUNT_OUTPUTS.extend(
+        expand(
+            join(
+                COUNT_MATRICES_DIR,
+                "trna",
+                "{sample}.trna_counts.tsv",
+            ),
+            sample=SAMPLES,
         )
-        TRNA_MATRIX_OUTPUTS.append(
-            join(RESULTSDIR, "tn5_motif", f"host.{caller}.tn5_trna_count_matrix.{TRNA_FLANK_SIZE}bp.tsv")
-        )
+    )
+    TRNA_MATRIX_OUTPUTS.append(
+        join(COUNT_MATRICES_DIR, "trna", "trna_count_matrix.tsv")
+    )
 
 # Pol3 counts (3 types: T1, T2, T3)
 POL3_BIN_OUTPUTS = []
@@ -136,26 +137,23 @@ POL3_COUNT_OUTPUTS = []
 POL3_MATRIX_OUTPUTS = []
 if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
     for pol3_type in POL3_TYPES_AVAILABLE:
+        pol3_lower = pol3_type.lower()
         POL3_BIN_OUTPUTS.append(
-            join(REF_DIR, f"ref.tn5.host_pol3_{pol3_type.lower()}_bins.{POL3_FLANK_SIZE}bp.bed")
+            join(REF_DIR, f"ref.tn5.host_pol3_{pol3_lower}_bins.{POL3_FLANK_SIZE}bp.bed")
         )
-        for caller in TN5_CALLERS:
-            POL3_COUNT_OUTPUTS.extend(
-                expand(
-                    join(
-                        RESULTSDIR,
-                        "{sample}",
-                        "tn5_motif",
-                        caller,
-                        "host",
-                        "{sample}.host." + caller + f".tn5_pol3_{pol3_type.lower()}_counts.tsv",
-                    ),
-                    sample=SAMPLES,
-                )
+        POL3_COUNT_OUTPUTS.extend(
+            expand(
+                join(
+                    COUNT_MATRICES_DIR,
+                    f"pol3_{pol3_lower}",
+                    "{sample}.pol3_{pol3_lower}_counts.tsv",
+                ),
+                sample=SAMPLES,
             )
-            POL3_MATRIX_OUTPUTS.append(
-                join(RESULTSDIR, "tn5_motif", f"host.{caller}.tn5_pol3_{pol3_type.lower()}_count_matrix.tsv")
-            )
+        )
+        POL3_MATRIX_OUTPUTS.append(
+            join(COUNT_MATRICES_DIR, f"pol3_{pol3_lower}", f"pol3_{pol3_lower}_count_matrix.tsv")
+        )
 
 # Repeat element counts (6 types)
 REPEAT_BIN_OUTPUTS = []
@@ -163,26 +161,23 @@ REPEAT_COUNT_OUTPUTS = []
 REPEAT_MATRIX_OUTPUTS = []
 if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
     for repeat_type in REPEAT_TYPES_AVAILABLE:
+        repeat_lower = repeat_type.lower()
         REPEAT_BIN_OUTPUTS.append(
-            join(REF_DIR, f"ref.tn5.host_repeat_{repeat_type.lower()}_bins.{REPEAT_FLANK_SIZE}bp.bed")
+            join(REF_DIR, f"ref.tn5.host_repeat_{repeat_lower}_bins.{REPEAT_FLANK_SIZE}bp.bed")
         )
-        for caller in TN5_CALLERS:
-            REPEAT_COUNT_OUTPUTS.extend(
-                expand(
-                    join(
-                        RESULTSDIR,
-                        "{sample}",
-                        "tn5_motif",
-                        caller,
-                        "host",
-                        "{sample}.host." + caller + f".tn5_repeat_{repeat_type.lower()}_counts.tsv",
-                    ),
-                    sample=SAMPLES,
-                )
+        REPEAT_COUNT_OUTPUTS.extend(
+            expand(
+                join(
+                    COUNT_MATRICES_DIR,
+                    f"repeat_{repeat_lower}",
+                    "{sample}.repeat_{repeat_lower}_counts.tsv",
+                ),
+                sample=SAMPLES,
             )
-            REPEAT_MATRIX_OUTPUTS.append(
-                join(RESULTSDIR, "tn5_motif", f"host.{caller}.tn5_repeat_{repeat_type.lower()}_count_matrix.tsv")
-            )
+        )
+        REPEAT_MATRIX_OUTPUTS.append(
+            join(COUNT_MATRICES_DIR, f"repeat_{repeat_lower}", f"repeat_{repeat_lower}_count_matrix.tsv")
+        )
 
 # Viral genome counts (per virus)
 VIRAL_BIN_OUTPUTS = []
@@ -193,23 +188,19 @@ if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
         VIRAL_BIN_OUTPUTS.append(
             join(REF_DIR, f"ref.tn5.virus_{virus}_bins.{VIRAL_BIN_SIZE}bp.bed")
         )
-        for caller in TN5_CALLERS:
-            VIRAL_COUNT_OUTPUTS.extend(
-                expand(
-                    join(
-                        RESULTSDIR,
-                        "{sample}",
-                        "tn5_motif",
-                        caller,
-                        virus,
-                        "{sample}." + virus + "." + caller + f".tn5_virus_counts.{VIRAL_BIN_SIZE}bp.tsv",
-                    ),
-                    sample=SAMPLES,
-                )
+        VIRAL_COUNT_OUTPUTS.extend(
+            expand(
+                join(
+                    COUNT_MATRICES_DIR,
+                    f"viral_{virus}",
+                    "{sample}.viral_{virus}_counts.tsv",
+                ),
+                sample=SAMPLES,
             )
-            VIRAL_MATRIX_OUTPUTS.append(
-                join(RESULTSDIR, "tn5_motif", f"{virus}.{caller}.tn5_virus_count_matrix.{VIRAL_BIN_SIZE}bp.tsv")
-            )
+        )
+        VIRAL_MATRIX_OUTPUTS.append(
+            join(COUNT_MATRICES_DIR, f"viral_{virus}", f"viral_{virus}_count_matrix.tsv")
+        )
 
 # rRNA counts
 RRNA_BIN_OUTPUTS = []
@@ -219,23 +210,19 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
     RRNA_BIN_OUTPUTS.append(
         join(REF_DIR, f"ref.tn5.host_rrna_bins.{RRNA_FLANK_SIZE}bp.bed")
     )
-    for caller in TN5_CALLERS:
-        RRNA_COUNT_OUTPUTS.extend(
-            expand(
-                join(
-                    RESULTSDIR,
-                    "{sample}",
-                    "tn5_motif",
-                    caller,
-                    "host",
-                    "{sample}.host." + caller + f".tn5_rrna_counts.{RRNA_FLANK_SIZE}bp.tsv",
-                ),
-                sample=SAMPLES,
-            )
+    RRNA_COUNT_OUTPUTS.extend(
+        expand(
+            join(
+                COUNT_MATRICES_DIR,
+                "rrna",
+                "{sample}.rrna_counts.tsv",
+            ),
+            sample=SAMPLES,
         )
-        RRNA_MATRIX_OUTPUTS.append(
-            join(RESULTSDIR, "tn5_motif", f"host.{caller}.tn5_rrna_count_matrix.{RRNA_FLANK_SIZE}bp.tsv")
-        )
+    )
+    RRNA_MATRIX_OUTPUTS.append(
+        join(COUNT_MATRICES_DIR, "rrna", "rrna_count_matrix.tsv")
+    )
 
 # Aggregate all count matrix outputs
 COUNT_MATRIX_ALL_OUTPUTS = (
@@ -469,4 +456,415 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
               --chromsizes {input.chromsizes} \
               --flank-size {params.flank_size} \
               --output {output.bed}
+            """
+
+
+# ====== COUNTING RULES (Genrich only) ======
+
+TN5_MAPQ_MIN = int(config.get("tn5_motif", {}).get("mapq_min", 0))
+TN5_EXCLUDE_SECONDARY = bool(config.get("tn5_motif", {}).get("exclude_secondary", False))
+TN5_EXCLUDE_SUPPLEMENTARY = bool(
+    config.get("tn5_motif", {}).get("exclude_supplementary", False)
+)
+TN5_FRACTIONAL_COUNTING = bool(config.get("tn5_motif", {}).get("fractional_counting", False))
+
+
+if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
+
+    rule count_gene_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, "host"),
+            bins=join(REF_DIR, f"ref.tn5.host_gene_bins.{GENE_FLANK_SIZE}bp.bed"),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "gene", "{sample}.gene_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_gene_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_gene_bins"), "{sample}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
+
+    rule count_trna_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, "host"),
+            bins=join(REF_DIR, f"ref.tn5.host_trna_bins.{TRNA_FLANK_SIZE}bp.bed"),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "trna", "{sample}.trna_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_trna_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_trna_bins"), "{sample}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
+
+    rule count_pol3_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, "host"),
+            bins=join(
+                REF_DIR,
+                "ref.tn5.host_pol3_{pol3_type}_bins." + str(POL3_FLANK_SIZE) + "bp.bed",
+            ),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "pol3_{pol3_type}", "{sample}.pol3_{pol3_type}_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_pol3_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_pol3_bins"), "{sample}.{pol3_type}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
+
+    rule count_repeat_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, "host"),
+            bins=join(
+                REF_DIR,
+                "ref.tn5.host_repeat_{repeat_type}_bins." + str(REPEAT_FLANK_SIZE) + "bp.bed",
+            ),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "repeat_{repeat_type}", "{sample}.repeat_{repeat_type}_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_repeat_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_repeat_bins"), "{sample}.{repeat_type}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
+
+    rule count_viral_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, wildcards.virus),
+            bins=join(REF_DIR, "ref.tn5.virus_{virus}_bins." + str(VIRAL_BIN_SIZE) + "bp.bed"),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "viral_{virus}", "{sample}.viral_{virus}_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_viral_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_viral_bins"), "{sample}.{virus}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
+
+    rule count_rrna_bins:
+        input:
+            bam=lambda wildcards: _get_genrich_bam(wildcards.sample, "host"),
+            bins=join(REF_DIR, f"ref.tn5.host_rrna_bins.{RRNA_FLANK_SIZE}bp.bed"),
+        output:
+            tsv=join(COUNT_MATRICES_DIR, "rrna", "{sample}.rrna_counts.tsv"),
+        params:
+            mapq_min=str(TN5_MAPQ_MIN),
+            filter_args=" ".join(
+                flag
+                for flag in (
+                    "--exclude-secondary" if TN5_EXCLUDE_SECONDARY else "",
+                    "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else "",
+                    "--fractional-counting" if TN5_FRACTIONAL_COUNTING else "",
+                )
+                if flag
+            ),
+        threads:
+            _get_threads("count_rrna_bins", profile_config)
+        container:
+            config["containers"]["pysam"]
+        log:
+            join(_logdir("count_rrna_bins"), "{sample}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log}) $(dirname {output.tsv})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/count_tn5_sites_in_bins.py \
+              --bam {input.bam} \
+              --bins-bed {input.bins} \
+              --output {output.tsv} \
+              --sample {wildcards.sample} \
+              --threads {threads} \
+              --mapq-min {params.mapq_min} {params.filter_args}
+            """
+
+
+# ====== AGGREGATION RULES ======
+
+if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
+
+    rule aggregate_gene_count_matrix:
+        input:
+            expand(join(COUNT_MATRICES_DIR, "gene", "{sample}.gene_counts.tsv"), sample=SAMPLES),
+        output:
+            join(COUNT_MATRICES_DIR, "gene", "gene_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_gene_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_gene_count_matrix"), "aggregate.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
+
+    rule aggregate_trna_count_matrix:
+        input:
+            expand(join(COUNT_MATRICES_DIR, "trna", "{sample}.trna_counts.tsv"), sample=SAMPLES),
+        output:
+            join(COUNT_MATRICES_DIR, "trna", "trna_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_trna_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_trna_count_matrix"), "aggregate.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
+
+    rule aggregate_pol3_count_matrix:
+        input:
+            expand(
+                join(COUNT_MATRICES_DIR, "pol3_{{pol3_type}}", "{{sample}}.pol3_{{pol3_type}}_counts.tsv"),
+                sample=SAMPLES,
+            ),
+        output:
+            join(COUNT_MATRICES_DIR, "pol3_{pol3_type}", "pol3_{pol3_type}_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_pol3_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_pol3_count_matrix"), "{pol3_type}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
+
+    rule aggregate_repeat_count_matrix:
+        input:
+            expand(
+                join(COUNT_MATRICES_DIR, "repeat_{{repeat_type}}", "{{sample}}.repeat_{{repeat_type}}_counts.tsv"),
+                sample=SAMPLES,
+            ),
+        output:
+            join(COUNT_MATRICES_DIR, "repeat_{repeat_type}", "repeat_{repeat_type}_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_repeat_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_repeat_count_matrix"), "{repeat_type}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
+
+    rule aggregate_viral_count_matrix:
+        input:
+            expand(
+                join(COUNT_MATRICES_DIR, "viral_{{virus}}", "{{sample}}.viral_{{virus}}_counts.tsv"),
+                sample=SAMPLES,
+            ),
+        output:
+            join(COUNT_MATRICES_DIR, "viral_{virus}", "viral_{virus}_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_viral_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_viral_count_matrix"), "{virus}.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
+            """
+
+
+if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
+
+    rule aggregate_rrna_count_matrix:
+        input:
+            expand(join(COUNT_MATRICES_DIR, "rrna", "{sample}.rrna_counts.tsv"), sample=SAMPLES),
+        output:
+            join(COUNT_MATRICES_DIR, "rrna", "rrna_count_matrix.tsv"),
+        threads:
+            _get_threads("aggregate_rrna_count_matrix", profile_config)
+        container:
+            config["containers"]["py311"]
+        log:
+            join(_logdir("aggregate_rrna_count_matrix"), "aggregate.log")
+        shell:
+            r"""
+            set -exo pipefail
+            mkdir -p $(dirname {log})
+            exec > >(tee -a {log}) 2>&1
+            python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
+              --input-files {input} \
+              --output {output}
             """
