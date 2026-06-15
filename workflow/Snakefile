@@ -65,6 +65,7 @@ include: "rules/peakcalling.smk"
 include: "rules/postprocessing.smk"
 include: "rules/bigbed.smk"
 include: "rules/tn5motif.smk"
+include: "rules/count_matrices.smk"
 include: "rules/multiqc.smk"
 include: "rules/deseq2.smk"
 include: "rules/s3_transfer.smk"
@@ -166,6 +167,8 @@ rule all:
         TN5_TRNA_HOST_GENE_BIN_OUTPUTS,
         TN5_TRNA_HOST_BIN_COUNT_OUTPUTS,
         TN5_TRNA_AGGREGATE_COUNT_MATRIX_OUTPUTS,
+        # Tn5 count matrices (6 types: gene, tRNA, Pol3, repeat elements, viral, rRNA)
+        COUNT_MATRIX_ALL_OUTPUTS,
         # DESeq2 contrast reports
         DESEQ2_OUTPUTS,
         # reference TSS + chrom sizes
