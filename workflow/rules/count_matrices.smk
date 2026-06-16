@@ -763,7 +763,7 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
             mkdir -p $(dirname {log})
             exec > >(tee -a {log}) 2>&1
             python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
+              --counts {input} \
               --output {output}
             """
 
@@ -787,7 +787,7 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
             mkdir -p $(dirname {log})
             exec > >(tee -a {log}) 2>&1
             python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
+              --counts {input} \
               --output {output}
             """
 
@@ -818,7 +818,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
                 mkdir -p $(dirname {log})
                 exec > >(tee -a {log}) 2>&1
                 python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-                  --input-files {input} \
+                  --counts {input} \
                   --output {output}
                 """
 
@@ -849,7 +849,7 @@ if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
                 mkdir -p $(dirname {log})
                 exec > >(tee -a {log}) 2>&1
                 python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-                  --input-files {input} \
+                  --counts {input} \
                   --output {output}
                 """
 
@@ -879,7 +879,7 @@ if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
                 mkdir -p $(dirname {log})
                 exec > >(tee -a {log}) 2>&1
                 python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-                  --input-files {input} \
+                  --counts {input} \
                   --output {output}
                 """
 
@@ -903,7 +903,7 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
             mkdir -p $(dirname {log})
             exec > >(tee -a {log}) 2>&1
             python {SCRIPTS_DIR}/build_tn5_count_matrix.py \
-              --input-files {input} \
+              --counts {input} \
               --output {output}
             """
 
