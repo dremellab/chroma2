@@ -55,6 +55,23 @@ def oncomplete():
     except FileNotFoundError as e:
         print("❌ File not found:", e)
 
+
+def onsuccess():
+    """Called when workflow finishes successfully."""
+    print("\n" + "=" * 80)
+    print("✅ Workflow completed successfully!")
+    print("=" * 80)
+    oncomplete()
+
+
+def onerror():
+    """Called when workflow encounters an error."""
+    print("\n" + "=" * 80)
+    print("❌ Workflow encountered errors!")
+    print("=" * 80)
+    oncomplete()
+
+
 include: "rules/init.smk"
 include: "rules/inputs.smk"
 include: "rules/preprocess.smk"
