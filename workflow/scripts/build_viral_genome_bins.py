@@ -57,6 +57,7 @@ def write_bins(path: str, chromsizes: Dict[str, int], bin_size: int) -> None:
         while start < chrom_size:
             end = min(start + bin_size, chrom_size)
             bin_id = f"{chrom}:{start}-{end}"
+            center = (start + end) // 2  # midpoint of bin
 
             rows.append(
                 (
@@ -64,8 +65,11 @@ def write_bins(path: str, chromsizes: Dict[str, int], bin_size: int) -> None:
                     str(start),
                     str(end),
                     bin_id,
-                    str(bin_num),
-                    str(end - start),  # actual bin length
+                    bin_id,  # gene_id equivalent
+                    f"{chrom}_bin{bin_num}",  # gene_name equivalent
+                    "viral_bin",  # feature_type
+                    "+",  # strand (not applicable for viral genomes)
+                    str(center),  # center coordinate
                 )
             )
 
