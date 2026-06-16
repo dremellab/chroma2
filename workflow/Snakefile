@@ -235,6 +235,6 @@ rule all:
         ),
         # MultiQC report
         join(RESULTSDIR, "multiqc", "multiqc_report.html"),
-        directory(join(RESULTSDIR, "multiqc", "multiqc_data")),
+        join(RESULTSDIR, "multiqc", "multiqc_data"),
         # S3 transfer sentinel (only if push_to_s3=true AND s3_sample_set_name is set)
         ".s3_transfer.done" if (config.get("push_to_s3", False) and config.get("s3_sample_set_name", "")) else [],

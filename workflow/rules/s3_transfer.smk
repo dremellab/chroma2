@@ -10,7 +10,7 @@ rule s3_transfer_if_enabled:
         *DESEQ2_OUTPUTS,
         # MultiQC report and data (closes #21)
         join(RESULTSDIR, "multiqc", "multiqc_report.html"),
-        directory(join(RESULTSDIR, "multiqc", "multiqc_data")),
+        join(RESULTSDIR, "multiqc", "multiqc_data"),
         # Custom QC files required by MultiQC
         join(RESULTSDIR, "multiqc", "custom", "alignment_stats_mqc.tsv"),
         join(RESULTSDIR, "multiqc", "custom", "host_virus_ratio_mqc.tsv"),
