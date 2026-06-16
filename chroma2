@@ -47,6 +47,36 @@ def err(message: str) -> None:
     sys.exit(1)
 
 
+def ensure_logs_folder(workdir: pathlib.Path) -> pathlib.Path:
+    """Create logs folder if it doesn't exist."""
+    logs_dir = workdir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir
+
+
+def log_event(workdir: pathlib.Path, level: str, event_type: str, message: str) -> None:
+    """Log event to both events.log and events.jsonl."""
+    logs_dir = ensure_logs_folder(workdir)
+    timestamp = dt.datetime.now().isoformat()
+
+    # Write to events.log (human-readable)
+    with open(logs_dir / "events.log", "a") as f:
+        f.write(f"[{timestamp}] {level}: {event_type} - {message}\n")
+
+    # Write to events.jsonl (machine-readable)
+    with open(logs_dir / "events.jsonl", "a") as f:
+        json.dump(
+            {
+                "timestamp": timestamp,
+                "level": level,
+                "event": event_type,
+                "message": message,
+            },
+            f,
+        )
+        f.write("\n")
+
+
 def usage() -> str:
     return textwrap.dedent(
         f"""
@@ -548,7 +578,7 @@ def write_sbatch_script(
         "#SBATCH --time=3-00:00:00",
         acct_line,
         "#SBATCH --job-name=chroma2_head_job",
-        f"#SBATCH --output={workdir}/slurm-%j.out",
+        f"#SBATCH --output={workdir}/logs/slurm-%j.out",
         part_line,
         "",
         "set -euo pipefail",
@@ -717,7 +747,8 @@ def main() -> None:
                 "If this is stale, run `chroma2 -w <WORKDIR> -m unlock` before proceeding."
             )
         timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
-        log_path = workdir / f"dryrun.{timestamp}.log"
+        logs_dir = ensure_logs_folder(workdir)
+        log_path = logs_dir / f"dryrun.{timestamp}.log"
         cmd = [
             "snakemake",
             "-s",
@@ -791,6 +822,13 @@ def main() -> None:
             " ".join(shlex.quote(str(c)) for c in sys.argv),
         )
         create_runinfo(workdir)
+
+        # Create status.running file and ensure logs folder exists
+        status_running = workdir / "status.running"
+        status_running.write_text(f"Started: {dt.datetime.now().isoformat()}\n")
+        ensure_logs_folder(workdir)
+        log_event(workdir, "INFO", "RUN_STARTED", "Workflow execution started")
+
         if shutil.which("sbatch") is None:
             err("sbatch not found in PATH; cannot submit head job to Slurm")
         sbatch_script = write_sbatch_script(
@@ -805,8 +843,12 @@ def main() -> None:
         jobid = subprocess.check_output(
             ["sbatch", "--parsable", str(sbatch_script)], text=True
         ).strip()
+
+        # Log SLURM submission
+        log_event(workdir, "INFO", "SLURM_SUBMITTED", f"Job ID: {jobid}")
+
         print(
-            f"Submitted head job as sbatch job {jobid}. Output: {workdir}/slurm-{jobid}.out"
+            f"Submitted head job as sbatch job {jobid}. Output: {workdir}/logs/slurm-{jobid}.out"
         )
         return
 

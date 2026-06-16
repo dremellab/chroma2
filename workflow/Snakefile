@@ -56,11 +56,157 @@ def oncomplete():
         print("❌ File not found:", e)
 
 
+def log_event(level: str, event_type: str, message: str) -> None:
+    """Log to events.log and events.jsonl."""
+    import json
+    from datetime import datetime
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().isoformat()
+
+    # events.log (human)
+    with open(logs_dir / "events.log", "a") as f:
+        f.write(f"[{timestamp}] {level}: {event_type} - {message}\n")
+
+    # events.jsonl (machine)
+    with open(logs_dir / "events.jsonl", "a") as f:
+        json.dump(
+            {
+                "timestamp": timestamp,
+                "level": level,
+                "event": event_type,
+                "message": message,
+            },
+            f,
+        )
+        f.write("\n")
+
+
+def generate_summary(status: str) -> None:
+    """Generate summary.txt and summary.json."""
+    import json
+    from datetime import datetime
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Read metadata if available
+    runinfo_path = Path("runinfo.yaml")
+    start_time = None
+    if runinfo_path.exists():
+        try:
+            runinfo = yaml.safe_load(runinfo_path.read_text())
+            start_time = runinfo.get("start_time")
+        except:
+            pass
+
+    # Calculate runtime
+    runtime = "Unknown"
+    if start_time:
+        try:
+            from dateutil import parser
+
+            start = parser.parse(start_time)
+            duration = datetime.now() - start
+            hours, remainder = divmod(int(duration.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if hours > 0:
+                runtime = f"{hours}h {minutes}m"
+            else:
+                runtime = f"{minutes}m {seconds}s"
+        except:
+            pass
+
+    # Generate summary.txt
+    summary_txt = f"""
+========================================
+CHROMA2 Snakemake Run Summary
+========================================
+Status:        {status.upper()}
+Start Time:    {start_time or 'Unknown'}
+Duration:      {runtime}
+Working Dir:   {Path.cwd()}
+
+Check logs/ folder for:
+  - events.log              (Timeline of events)
+  - events.jsonl            (Structured events)
+  - snakemake.log.jobbyplus (Snakemake job accounting)
+  - slurm-*.out.jobbyplus   (SLURM resource accounting)
+  - slurm-*.out             (Full SLURM output)
+
+Run Details:
+See .snakemake/log/*.snakemake.log for detailed Snakemake logs
+========================================
+""".strip()
+
+    with open(logs_dir / "summary.txt", "w") as f:
+        f.write(summary_txt + "\n")
+
+    # Generate summary.json
+    summary_json = {
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
+        "workdir": str(Path.cwd()),
+        "start_time": start_time,
+        "duration": runtime,
+    }
+
+    with open(logs_dir / "summary.json", "w") as f:
+        json.dump(summary_json, f, indent=2)
+
+
+def parse_slurm_jobbyplus() -> None:
+    """Extract job accounting from slurm-*.out and create jobbyplus file."""
+    import subprocess
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Find slurm-*.out file
+    slurm_files = list(logs_dir.glob("slurm-*.out"))
+    if not slurm_files:
+        print("No SLURM output file found")
+        return
+
+    slurm_file = slurm_files[0]  # Use first/latest one
+    slurm_jobbyplus = slurm_file.with_suffix(".out.jobbyplus")
+
+    try:
+        jobby_bin = "jobbyplus"  # Should be in PATH
+        with open(slurm_jobbyplus, "w") as f:
+            subprocess.run(
+                [jobby_bin, str(slurm_file)],
+                stdout=f,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,  # Don't fail if jobbyplus fails
+            )
+        print(f"✅ SLURM jobbyplus output saved to {slurm_jobbyplus}")
+    except FileNotFoundError:
+        print("❌ jobbyplus not found in PATH")
+    except Exception as e:
+        print(f"❌ Error parsing SLURM jobbyplus: {e}")
+
+
 def onsuccess():
     """Called when workflow finishes successfully."""
     print("\n" + "=" * 80)
     print("✅ Workflow completed successfully!")
     print("=" * 80)
+
+    # Update status files
+    Path("status.running").unlink(missing_ok=True)
+    Path("status.completed").touch()
+
+    # Log event
+    log_event("INFO", "WORKFLOW_SUCCESS", "All jobs completed")
+
+    # Generate summary
+    generate_summary("completed")
+
+    # Run jobbyplus
     oncomplete()
 
 
@@ -69,6 +215,21 @@ def onerror():
     print("\n" + "=" * 80)
     print("❌ Workflow encountered errors!")
     print("=" * 80)
+
+    # Update status files
+    Path("status.running").unlink(missing_ok=True)
+    Path("status.failed").touch()
+
+    # Log event
+    log_event("ERROR", "WORKFLOW_FAILED", "Workflow terminated with errors")
+
+    # Generate summary
+    generate_summary("failed")
+
+    # Parse SLURM output to jobbyplus
+    parse_slurm_jobbyplus()
+
+    # Run jobbyplus on snakemake log
     oncomplete()
 
 
