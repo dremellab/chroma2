@@ -595,8 +595,25 @@ def write_sbatch_script(
         lines.append(conda_activate)
     if module_load:
         lines.append(module_load)
-    lines.append(
-        f"snakemake -s {SNAKEFILE} --directory {workdir} -j 100 --verbose {apptainer_prefix} --profile config/{profile}"
+    lines.extend(
+        [
+            "",
+            "set +e",
+            f"snakemake -s {SNAKEFILE} --directory {workdir} -j 100 --verbose {apptainer_prefix} --profile config/{profile}",
+            "SNAKEMAKE_EXIT_CODE=$?",
+            "set -e",
+            "",
+            "# Update status files based on snakemake exit code",
+            "if [ $SNAKEMAKE_EXIT_CODE -eq 0 ]; then",
+            f"    rm -f {workdir}/status.running",
+            f"    touch {workdir}/status.completed",
+            "else",
+            f"    rm -f {workdir}/status.running",
+            f"    touch {workdir}/status.failed",
+            "fi",
+            "",
+            "exit $SNAKEMAKE_EXIT_CODE",
+        ]
     )
     script = "\n".join(line for line in lines if line is not None) + "\n"
     sbatch_path.write_text(script)

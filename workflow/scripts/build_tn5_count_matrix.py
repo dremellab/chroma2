@@ -110,10 +110,29 @@ def main() -> None:
                     ordered_bins.append(bin_id)
                 rows_by_bin[bin_id][sample_name] = row["tn5_site_count"]
             if row_count == 0:
-                raise ValueError(f"No count rows were found in input TSV: {path}")
+                # Handle empty files gracefully (e.g., when no bins overlap BAM records)
+                pass
 
     if metadata_columns is None or not ordered_bins:
-        raise ValueError("No count rows were found to build the matrix")
+        # If no data rows found across all input files, create empty output with just headers
+        # This can happen when feature regions (e.g., rRNA) are empty or don't overlap input BAM
+        metadata_columns = [
+            "chrom",
+            "start",
+            "end",
+            "bin_id",
+            "gene_id",
+            "gene_name",
+            "gene_type",
+            "strand",
+            "tss",
+        ]
+        # Write header-only output
+        with open(args.output, "w", encoding="utf-8", newline="") as handle:
+            fieldnames = metadata_columns + samples
+            writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+            writer.writeheader()
+        return
 
     with open(args.output, "w", encoding="utf-8", newline="") as handle:
         fieldnames = metadata_columns + samples

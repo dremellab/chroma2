@@ -1,0 +1,245 @@
+host: udc-aw33-9c0
+Building DAG of jobs...
+/sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png: True 0
+shared_storage_local_copies: True
+remote_exec: True
+Submitting maximum 100 job(s) over 1.0 second(s).
+Using shell: /usr/bin/bash
+Provided remote nodes: 1
+Resources before job selection: {'_cores': 9223372036854775807, '_nodes': 1, '_job_count': 9223372036854775807}
+Ready jobs: 1
+Select jobs to execute...
+Selecting jobs to run using greedy solver.
+Selected jobs: 1
+Resources after job selection: {'_cores': 9223372036854775806, '_nodes': 0, '_job_count': 100}
+Execute 1 jobs...
+
+[Thu Mar 26 18:26:55 2026]
+rule collect_tn5_motif_outputs:
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    jobid: 0
+    reason: Forced execution
+    wildcards: sample=R2_L_3dpi_v1_S11, scenario=mapq20_nosecondary_nosupplementary, group=NC_009333.1
+    resources: mem_mb=40960, mem_mib=39063, disk_mb=1000, disk_mib=954, tmpdir=<TBD>, threads=2, runtime=240, slurm_account=dremel_lab, slurm_partition=standard, slurm_ntasks=1
+Shell command:
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+General args: ['--force', '--target-files-omit-workdir-adjustment', '', '--max-inventory-time 0', '--nocolor', '--notemp', '--no-hooks', '--nolock', '--ignore-incomplete', '', '--verbose ', '--rerun-triggers code mtime software-env input', '', '', '', '--deployment-method apptainer', "--conda-frontend 'conda'", '', '', "--apptainer-prefix '/project/dremel_lab/workflows/singularity_images'", '--apptainer-args base64//LS1iaW5kIC9wcm9qZWN0L2RyZW1lbF9sYWI6L3Byb2plY3QvZHJlbWVsX2xhYiAtLWJpbmQgL3N0YW5kYXJkL2RyZW1lbF9sYWI6L3N0YW5kYXJkL2RyZW1lbF9sYWIgLS1iaW5kIC9zZnMvZ3Bmcy90YXJkaXMvcHJvamVjdC9kcmVtZWxfbGFiOi9zZnMvZ3Bmcy90YXJkaXMvcHJvamVjdC9kcmVtZWxfbGFiIC0tYmluZCAvc2ZzL2NlcGgvc3RhbmRhcmQvZHJlbWVsX2xhYjovc2ZzL2NlcGgvc3RhbmRhcmQvZHJlbWVsX2xhYiAtLWJpbmQgL3Nmcy93ZWthL3NjcmF0Y2g6L3Nmcy93ZWthL3NjcmF0Y2ggLS1iaW5kIC9zY3JhdGNoOi9zY3JhdGNo', '', '--shared-fs-usage persistence software-deployment input-output source-cache storage-local-copies sources', '', "--wrapper-prefix 'https://github.com/snakemake/snakemake-wrappers/raw/'", '', '', '', '--printshellcmds ', '', '--latency-wait 300', "--scheduler 'ilp'", '', '--local-storage-prefix base64//LnNuYWtlbWFrZS9zdG9yYWdl', "--scheduler-solver-path '/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin'", '', '', '', '--set-resources base64//ZmFzdHA6bWVtX21iPTEyMjg4MA== base64//ZmFzdHA6cnVudGltZT00ODA= base64//ZmFzdHFjX3JhdzptZW1fbWI9MTIyODgw base64//ZmFzdHFjX3JhdzpydW50aW1lPTI0MA== base64//ZmFzdHFjX3RyaW1tZWQ6bWVtX21iPTEyMjg4MA== base64//ZmFzdHFjX3RyaW1tZWQ6cnVudGltZT0yNDA= base64//Ym93dGllMl9pbmRleDptZW1fbWI9MTIyODgw base64//Ym93dGllMl9pbmRleDpydW50aW1lPTI0MA== base64//Ym93dGllMl9hbGlnbjptZW1fbWI9MTIyODgw base64//Ym93dGllMl9hbGlnbjp0aHJlYWRzPTE2 base64//Ym93dGllMl9hbGlnbjpydW50aW1lPTE5MjA= base64//Ym93dGllMl9maWx0ZXI6bWVtX21iPTQ5MTUy base64//Ym93dGllMl9maWx0ZXI6dGhyZWFkcz00 base64//Ym93dGllMl9maWx0ZXI6cnVudGltZT00ODA= base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6bWVtX21iPTgxOTI= base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6dGhyZWFkcz0x base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6cnVudGltZT02MA== base64//ZXh0cmFjdF90bjVfbW90aWZzOm1lbV9tYj0xMjI4ODA= base64//ZXh0cmFjdF90bjVfbW90aWZzOnRocmVhZHM9NA== base64//ZXh0cmFjdF90bjVfbW90aWZzOnJ1bnRpbWU9MjQw base64//YXRhcXZfaG9zdDptZW1fbWI9NDA5NjA= base64//YXRhcXZfaG9zdDp0aHJlYWRzPTg= base64//YXRhcXZfaG9zdDpydW50aW1lPTI0MA== base64//YXRhcXZfdmlydXM6bWVtX21iPTQwOTYw base64//YXRhcXZfdmlydXM6dGhyZWFkcz04 base64//YXRhcXZfdmlydXM6cnVudGltZT0yNDA= base64//YXRhcXZfcmVwb3J0X2hvc3Q6bWVtX21iPTE2Mzg0 base64//YXRhcXZfcmVwb3J0X2hvc3Q6dGhyZWFkcz0y base64//YXRhcXZfcmVwb3J0X2hvc3Q6cnVudGltZT0xMjA= base64//YXRhcXZfcmVwb3J0X3ZpcnVzOm1lbV9tYj0xNjM4NA== base64//YXRhcXZfcmVwb3J0X3ZpcnVzOnRocmVhZHM9Mg== base64//YXRhcXZfcmVwb3J0X3ZpcnVzOnJ1bnRpbWU9MTIw base64//c3BsaXRfaG9zdF9iYW06bWVtX21iPTQwOTYw base64//c3BsaXRfaG9zdF9iYW06dGhyZWFkcz00 base64//c3BsaXRfaG9zdF9iYW06cnVudGltZT0yNDA= base64//c3BsaXRfdmlydXNfYmFtOm1lbV9tYj00MDk2MA== base64//c3BsaXRfdmlydXNfYmFtOnRocmVhZHM9NA== base64//c3BsaXRfdmlydXNfYmFtOnJ1bnRpbWU9MjQw base64//YmFtY292ZXJhZ2VfaG9zdDptZW1fbWI9MTIyODgw base64//YmFtY292ZXJhZ2VfaG9zdDp0aHJlYWRzPTg= base64//YmFtY292ZXJhZ2VfaG9zdDpydW50aW1lPTI0MA== base64//YmFtY292ZXJhZ2VfdmlydXM6bWVtX21iPTEyMjg4MA== base64//YmFtY292ZXJhZ2VfdmlydXM6dGhyZWFkcz04 base64//YmFtY292ZXJhZ2VfdmlydXM6cnVudGltZT0yNDA= base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOm1lbV9tYj0xMjI4ODA= base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOnRocmVhZHM9Mg== base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOnJ1bnRpbWU9MjQw base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6bWVtX21iPTEyMjg4MA== base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6dGhyZWFkcz0y base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6cnVudGltZT0yNDA= base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06bWVtX21iPTEyMjg4MA== base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06dGhyZWFkcz00 base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06cnVudGltZT0yNDA= base64//cG9vbF92aXJ1c19xbmFtZV9iYW06bWVtX21iPTEyMjg4MA== base64//cG9vbF92aXJ1c19xbmFtZV9iYW06dGhyZWFkcz00 base64//cG9vbF92aXJ1c19xbmFtZV9iYW06cnVudGltZT0yNDA=', '--set-threads base64//ZmFzdHA9MTY= base64//ZmFzdHFjX3Jhdz04 base64//ZmFzdHFjX3RyaW1tZWQ9OA== base64//Ym93dGllMl9pbmRleD04 base64//ZXh0cmFjdF90bjVfbW90aWZzPTQ=', '', '--default-resources base64//bWVtX21iPTQwOTYw base64//ZGlza19tYj1tYXgoMippbnB1dC5zaXplX21iLCAxMDAwKSBpZiBpbnB1dCBlbHNlIDUwMDAw base64//dG1wZGlyPXN5c3RlbV90bXBkaXI= base64//dGhyZWFkcz0y base64//cnVudGltZT0yNDA= base64//c2x1cm1fYWNjb3VudD1kcmVtZWxfbGFi base64//c2x1cm1fcGFydGl0aW9uPXN0YW5kYXJk base64//c2x1cm1fbnRhc2tzPTE=']
+This job is a group job: False
+The call for this job is: srun -n1 --cpu-bind=q  --cpus-per-task=1  /sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin/python3.11 -m snakemake --snakefile '/sfs/gpfs/tardis/project/dremel_lab/workflows/pipelines/chroma2/chroma2/workflow/Snakefile' --target-jobs 'collect_tn5_motif_outputs:sample=R2_L_3dpi_v1_S11,scenario=mapq20_nosecondary_nosupplementary,group=NC_009333.1' --allowed-rules collect_tn5_motif_outputs --cores 'all' --attempt 2 --force-use-threads  --force --target-files-omit-workdir-adjustment --max-inventory-time 0 --nocolor --notemp --no-hooks --nolock --ignore-incomplete --verbose  --rerun-triggers code mtime software-env input --deployment-method apptainer --conda-frontend 'conda' --apptainer-prefix '/project/dremel_lab/workflows/singularity_images' --apptainer-args base64//LS1iaW5kIC9wcm9qZWN0L2RyZW1lbF9sYWI6L3Byb2plY3QvZHJlbWVsX2xhYiAtLWJpbmQgL3N0YW5kYXJkL2RyZW1lbF9sYWI6L3N0YW5kYXJkL2RyZW1lbF9sYWIgLS1iaW5kIC9zZnMvZ3Bmcy90YXJkaXMvcHJvamVjdC9kcmVtZWxfbGFiOi9zZnMvZ3Bmcy90YXJkaXMvcHJvamVjdC9kcmVtZWxfbGFiIC0tYmluZCAvc2ZzL2NlcGgvc3RhbmRhcmQvZHJlbWVsX2xhYjovc2ZzL2NlcGgvc3RhbmRhcmQvZHJlbWVsX2xhYiAtLWJpbmQgL3Nmcy93ZWthL3NjcmF0Y2g6L3Nmcy93ZWthL3NjcmF0Y2ggLS1iaW5kIC9zY3JhdGNoOi9zY3JhdGNo --shared-fs-usage persistence software-deployment input-output source-cache storage-local-copies sources --wrapper-prefix 'https://github.com/snakemake/snakemake-wrappers/raw/' --printshellcmds  --latency-wait 300 --scheduler 'ilp' --local-storage-prefix base64//LnNuYWtlbWFrZS9zdG9yYWdl --scheduler-solver-path '/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin' --set-resources base64//ZmFzdHA6bWVtX21iPTEyMjg4MA== base64//ZmFzdHA6cnVudGltZT00ODA= base64//ZmFzdHFjX3JhdzptZW1fbWI9MTIyODgw base64//ZmFzdHFjX3JhdzpydW50aW1lPTI0MA== base64//ZmFzdHFjX3RyaW1tZWQ6bWVtX21iPTEyMjg4MA== base64//ZmFzdHFjX3RyaW1tZWQ6cnVudGltZT0yNDA= base64//Ym93dGllMl9pbmRleDptZW1fbWI9MTIyODgw base64//Ym93dGllMl9pbmRleDpydW50aW1lPTI0MA== base64//Ym93dGllMl9hbGlnbjptZW1fbWI9MTIyODgw base64//Ym93dGllMl9hbGlnbjp0aHJlYWRzPTE2 base64//Ym93dGllMl9hbGlnbjpydW50aW1lPTE5MjA= base64//Ym93dGllMl9maWx0ZXI6bWVtX21iPTQ5MTUy base64//Ym93dGllMl9maWx0ZXI6dGhyZWFkcz00 base64//Ym93dGllMl9maWx0ZXI6cnVudGltZT00ODA= base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6bWVtX21iPTgxOTI= base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6dGhyZWFkcz0x base64//YWxpZ25tZW50X2ZsYWdzdGF0X3N1bW1hcnk6cnVudGltZT02MA== base64//ZXh0cmFjdF90bjVfbW90aWZzOm1lbV9tYj0xMjI4ODA= base64//ZXh0cmFjdF90bjVfbW90aWZzOnRocmVhZHM9NA== base64//ZXh0cmFjdF90bjVfbW90aWZzOnJ1bnRpbWU9MjQw base64//YXRhcXZfaG9zdDptZW1fbWI9NDA5NjA= base64//YXRhcXZfaG9zdDp0aHJlYWRzPTg= base64//YXRhcXZfaG9zdDpydW50aW1lPTI0MA== base64//YXRhcXZfdmlydXM6bWVtX21iPTQwOTYw base64//YXRhcXZfdmlydXM6dGhyZWFkcz04 base64//YXRhcXZfdmlydXM6cnVudGltZT0yNDA= base64//YXRhcXZfcmVwb3J0X2hvc3Q6bWVtX21iPTE2Mzg0 base64//YXRhcXZfcmVwb3J0X2hvc3Q6dGhyZWFkcz0y base64//YXRhcXZfcmVwb3J0X2hvc3Q6cnVudGltZT0xMjA= base64//YXRhcXZfcmVwb3J0X3ZpcnVzOm1lbV9tYj0xNjM4NA== base64//YXRhcXZfcmVwb3J0X3ZpcnVzOnRocmVhZHM9Mg== base64//YXRhcXZfcmVwb3J0X3ZpcnVzOnJ1bnRpbWU9MTIw base64//c3BsaXRfaG9zdF9iYW06bWVtX21iPTQwOTYw base64//c3BsaXRfaG9zdF9iYW06dGhyZWFkcz00 base64//c3BsaXRfaG9zdF9iYW06cnVudGltZT0yNDA= base64//c3BsaXRfdmlydXNfYmFtOm1lbV9tYj00MDk2MA== base64//c3BsaXRfdmlydXNfYmFtOnRocmVhZHM9NA== base64//c3BsaXRfdmlydXNfYmFtOnJ1bnRpbWU9MjQw base64//YmFtY292ZXJhZ2VfaG9zdDptZW1fbWI9MTIyODgw base64//YmFtY292ZXJhZ2VfaG9zdDp0aHJlYWRzPTg= base64//YmFtY292ZXJhZ2VfaG9zdDpydW50aW1lPTI0MA== base64//YmFtY292ZXJhZ2VfdmlydXM6bWVtX21iPTEyMjg4MA== base64//YmFtY292ZXJhZ2VfdmlydXM6dGhyZWFkcz04 base64//YmFtY292ZXJhZ2VfdmlydXM6cnVudGltZT0yNDA= base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOm1lbV9tYj0xMjI4ODA= base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOnRocmVhZHM9Mg== base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX3ZpcnVzOnJ1bnRpbWU9MjQw base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6bWVtX21iPTEyMjg4MA== base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6dGhyZWFkcz0y base64//Z2VucmljaF9hdGFjX2NhbGxwZWFrX2hvc3Q6cnVudGltZT0yNDA= base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06bWVtX21iPTEyMjg4MA== base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06dGhyZWFkcz00 base64//cG9vbF92aXJ1c19maWx0ZXJlZF9iYW06cnVudGltZT0yNDA= base64//cG9vbF92aXJ1c19xbmFtZV9iYW06bWVtX21iPTEyMjg4MA== base64//cG9vbF92aXJ1c19xbmFtZV9iYW06dGhyZWFkcz00 base64//cG9vbF92aXJ1c19xbmFtZV9iYW06cnVudGltZT0yNDA= --set-threads base64//ZmFzdHA9MTY= base64//ZmFzdHFjX3Jhdz04 base64//ZmFzdHFjX3RyaW1tZWQ9OA== base64//Ym93dGllMl9pbmRleD04 base64//ZXh0cmFjdF90bjVfbW90aWZzPTQ= --default-resources base64//bWVtX21iPTQwOTYw base64//ZGlza19tYj1tYXgoMippbnB1dC5zaXplX21iLCAxMDAwKSBpZiBpbnB1dCBlbHNlIDUwMDAw base64//dG1wZGlyPXN5c3RlbV90bXBkaXI= base64//dGhyZWFkcz0y base64//cnVudGltZT0yNDA= base64//c2x1cm1fYWNjb3VudD1kcmVtZWxfbGFi base64//c2x1cm1fcGFydGl0aW9uPXN0YW5kYXJk base64//c2x1cm1fbnRhc2tzPTE= --mode 'remote'
+Job is running on host: udc-aw33-9c0
+host: udc-aw33-9c0
+Building DAG of jobs...
+/sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png: True 0
+shared_storage_local_copies: True
+remote_exec: True
+Submitting maximum 100 job(s) over 1.0 second(s).
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Resources before job selection: {'_cores': 1, '_nodes': 9223372036854775807, '_job_count': 9223372036854775807}
+Ready jobs: 1
+Select jobs to execute...
+Selecting jobs to run using greedy solver.
+Selected jobs: 1
+Resources after job selection: {'_cores': 0, '_nodes': 9223372036854775806, '_job_count': 100}
+Execute 1 jobs...
+
+[Thu Mar 26 18:26:56 2026]
+localrule collect_tn5_motif_outputs:
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    jobid: 0
+    reason: Forced execution
+    wildcards: sample=R2_L_3dpi_v1_S11, scenario=mapq20_nosecondary_nosupplementary, group=NC_009333.1
+    resources: mem_mb=40960, mem_mib=39063, disk_mb=1000, disk_mib=954, tmpdir=/tmp, threads=2, runtime=240, slurm_account=dremel_lab, slurm_partition=standard, slurm_ntasks=1
+Shell command:
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+Full Traceback (most recent call last):
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/executors/local.py", line 425, in run_wrapper
+    run(
+  File "/sfs/gpfs/tardis/project/dremel_lab/workflows/pipelines/chroma2/chroma2/workflow/rules/tn5motif.smk", line 271, in __rule_collect_tn5_motif_outputs
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/shell.py", line 358, in __new__
+    raise sp.CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command 'set -euo pipefail;
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png' returned non-zero exit status 1.
+
+Full Traceback (most recent call last):
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/executors/local.py", line 425, in run_wrapper
+    run(
+  File "/sfs/gpfs/tardis/project/dremel_lab/workflows/pipelines/chroma2/chroma2/workflow/rules/tn5motif.smk", line 271, in __rule_collect_tn5_motif_outputs
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/shell.py", line 358, in __new__
+    raise sp.CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command 'set -euo pipefail;
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png' returned non-zero exit status 1.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/executors/local.py", line 247, in cached_or_run
+    run_func(*args)
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/executors/local.py", line 461, in run_wrapper
+    raise RuleException(
+snakemake.exceptions.RuleException: CalledProcessError in file "/sfs/gpfs/tardis/project/dremel_lab/workflows/pipelines/chroma2/chroma2/workflow/rules/tn5motif.smk", line 208:
+Command 'set -euo pipefail;
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png' returned non-zero exit status 1.
+
+RuleException:
+CalledProcessError in file "/sfs/gpfs/tardis/project/dremel_lab/workflows/pipelines/chroma2/chroma2/workflow/rules/tn5motif.smk", line 208:
+Command 'set -euo pipefail;
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png' returned non-zero exit status 1.
+[Thu Mar 26 18:26:56 2026]
+Error in rule collect_tn5_motif_outputs:
+    message: None
+    jobid: 0
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    shell:
+
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+        (command exited with non-zero exit code)
+Waiting for running jobs to complete.
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look below for error messages
+[Thu Mar 26 18:26:57 2026]
+Error in rule collect_tn5_motif_outputs:
+    message: None
+    jobid: 0
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    shell:
+
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+        (command exited with non-zero exit code)
+Storing output in storage.
+Full Traceback (most recent call last):
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/cli.py", line 2165, in args_to_api
+    dag_api.execute_workflow(
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/api.py", line 603, in execute_workflow
+    workflow.execute(
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/workflow.py", line 1451, in execute
+    raise WorkflowError("At least one job did not complete successfully.")
+snakemake_interface_common.exceptions.WorkflowError: At least one job did not complete successfully.
+
+WorkflowError:
+At least one job did not complete successfully.
+/sfs/weka/scratch/cud2td/20260130_ATACseq
+Snakemake working directory: /sfs/weka/scratch/cud2td/20260130_ATACseq
+FASTAS_REGIONS_GTFS:
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.chrR.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.tRNAs.hg38_basicchroms.gtf
+Validating ref.regions file for unique genome names and sequence IDs...
+
+✅ All genome names are unique and sequence IDs are uniquely assigned.
+srun: error: udc-aw33-9c0: task 0: Exited with exit code 1
+srun: Terminating StepId=10679246.0
+[Thu Mar 26 18:26:58 2026]
+Error in rule collect_tn5_motif_outputs:
+    message: None
+    jobid: 0
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    shell:
+
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+        (command exited with non-zero exit code)
+Waiting for running jobs to complete.
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look below for error messages
+[Thu Mar 26 18:26:58 2026]
+Error in rule collect_tn5_motif_outputs:
+    message: None
+    jobid: 0
+    input: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/.complete
+    output: /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv, /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+    shell:
+
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.1bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.bed
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.fa
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.pfm.tsv
+        test -f /sfs/weka/scratch/cud2td/20260130_ATACseq/results/R2_L_3dpi_v1_S11/tn5_motif/mapq20_nosecondary_nosupplementary/NC_009333.1/R2_L_3dpi_v1_S11.NC_009333.1.mapq20_nosecondary_nosupplementary.tn5_sites.21bp.logo.png
+
+        (command exited with non-zero exit code)
+Storing output in storage.
+Full Traceback (most recent call last):
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/cli.py", line 2165, in args_to_api
+    dag_api.execute_workflow(
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/api.py", line 603, in execute_workflow
+    workflow.execute(
+  File "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/lib/python3.11/site-packages/snakemake/workflow.py", line 1451, in execute
+    raise WorkflowError("At least one job did not complete successfully.")
+snakemake_interface_common.exceptions.WorkflowError: At least one job did not complete successfully.
+
+WorkflowError:
+At least one job did not complete successfully.
+/sfs/weka/scratch/cud2td/20260130_ATACseq
+Snakemake working directory: /sfs/weka/scratch/cud2td/20260130_ATACseq
+FASTAS_REGIONS_GTFS:
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.fa
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.fa.regions
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/BAC16Insert.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/NC_009333.1.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.chrR.gtf
+  - /project/dremel_lab/workflows/reference_data/fasta_gtf/hg38_basic.tRNAs.hg38_basicchroms.gtf
+Validating ref.regions file for unique genome names and sequence IDs...
+
+✅ All genome names are unique and sequence IDs are uniquely assigned.

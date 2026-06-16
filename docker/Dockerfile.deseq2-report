@@ -1,0 +1,16 @@
+FROM bioconductor/bioconductor_docker:RELEASE_3_21
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN if ! command -v pandoc >/dev/null 2>&1; then \
+      apt-get update && \
+      apt-get install -y --no-install-recommends pandoc && \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
+
+RUN R -e "install.packages(c('optparse','yaml','rmarkdown','knitr','ggplot2','ggrepel','plotly','DT','pheatmap','RColorBrewer','dplyr','readr','tibble','htmltools','htmlwidgets','ashr'), repos='https://cloud.r-project.org')" && \
+    R -e "BiocManager::install(c('DESeq2','apeglm','glmGamPoi','EnhancedVolcano'), ask=FALSE, update=FALSE)"
+
+WORKDIR /work
+
+ENTRYPOINT ["/bin/bash"]
