@@ -260,6 +260,27 @@ def _get_genome_gtf(genome_name):
     return join(FASTAS_GTFS_DIR, genome_name + ".gtf")
 
 GTFS = [_get_genome_gtf(f) for f in HOST_ADDITIVES_VIRUSES]
+
+###################################################################################################
+# validate GTF files exist for all selected genomes
+
+if not _is_unlock:
+    print("Validating GTF files for all selected genomes...")
+    missing_gtfs = []
+    for genome_name, gtf_file in zip(HOST_ADDITIVES_VIRUSES, GTFS):
+        if not os.path.exists(gtf_file):
+            missing_gtfs.append((genome_name, gtf_file))
+
+    if missing_gtfs:
+        print("❌ The following GTF files are missing:")
+        for genome_name, gtf_file in missing_gtfs:
+            print(f"  {genome_name}: {gtf_file}")
+        sys.exit(1)
+    else:
+        print(f"✅ Found GTF files for all {len(GTFS)} selected genomes")
+
+###################################################################################################
+
 FASTAS_REGIONS_GTFS = FASTAS.copy()
 FASTAS_REGIONS_GTFS.extend(REGIONS)
 FASTAS_REGIONS_GTFS.extend(GTFS)
