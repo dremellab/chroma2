@@ -262,22 +262,93 @@ def _get_genome_gtf(genome_name):
 GTFS = [_get_genome_gtf(f) for f in HOST_ADDITIVES_VIRUSES]
 
 ###################################################################################################
-# validate GTF files exist for all selected genomes
+# validate GTF files exist for all selected genomes and hosts
 
 if not _is_unlock:
-    print("Validating GTF files for all selected genomes...")
-    missing_gtfs = []
-    for genome_name, gtf_file in zip(HOST_ADDITIVES_VIRUSES, GTFS):
-        if not os.path.exists(gtf_file):
-            missing_gtfs.append((genome_name, gtf_file))
+    print("\n" + "=" * 100)
+    print("VALIDATING GTF FILES FOR SELECTED GENOMES")
+    print("=" * 100)
 
-    if missing_gtfs:
-        print("❌ The following GTF files are missing:")
-        for genome_name, gtf_file in missing_gtfs:
-            print(f"  {genome_name}: {gtf_file}")
+    all_gtfs_to_check = []
+
+    # 1. Collect main reference GTFs for all selected genomes
+    print(f"\n📋 Main Reference GTFs ({len(GTFS)}):")
+    for genome_name, gtf_file in zip(HOST_ADDITIVES_VIRUSES, GTFS):
+        exists = os.path.exists(gtf_file)
+        readable = os.access(gtf_file, os.R_OK) if exists else False
+        status = "✅" if (exists and readable) else "❌"
+        print(f"  {status} {genome_name:20s}: {gtf_file}")
+        all_gtfs_to_check.append((f"Main GTF ({genome_name})", gtf_file, exists, readable))
+
+    # 2. Collect host-specific annotations if host is selected
+    if HOST != "":
+        print(f"\n📋 Host Annotations for {HOST}:")
+
+        # tRNA GTF
+        if TRNAS_GTF:
+            exists = os.path.exists(TRNAS_GTF)
+            readable = os.access(TRNAS_GTF, os.R_OK) if exists else False
+            status = "✅" if (exists and readable) else "❌"
+            print(f"  {status} tRNA GTF                : {TRNAS_GTF}")
+            all_gtfs_to_check.append(("tRNA GTF", TRNAS_GTF, exists, readable))
+
+        # rRNA GTF
+        if CHRR_GTF:
+            exists = os.path.exists(CHRR_GTF)
+            readable = os.access(CHRR_GTF, os.R_OK) if exists else False
+            status = "✅" if (exists and readable) else "❌"
+            print(f"  {status} rRNA GTF                : {CHRR_GTF}")
+            all_gtfs_to_check.append(("rRNA GTF", CHRR_GTF, exists, readable))
+
+        # Pol3 GTFs
+        pol3_config = config.get("pol3_gtf", {})
+        if pol3_config:
+            print(f"\n📋 Pol3 GTFs for {HOST}:")
+            for pol3_type in sorted(pol3_config.keys()):
+                gtf_by_host = pol3_config[pol3_type]
+                if HOST in gtf_by_host:
+                    gtf_name = gtf_by_host[HOST]
+                    gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
+                    exists = os.path.exists(gtf_path)
+                    readable = os.access(gtf_path, os.R_OK) if exists else False
+                    status = "✅" if (exists and readable) else "❌"
+                    print(f"  {status} {pol3_type:18s}      : {gtf_path}")
+                    all_gtfs_to_check.append((f"Pol3 {pol3_type}", gtf_path, exists, readable))
+
+        # Repeat element GTFs
+        repeat_config = config.get("repeat_elements_gtf", {})
+        if repeat_config:
+            print(f"\n📋 Repeat Element GTFs for {HOST}:")
+            for repeat_type in sorted(repeat_config.keys()):
+                gtf_by_host = repeat_config[repeat_type]
+                if HOST in gtf_by_host:
+                    gtf_name = gtf_by_host[HOST]
+                    gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
+                    exists = os.path.exists(gtf_path)
+                    readable = os.access(gtf_path, os.R_OK) if exists else False
+                    status = "✅" if (exists and readable) else "❌"
+                    print(f"  {status} {repeat_type:30s} : {gtf_path}")
+                    all_gtfs_to_check.append((f"Repeat {repeat_type}", gtf_path, exists, readable))
+
+    # Check for failures
+    print("\n" + "=" * 100)
+    failures = [(name, path) for name, path, exists, readable in all_gtfs_to_check if not (exists and readable)]
+
+    if failures:
+        print("❌ VALIDATION FAILED - The following GTF files are missing or not readable:\n")
+        for name, path in failures:
+            exists = os.path.exists(path)
+            readable = os.access(path, os.R_OK) if exists else False
+            if not exists:
+                print(f"   ❌ {name:40s} MISSING: {path}")
+            elif not readable:
+                print(f"   ❌ {name:40s} NO READ PERMISSION: {path}")
+        print()
         sys.exit(1)
     else:
-        print(f"✅ Found GTF files for all {len(GTFS)} selected genomes")
+        total_gtfs = len(all_gtfs_to_check)
+        print(f"✅ VALIDATION PASSED - All {total_gtfs} GTF files found and readable")
+    print("=" * 100 + "\n")
 
 ###################################################################################################
 
