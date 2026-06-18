@@ -261,10 +261,6 @@ def _get_genome_gtf(genome_name):
     return join(FASTAS_GTFS_DIR, genome_name + ".gtf")
 
 GTFS = [_get_genome_gtf(f) for f in HOST_ADDITIVES_VIRUSES]
-if CHRR_GTF != "":
-    GTFS.append(CHRR_GTF)
-if INCLUDE_TRNAS_GTF_IN_REF and TRNAS_GTF != "":
-    GTFS.append(TRNAS_GTF)
 FASTAS_REGIONS_GTFS = FASTAS.copy()
 FASTAS_REGIONS_GTFS.extend(REGIONS)
 FASTAS_REGIONS_GTFS.extend(GTFS)
