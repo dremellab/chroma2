@@ -180,7 +180,6 @@ else:
 REFERENCE_GTF_BY_HOST = config.get("reference_gtf", {})
 TRNAS_GTF_BY_HOST = config.get("trnas_gtf", {})
 CHRR_GTF_BY_HOST = config.get("chrr_gtf", {})
-INCLUDE_TRNAS_GTF_IN_REF = _is_true(config.get("include_trnas_gtf_in_ref", True))
 
 
 def _host_annotation_aliases(host_name):

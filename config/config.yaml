@@ -23,55 +23,66 @@ fastas_gtfs_dir: "REFS_DIR"
 
 # reference GTF files by host genome (relative to fastas_gtfs_dir unless absolute path)
 reference_gtf:
-  hg38: "hg38.no_tRNA.gtf"
   mm39: "mm39.no_tRNA.gtf"
-  hs1: "hs1.gtf" # this inherently excludes tRNAs
+  hg38: "hg38-rDNA_v1.0_enriched.canonical_chromosomes_plus_chrR.gtf"
+  hg38_basic: "hg38_basic.canonical_chromosomes.gtf"
+  hs1: "hs1-rDNA_v1.0_enriched.canonical_plus_chrR.gtf"
 
 # optional host annotations by host genome (relative to fastas_gtfs_dir unless absolute path)
 trnas_gtf:
-  hg38: "hg38.tRNAs.hg38chroms.gtf"
   mm39: "mm39.tRNAs.mm39chroms.gtf"
+  hg38: "hg38.tRNAs.gtf"
+  hg38_basic: "hg38.tRNAs.gtf"
   hs1: "hs1.tRNAs.gtf"
 chrr_gtf:
-  hg38: "hg38.chrR.gtf"
   mm39: "mm39.chrR.gtf"
-  hs1: "hs1.chrR.gtf"
+  hg38: "hg38-rDNA_v1.0_enriched.chrR_only.gtf"
+  hg38_basic: "hg38_basic.rRNA_only.gtf"
+  hs1: "hs1-rDNA_v1.0_enriched.chrR_only.gtf"
 pol3_gtf:
   Pol3_T1:
     hg38: "T1_Genes.hg38.gtf"
+    hg38_basic: "T1_Genes.hg38.gtf"
     hs1: "T1_Genes.hs1.gtf"
   Pol3_T2:
     hg38: "T2_noAlu.hg38.gtf"
+    hg38_basic: "T2_noAlu.hg38.gtf"
     hs1: "T2_noAlu.hs1.gtf"
   Pol3_T3:
     hg38: "T3_Genes.hg38.gtf"
+    hg38_basic: "T3_Genes.hg38.gtf"
     hs1: "T3_Genes.hs1.gtf"
 repeat_elements_gtf:
   SINE_Alu:
     hg38: "hg38.repeatMasker.SINE_Alu.gtf"
+    hg38_basic: "hg38.repeatMasker.SINE_Alu.gtf"
     mm39: "mm39.repeatMasker.SINE_Alu.gtf"
     hs1: "hs1.repeatMasker.SINE_Alu.gtf"
   SINE_MIR:
     hg38: "hg38.repeatMasker.SINE_MIR.gtf"
+    hg38_basic: "hg38.repeatMasker.SINE_MIR.gtf"
     mm39: "mm39.repeatMasker.SINE_MIR.gtf"
     hs1: "hs1.repeatMasker.SINE_MIR.gtf"
   LINE_L1:
     hg38: "hg38.repeatMasker.LINE_L1.gtf"
+    hg38_basic: "hg38.repeatMasker.LINE_L1.gtf"
     mm39: "mm39.repeatMasker.LINE_L1.gtf"
     hs1: "hs1.repeatMasker.LINE_L1.gtf"
   LINE_L2:
     hg38: "hg38.repeatMasker.LINE_L2.gtf"
+    hg38_basic: "hg38.repeatMasker.LINE_L2.gtf"
     mm39: "mm39.repeatMasker.LINE_L2.gtf"
     hs1: "hs1.repeatMasker.LINE_L2.gtf"
   LTR:
     hg38: "hg38.repeatMasker.LTR.gtf"
+    hg38_basic: "hg38.repeatMasker.LTR.gtf"
     mm39: "mm39.repeatMasker.LTR.gtf"
     hs1: "hs1.repeatMasker.LTR.gtf"
   other_repeat_elements:
     hg38: "hg38.repeatMasker.other_repeat_elements.gtf"
+    hg38_basic: "hg38.repeatMasker.other_repeat_elements.gtf"
     mm39: "mm39.repeatMasker.other_repeat_elements.gtf"
     hs1: "hs1.repeatMasker.other_repeat_elements.gtf"
-include_trnas_gtf_in_ref: true
 
 # Tn5 count matrices configuration
 count_matrices:
