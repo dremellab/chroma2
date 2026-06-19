@@ -170,7 +170,7 @@ def parse_slurm_jobbyplus() -> None:
         print("No SLURM output file found")
         return
 
-    slurm_file = slurm_files[0]  # Use first/latest one
+    slurm_file = max(slurm_files, key=lambda p: p.stat().st_mtime)  # Use latest by modification time
     slurm_jobbyplus = slurm_file.with_suffix(".out.jobbyplus")
 
     try:
