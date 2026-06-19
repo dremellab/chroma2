@@ -163,16 +163,30 @@ def collect_gene_centers(
 
     for fields in iter_gtf_records(gtf_path):
         feature = fields[2]
-        if feature not in {"transcript", "gene"}:
-            continue
         chrom = fields[0]
         if chrom not in host_contigs:
             continue
         attrs = parse_attributes(fields[8])
+
+        # If include_types specified, filter by feature type directly (for repeatMasker GTFs)
+        # Otherwise, filter by gene_type attribute (for standard GTFs)
+        if include is not None:
+            if feature.lower() not in include:
+                continue
+        else:
+            # Default: only accept transcript or gene features
+            if feature not in {"transcript", "gene"}:
+                continue
+
         gid = feature_id(attrs)
-        if not gid:
-            continue
         gtype = gene_type(attrs)
+
+        # For repeatMasker GTFs or other files without standard gene_id, use feature-based ID
+        if not gid:
+            # Create ID from feature type, coordinates, and repeat_name if available
+            repeat_name = attrs.get("repeat_name", "")
+            gid = f"{feature}_{fields[3]}_{fields[4]}_{repeat_name}".replace(" ", "_")
+
         if include is not None and gtype.lower() not in include:
             continue
 
@@ -180,7 +194,7 @@ def collect_gene_centers(
         start_0based = int(fields[3]) - 1
         end_0based = int(fields[4]) - 1
         center = (start_0based + end_0based) // 2
-        name = feature_name(attrs, gid)
+        name = feature_name(attrs, gid if gid else repeat_name or feature)
 
         existing = genes.get(gid)
         if existing is None:
