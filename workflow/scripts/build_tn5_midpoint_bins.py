@@ -193,9 +193,6 @@ def collect_gene_centers(
             repeat_name = attrs.get("repeat_name", "")
             gid = f"{feature}_{fields[3]}_{fields[4]}_{repeat_name}".replace(" ", "_")
 
-        if include is not None and gtype.lower() not in include:
-            continue
-
         strand = fields[6]
         start_0based = int(fields[3]) - 1
         end_0based = int(fields[4]) - 1
