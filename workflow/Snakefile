@@ -190,9 +190,7 @@ def parse_slurm_jobbyplus() -> None:
         print(f"❌ Error parsing SLURM jobbyplus: {e}")
 
 
-@onsuccess
-def onsuccess(log):
-    """Called when workflow finishes successfully."""
+onsuccess:
     print("\n" + "=" * 80)
     print("✅ Workflow completed successfully!")
     print("=" * 80)
@@ -211,9 +209,7 @@ def onsuccess(log):
     oncomplete()
 
 
-@onerror
-def onerror(log):
-    """Called when workflow encounters an error."""
+onerror:
     print("\n" + "=" * 80)
     print("❌ Workflow encountered errors!")
     print("=" * 80)
