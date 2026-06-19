@@ -70,6 +70,10 @@ REPEAT_TYPES_AVAILABLE = [
 ]
 VIRAL_TYPES_AVAILABLE = [v for v in VIRUS_LIST] if VIRUS_LIST else []
 
+# Create mappings from lowercase wildcard to original case type names
+POL3_LOWERCASE_TO_TYPE = {t.lower(): t for t in POL3_TYPES_AVAILABLE}
+REPEAT_LOWERCASE_TO_TYPE = {t.lower(): t for t in REPEAT_TYPES_AVAILABLE}
+
 
 # Helper function to resolve GTF path
 def _resolve_gtf_path(gtf_file: str) -> str:
@@ -355,7 +359,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
     rule build_pol3_bins:
         input:
             gtf=lambda wildcards: _resolve_gtf_path(
-                POL3_GTF_BY_TYPE.get(wildcards.pol3_type, {}).get(HOST, "")
+                POL3_GTF_BY_TYPE.get(POL3_LOWERCASE_TO_TYPE.get(wildcards.pol3_type, ""), {}).get(HOST, "")
             ),
             host_regions=REF_REGIONS_HOST,
             chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
@@ -393,7 +397,7 @@ if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
     rule build_repeat_bins:
         input:
             gtf=lambda wildcards: _resolve_gtf_path(
-                REPEAT_ELEMENTS_GTF_BY_TYPE.get(wildcards.repeat_type, {}).get(HOST, "")
+                REPEAT_ELEMENTS_GTF_BY_TYPE.get(REPEAT_LOWERCASE_TO_TYPE.get(wildcards.repeat_type, ""), {}).get(HOST, "")
             ),
             host_regions=REF_REGIONS_HOST,
             chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
