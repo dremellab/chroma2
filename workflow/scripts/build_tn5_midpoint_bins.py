@@ -9,6 +9,12 @@ Bins are created centered on the midpoint of the gene with customizable flank si
 Suitable for small genes like tRNAs, snRNAs, and other compact features where
 the entire gene is relevant for analysis.
 One bin is emitted per gene.
+
+VERSION: 2.0 (2026-06-19)
+  - Updated to support repeatMasker GTF files without standard gene_id attributes
+  - Conditional feature type filtering: uses feature type for repeatMasker GTFs,
+    gene_type attribute for standard GTFs
+  - Auto-generates unique IDs for features missing gene_id using feature type + coords
 """
 
 from __future__ import annotations

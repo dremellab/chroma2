@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Merge per-sample Tn5 count TSVs into a wide count matrix."""
+"""
+Merge per-sample Tn5 count TSVs into a wide count matrix.
+
+VERSION: 1.0 (2026-06-19)
+  - Compatible with updated build_tn5_midpoint_bins.py that supports repeatMasker GTFs
+  - Works with auto-generated feature IDs from GTFs without standard gene_id attributes
+"""
 
 from __future__ import annotations
 
