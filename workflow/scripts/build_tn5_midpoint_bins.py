@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
 """
-Build fixed-width Tn5 counting bins around gene midpoint.
+Build fixed-width Tn5 counting bins around gene midpoint with dual-mode GTF processing.
 
 Bins are created centered on the midpoint of the gene with customizable flank size:
   bin_start = midpoint - flank_size
   bin_end = midpoint + flank_size
 
-Suitable for small genes like tRNAs, snRNAs, and other compact features where
-the entire gene is relevant for analysis.
-One bin is emitted per gene.
+DUAL-MODE OPERATION:
+  Mode A (--gene-types specified): Filter GTF by feature type (standard operation)
+    - Groups GTF lines by gene_id, merges overlapping features
+    - Output: 9-column BED
+    - Use case: Pol3 GTFs, standard gene GTFs with type filtering
 
-VERSION: 2.0 (2026-06-19)
-  - Updated to support repeatMasker GTF files without standard gene_id attributes
-  - Conditional feature type filtering: uses feature type for repeatMasker GTFs,
-    gene_type attribute for standard GTFs
-  - Auto-generates unique IDs for features missing gene_id using feature type + coords
+  Mode B (--gene-types NOT specified): Per-line feature processing (repeatMasker mode)
+    - Treats each GTF line as individual feature, no merging
+    - Accepts all feature types (SINE/Alu, LINE/L1, etc.)
+    - Output: 11+ column BED with repeat metadata (feature_type, repeat_name, repeat_family, sw_score)
+    - Use case: repeatMasker GTF files without standard gene_id attributes
+
+VERSION: 2.1 (2026-06-22)
+  - Implemented dual-mode GTF processing (grouped vs per-line)
+  - Mode B: Adds repeat metadata columns to BED output
+  - Metadata flows through count_tn5_sites_in_bins.py to final count matrices
+  - Backwards compatible: Mode A unchanged, columns 1-9 stable for all downstream tools
 """
 
 from __future__ import annotations
@@ -174,14 +182,11 @@ def collect_gene_centers(
             continue
         attrs = parse_attributes(fields[8])
 
-        # If include_types specified, filter by feature type directly (for repeatMasker GTFs)
-        # Otherwise, filter by gene_type attribute (for standard GTFs)
+        # Dual-mode processing:
+        # - If include_types specified: filter by feature type (for targeted filtering)
+        # - If NOT specified: accept all features, each line is unique (for repeatMasker GTFs)
         if include is not None:
             if feature.lower() not in include:
-                continue
-        else:
-            # Default: only accept transcript or gene features
-            if feature not in {"transcript", "gene"}:
                 continue
 
         gid = feature_id(attrs)
@@ -191,7 +196,9 @@ def collect_gene_centers(
         if not gid:
             # Create ID from feature type, coordinates, and repeat_name if available
             repeat_name = attrs.get("repeat_name", "")
-            gid = f"{feature}_{fields[3]}_{fields[4]}_{repeat_name}".replace(" ", "_")
+            gid = f"{feature}_{fields[3]}_{fields[4]}_{repeat_name}".replace(
+                " ", "_"
+            ).replace("/", "_")
 
         strand = fields[6]
         start_0based = int(fields[3]) - 1
@@ -199,26 +206,41 @@ def collect_gene_centers(
         center = (start_0based + end_0based) // 2
         name = feature_name(attrs, gid if gid else repeat_name or feature)
 
+        # Build base metadata
+        metadata = {
+            "chrom": chrom,
+            "strand": strand,
+            "center": center,
+            "start": start_0based,
+            "end": end_0based,
+            "gene_name": name,
+            "gene_type": gtype if gtype else feature,
+        }
+
+        # If processing without --gene-types (no filtering), add repeat metadata
+        if include is None:
+            metadata["feature_type"] = feature
+            metadata["repeat_name"] = attrs.get("repeat_name", "")
+            metadata["repeat_family"] = attrs.get("repeat_family", "")
+            metadata["sw_score"] = attrs.get("sw_score", "")
+
         existing = genes.get(gid)
         if existing is None:
-            genes[gid] = {
-                "chrom": chrom,
-                "strand": strand,
-                "center": center,
-                "start": start_0based,
-                "end": end_0based,
-                "gene_name": name,
-                "gene_type": gtype,
-            }
+            genes[gid] = metadata
             continue
 
+        # Only merge if both have same chrom/strand
         if existing["chrom"] != chrom or existing["strand"] != strand:
             continue
-        # keep the outermost span → recompute center and expand start/end
-        existing_center = int(existing["center"])
-        existing["center"] = (existing_center + center) // 2
-        existing["start"] = min(int(existing["start"]), start_0based)
-        existing["end"] = max(int(existing["end"]), end_0based)
+
+        # Merge: keep outermost span, preserve metadata
+        if include is not None:
+            # In filtered mode, merge is expected
+            existing_center = int(existing["center"])
+            existing["center"] = (existing_center + center) // 2
+            existing["start"] = min(int(existing["start"]), start_0based)
+            existing["end"] = max(int(existing["end"]), end_0based)
+        # In per-line mode (include is None), don't merge - each line is unique due to ID
 
     return genes
 
@@ -285,23 +307,43 @@ def write_bins(
                     if end != desired_end:
                         truncated_end += 1
 
-            bin_id = f'{gene_id}|{meta["gene_type"]}'
-            out.write(
-                "\t".join(
+            # Generate bin_id: format differs for grouped vs per-line mode
+            if "feature_type" in meta:
+                # Per-line mode: feature_type_chrom_start_end_name
+                feature_clean = meta["gene_type"].replace("/", "_")
+                start_1based = int(meta["start"]) + 1
+                end_1based = int(meta["end"]) + 1
+                repeat_name = meta.get("repeat_name", "")
+                bin_id = (
+                    f"{feature_clean}_{chrom}_{start_1based}_{end_1based}_{repeat_name}"
+                )
+            else:
+                # Grouped mode: include gene_id and gene_name to distinguish overlapping liftover coordinates
+                gene_name = meta.get("gene_name", gene_id)
+                bin_id = f"{gene_id}_{gene_name}"
+
+            output_fields = [
+                chrom,
+                str(start),
+                str(end),
+                bin_id,
+                str(meta["gene_type"]),
+                str(meta["strand"]),
+                str(reference_pos),
+            ]
+
+            # Add repeat metadata columns if present (per-line mode)
+            if "feature_type" in meta:
+                output_fields.extend(
                     [
-                        chrom,
-                        str(start),
-                        str(end),
-                        bin_id,
-                        gene_id,
-                        str(meta["gene_name"]),
-                        str(meta["gene_type"]),
-                        str(meta["strand"]),
-                        str(reference_pos),
+                        str(meta["feature_type"]),
+                        str(meta["repeat_name"]),
+                        str(meta["repeat_family"]),
+                        str(meta["sw_score"]),
                     ]
                 )
-                + "\n"
-            )
+
+            out.write("\t".join(output_fields) + "\n")
 
     # Report size filtering statistics
     if max_size > 0 and filtered_by_size > 0:

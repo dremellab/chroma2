@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
         help="Gene types to include (default: None = all gene types). If specified, only these types are included.",
     )
     parser.add_argument(
+        "--exclude-gene-types",
+        nargs="+",
+        default=None,
+        help="Gene types to exclude (default: None = no exclusion). If specified, these types are excluded.",
+    )
+    parser.add_argument(
         "--flank-size",
         type=int,
         default=250,
@@ -150,8 +156,10 @@ def collect_gene_tss(
     gtf_path: str,
     host_contigs: set[str],
     include_types: Iterable[str] | None,
+    exclude_types: Iterable[str] | None,
 ) -> Dict[str, Dict[str, object]]:
     include = {item.lower() for item in include_types} if include_types else None
+    exclude = {item.lower() for item in exclude_types} if exclude_types else None
     genes: Dict[str, Dict[str, object]] = {}
 
     for fields in iter_gtf_records(gtf_path):
@@ -167,6 +175,8 @@ def collect_gene_tss(
             continue
         gtype = gene_type(attrs).lower()
         if include is not None and gtype not in include:
+            continue
+        if exclude is not None and gtype in exclude:
             continue
 
         strand = fields[6]
@@ -238,7 +248,7 @@ def write_bins(
                 if end != desired_end:
                     truncated_end += 1
 
-            bin_id = f"{gene_id}|tss"
+            bin_id = f"{gene_id}_{meta['gene_name']}"
             out.write(
                 "\t".join(
                     [
@@ -284,6 +294,7 @@ def main() -> None:
         args.gtf,
         host_contigs,
         include_types=args.gene_types,
+        exclude_types=args.exclude_gene_types,
     )
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

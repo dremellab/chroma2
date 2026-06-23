@@ -294,6 +294,7 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
         params:
             flank_size=str(GENE_FLANK_SIZE),
             exclude_features=" ".join(GENE_EXCLUDE_FEATURES),
+            exclude_args=lambda wildcards: f"--exclude-gene-types {' '.join(GENE_EXCLUDE_FEATURES)}" if GENE_EXCLUDE_FEATURES else "",
         threads:
             _get_threads("build_gene_bins", profile_config)
         container:
@@ -306,17 +307,12 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
             mkdir -p $(dirname {log})
             exec > >(tee -a {log}) 2>&1
 
-            exclude_args=""
-            if [ ! -z "{params.exclude_features}" ]; then
-              exclude_args="--gene-types {params.exclude_features}"
-            fi
-
             python {SCRIPTS_DIR}/build_tn5_tss_bins.py \
               --gtf {input.gtf} \
               --host-regions {input.host_regions} \
               --chromsizes {input.chromsizes} \
               --flank-size {params.flank_size} \
-              $exclude_args \
+              {params.exclude_args} \
               --output {output.bed}
             """
 

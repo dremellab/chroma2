@@ -1,5 +1,17 @@
 ## dev version
 
+- fix(tn5-count): fix bin_id duplicates when genes overlap after hg38→hs1 liftover
+  - updated bin*id format to include both gene_id and gene_name: `{gene_id}*{gene_name}`
+  - prevents duplicate identifiers when different genes end up at same genomic coordinates post-liftover
+  - resolves count_tn5_sites_in_bins.py row count mismatches (expected 514 bins, wrote 515 rows)
+  - affected scripts: build_tn5_tss_bins.py, build_tn5_midpoint_bins.py (grouped mode)
+- fix(tn5-count): add --exclude-gene-types parameter to build_tn5_tss_bins.py
+  - previous implementation treated --gene-types as INCLUDE filter, causing inverted behavior
+  - added --exclude-gene-types parameter for proper exclusion of rRNA, tRNA, Mt_tRNA
+  - script now correctly outputs all genes EXCEPT excluded types
+- fix(build-gene-bins): fix Snakemake shell syntax for conditional exclude arguments
+  - moved Python logic from shell template to params section using lambda function
+  - simplifies conditional handling for --exclude-gene-types flag in build_gene_bins rule
 - feat(tn5-count): implement NH-weighted fractional counting for multi-mapping reads (closes #25)
   - add `--fractional-counting` flag to count_tn5_sites_in_bins.py for NH-weighted read handling
   - implement `get_nh_value()` helper to safely extract NH tag from BAM records (returns 1 if missing)
