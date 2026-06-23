@@ -346,6 +346,7 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
               --chromsizes {input.chromsizes} \
               --flank-size {params.flank_size} \
               --max-size {params.max_size} \
+              --gene-types gene \
               --output {output.bed}
             """
 
@@ -384,6 +385,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
               --chromsizes {input.chromsizes} \
               --flank-size {params.flank_size} \
               --max-size {params.max_size} \
+              --gene-types gene \
               --output {output.bed}
             """
 
