@@ -314,9 +314,9 @@ def write_bins(
                 start_1based = int(meta["start"]) + 1
                 end_1based = int(meta["end"]) + 1
                 repeat_name = meta.get("repeat_name", "")
-                bin_id = (
-                    f"{feature_clean}_{chrom}_{start_1based}_{end_1based}_{repeat_name}"
-                )
+                bin_id = f"{feature_clean}_{chrom}_{start_1based}_{end_1based}"
+                if repeat_name:
+                    bin_id += f"_{repeat_name}"
             else:
                 # Grouped mode: include gene_id and gene_name to distinguish overlapping liftover coordinates
                 gene_name = meta.get("gene_name", gene_id)

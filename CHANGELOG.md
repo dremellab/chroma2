@@ -10,6 +10,10 @@
   - grouped mode now outputs 9 columns: chrom, start, end, bin_id, gene_id, gene_name, gene_type, strand, reference_pos
   - matches TSS script output format, fixing IndexError in count_tn5_sites_in_bins.py when accessing fields[7] and fields[8]
   - per-line mode unaffected (still outputs 11 columns with repeat metadata)
+- fix(build-tn5-midpoint-bins): remove trailing underscore in per-line mode bin_id when repeat_name is empty
+  - per-line mode bin*id format: `{feature_clean}*{chrom}_{start_1based}_{end*1based}*{repeat_name}`
+  - previously produced trailing underscore (e.g., `SINE_Alu_chr1_100_200_`) when repeat_name was empty
+  - now produces clean ID without trailing underscore (e.g., `SINE_Alu_chr1_100_200`)
 - fix(tn5-count): fix bin_id duplicates when genes overlap after hg38→hs1 liftover
   - updated bin*id format to include both gene_id and gene_name: `{gene_id}*{gene_name}`
   - prevents duplicate identifiers when different genes end up at same genomic coordinates post-liftover
