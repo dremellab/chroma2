@@ -327,10 +327,24 @@ def write_bins(
                 str(start),
                 str(end),
                 bin_id,
-                str(meta["gene_type"]),
-                str(meta["strand"]),
-                str(reference_pos),
             ]
+
+            # Grouped mode: add gene_id and gene_name for compatibility with count_tn5_sites_in_bins.py
+            if "feature_type" not in meta:
+                output_fields.extend(
+                    [
+                        str(gene_id),
+                        str(meta.get("gene_name", gene_id)),
+                    ]
+                )
+
+            output_fields.extend(
+                [
+                    str(meta["gene_type"]),
+                    str(meta["strand"]),
+                    str(reference_pos),
+                ]
+            )
 
             # Add repeat metadata columns if present (per-line mode)
             if "feature_type" in meta:

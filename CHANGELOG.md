@@ -4,8 +4,12 @@
   - tRNA and Pol3 GTF files are standard GTF format with gene_id attributes, requiring grouped mode processing
   - without --gene-types, script incorrectly ran in per-line mode (designed for RepeatMasker files)
   - per-line mode prevented transcript consolidation and added unwanted repeat metadata columns
-  - fix ensures transcript variants are properly merged and output uses standard 7-column BED format
+  - fix ensures transcript variants are properly merged
   - affected rules: build_trna_bins, build_pol3_bins (build_repeat_bins remains unchanged as correct for RepeatMasker)
+- fix(build-tn5-midpoint-bins): add gene_id and gene_name columns to grouped mode output for count script compatibility
+  - grouped mode now outputs 9 columns: chrom, start, end, bin_id, gene_id, gene_name, gene_type, strand, reference_pos
+  - matches TSS script output format, fixing IndexError in count_tn5_sites_in_bins.py when accessing fields[7] and fields[8]
+  - per-line mode unaffected (still outputs 11 columns with repeat metadata)
 - fix(tn5-count): fix bin_id duplicates when genes overlap after hg38→hs1 liftover
   - updated bin*id format to include both gene_id and gene_name: `{gene_id}*{gene_name}`
   - prevents duplicate identifiers when different genes end up at same genomic coordinates post-liftover
