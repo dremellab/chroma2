@@ -2,8 +2,8 @@ from os.path import join
 
 MULTIQC_REPORT = join(RESULTSDIR, "multiqc", "multiqc_report.html")
 MULTIQC_DATA_DIR = join(RESULTSDIR, "multiqc", "multiqc_data")
-MULTIQC_CUSTOM = join(RESULTSDIR, "multiqc", "custom")
-MULTIQC_ATAQV = join(RESULTSDIR, "multiqc", "ataqv")
+MULTIQC_CUSTOM = join(RESULTSDIR, "multiqc_extra_data", "custom")
+MULTIQC_ATAQV = join(RESULTSDIR, "multiqc_extra_data", "ataqv")
 
 MAPQ_THRESHOLDS = [0, 10, 20, 30]
 

@@ -12,11 +12,12 @@ rule s3_transfer_if_enabled:
         join(RESULTSDIR, "multiqc", "multiqc_report.html"),
         join(RESULTSDIR, "multiqc", "multiqc_data"),
         # Custom QC files required by MultiQC
-        join(RESULTSDIR, "multiqc", "custom", "alignment_stats_mqc.tsv"),
-        join(RESULTSDIR, "multiqc", "custom", "host_virus_ratio_mqc.tsv"),
-        join(RESULTSDIR, "multiqc", "custom", "tn5_counts_mqc.tsv"),
-        join(RESULTSDIR, "multiqc", "custom", "peak_size_mqc.tsv"),
-        join(RESULTSDIR, "multiqc", "custom", "genome_coverage_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "alignment_stats_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "host_virus_ratio_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "tn5_counts_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "peak_size_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "genome_coverage_mqc.tsv"),
+        join(RESULTSDIR, "multiqc_extra_data", "custom", "fragment_size_mqc.tsv"),
     output:
         sentinel=".s3_transfer.done",
     container:
