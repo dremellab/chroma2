@@ -1,5 +1,14 @@
 ## dev version
 
+- fix(multiqc): move custom QC data out of MultiQC output directory (closes #34)
+  - MultiQC skips scanning its own `--outdir`, so custom TSVs and ataqv JSONs nested under `{RESULTSDIR}/multiqc` were silently excluded from the final report
+  - relocate `MULTIQC_CUSTOM`/`MULTIQC_ATAQV` to a sibling `multiqc_extra_data/` directory outside the excluded output subtree
+  - add the missing `fragment_size_mqc.tsv` to the S3 transfer inputs in `s3_transfer.smk`
+- feat: implement status file lifecycle and workdir cleanup (implements #33)
+  - add `cleanup_workdir()` function to remove `tmp/` and stale `status.failed`
+  - create `status.running` marker at pipeline start (skipped on dry-run)
+  - call cleanup on successful completion before marking `status.completed`
+  - three-state system: running → (success/failure) → completed/failed, enabling programmatic monitoring and preventing stale state markers
 - fix(count-matrices): add --gene-types gene to build_trna_bins and build_pol3_bins rules
   - tRNA and Pol3 GTF files are standard GTF format with gene_id attributes, requiring grouped mode processing
   - without --gene-types, script incorrectly ran in per-line mode (designed for RepeatMasker files)
