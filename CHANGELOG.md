@@ -1,5 +1,12 @@
 ## dev version
 
+- fix(multiqc): exclude `logs/` from the MultiQC search path (closes #34, for real this time)
+  - root cause, confirmed against the actual v1.25 container log: the `peak_size_mqc`, `alignment_stats_mqc`, `tn5_counts_mqc`, `genome_coverage_aggregate_mqc`, and `fragment_size_aggregate_mqc` rules use `script:`, so Snakemake creates their `results/logs/<rule>/<rule>.log` files but nothing ever writes to them — they stay 0 bytes
+  - those log paths sit under `RESULTSDIR` (MultiQC's search dir) and their filenames coincidentally end in `_mqc.log`, matching MultiQC's custom-content auto-detect pattern — MultiQC tries to sniff the column format of the empty file and crashes (`ValueError: max() iterable argument is empty` in `_guess_file_format()`), which is an unhandled exception inside `custom_module_classes()` that takes out the _entire_ `custom_content` module for the run, discarding all 6 already-parsed custom sections, not just the file that triggered it
+  - reproduced locally (multiqc v1.25 and v1.27.1, pip-installed) with a zero-byte `logs/peak_size_mqc/peak_size_mqc.log` alongside the real custom TSVs — confirmed the exact same crash, and confirmed `--ignore logs` on the `multiqc` CLI call avoids it and restores all 6 sections in the rendered HTML
+  - add `--ignore logs` to the `multiqc` shell command in `multiqc.smk`
+  - the `multiqc_extra_data/` relocation below was not the fix (MultiQC has no such "skip my own outdir" behavior — see the entry after this one) but is harmless and stays, since it's a reasonable directory layout regardless
+  - correction to the note below: MultiQC v1.25 has no mechanism that skips scanning its own `--outdir`; verified against upstream source (`fn_ignore_dirs` only excludes exact-name matches like `multiqc_data`, `.git`, etc.) — the real cause of #34 was the `logs/` crash above, not directory nesting
 - fix(multiqc): move custom QC data out of MultiQC output directory (closes #34)
   - MultiQC skips scanning its own `--outdir`, so custom TSVs and ataqv JSONs nested under `{RESULTSDIR}/multiqc` were silently excluded from the final report
   - relocate `MULTIQC_CUSTOM`/`MULTIQC_ATAQV` to a sibling `multiqc_extra_data/` directory outside the excluded output subtree

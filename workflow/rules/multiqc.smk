@@ -222,5 +222,6 @@ rule multiqc:
         multiqc {params.search_dir} \
           --outdir {params.outdir} \
           --force \
-          --no-ansi
+          --no-ansi \
+          --ignore logs
         """
