@@ -56,6 +56,8 @@ s3://bucket/s3_prefix/sample_set_name/
 │   ├── alignment_summary.tsv           # Aggregated alignment stats (flagstats + fastqc)
 │   ├── multiqc_report.html             # MultiQC HTML (if enabled)
 │   ├── multiqc_data/                   # MultiQC data directory (if enabled)
+│   ├── custom/                         # Custom content TSVs feeding MultiQC
+│   │   └── *_mqc.tsv
 │   └── ataqv/                          # ATAC-seq QC reports (flattened)
 │       ├── final_report.host
 │       ├── final_report.virus.{virus}  # Per-virus if applicable
@@ -90,8 +92,9 @@ s3://bucket/s3_prefix/sample_set_name/
 | path      | config.yaml                      | `config.yaml`                              | `config/config.yaml`       | GLACIER_IR    | Pipeline config                 |
 | path      | contrasts.tsv                    | `contrasts.tsv`                            | `config/contrasts.tsv`     | GLACIER_IR    | Optional, if exists             |
 | path      | alignmentqc/idxstats_summary.tsv | `results/alignmentqc/idxstats_summary.tsv` | `qc/alignment_summary.tsv` | GLACIER_IR    | Aggregated stats                |
-| path      | multiqc_report.html              | `results/multiqc_report.html`              | `qc/multiqc_report.html`   | GLACIER_IR    | Optional, if exists             |
-| dir       | multiqc_data                     | `results/multiqc_data/`                    | `qc/multiqc_data/`         | GLACIER_IR    | Optional, if exists             |
+| path      | multiqc_report.html              | `results/multiqc/multiqc_report.html`      | `qc/multiqc_report.html`   | GLACIER_IR    | Optional, if exists             |
+| dir       | multiqc_data                     | `results/multiqc/multiqc_data/`            | `qc/multiqc_data/`         | GLACIER_IR    | Optional, if exists             |
+| dir       | multiqc_extra_data/custom        | `results/multiqc_extra_data/custom/`       | `qc/custom/`               | GLACIER_IR    | Custom content TSVs for MultiQC |
 | suffix    | .aligned.final.bam, .bai         | `results/*/align/`                         | `bams/`                    | GLACIER       | Flattened, final alignments     |
 | suffix    | .bw                              | `results/*/bigwig/`                        | `bigwigs/`                 | GLACIER_IR    | Flattened, all samples          |
 | suffix    | .bb                              | `results/*/bigwig/`                        | `bigbeds/`                 | GLACIER_IR    | Flattened, all samples          |

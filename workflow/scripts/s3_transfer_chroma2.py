@@ -36,10 +36,19 @@ CHROMA2_RULES = [
     },
     {
         "kind": "path",
-        "path": "results/multiqc_report.html",
+        "path": "results/multiqc/multiqc_report.html",
         "dest": "qc/multiqc_report.html",
     },
-    {"kind": "dir", "dir_name": "results/multiqc_data", "dest": "qc/multiqc_data"},
+    {
+        "kind": "dir",
+        "dir_name": "results/multiqc/multiqc_data",
+        "dest": "qc/multiqc_data",
+    },
+    {
+        "kind": "dir",
+        "dir_name": "results/multiqc_extra_data/custom",
+        "dest": "qc/custom",
+    },
     {"kind": "dir", "dir_name": "results/alignmentqc/ataqv", "dest": "qc/ataqv"},
     {
         "kind": "suffix",

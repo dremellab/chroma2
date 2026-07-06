@@ -1,5 +1,9 @@
 ## dev version
 
+- fix(s3-transfer): correct broken transfer rules for MultiQC outputs, add multiqc_extra_data
+  - `multiqc_report.html`/`multiqc_data` transfer rules referenced `results/multiqc_report.html` and `results/multiqc_data/`, but the actual paths are `results/multiqc/multiqc_report.html` and `results/multiqc/multiqc_data/` (nested under `multiqc/`) — the report and its data directory were silently never uploaded to S3, verified via `match_rule()` against real output paths
+  - add a `results/multiqc_extra_data/custom` → `qc/custom/` dir rule so the custom QC TSVs feeding MultiQC also reach S3 (they had no matching rule at all)
+  - `multiqc_extra_data/ataqv/*.json` already reaches S3 via the existing generic `.json` suffix rule, so no change needed there
 - fix(multiqc): exclude `logs/` from the MultiQC search path (closes #34, for real this time)
   - root cause, confirmed against the actual v1.25 container log: the `peak_size_mqc`, `alignment_stats_mqc`, `tn5_counts_mqc`, `genome_coverage_aggregate_mqc`, and `fragment_size_aggregate_mqc` rules use `script:`, so Snakemake creates their `results/logs/<rule>/<rule>.log` files but nothing ever writes to them — they stay 0 bytes
   - those log paths sit under `RESULTSDIR` (MultiQC's search dir) and their filenames coincidentally end in `_mqc.log`, matching MultiQC's custom-content auto-detect pattern — MultiQC tries to sniff the column format of the empty file and crashes (`ValueError: max() iterable argument is empty` in `_guess_file_format()`), which is an unhandled exception inside `custom_module_classes()` that takes out the _entire_ `custom_content` module for the run, discarding all 6 already-parsed custom sections, not just the file that triggered it
