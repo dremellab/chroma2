@@ -39,7 +39,11 @@ output_df = pd.DataFrame(output_data, columns=["Sample"] + category_list)
 with open(output_file, "w") as f:
     f.write("# id: 'tn5_counts'\n")
     f.write("# section_name: 'Tn5 Cut Site Counts'\n")
-    f.write("# plot_type: 'heatmap'\n")
+    f.write("# plot_type: 'table'\n")
     f.write("# pconfig:\n")
     f.write("#   id: 'tn5_counts_plot'\n")
+    f.write("# headers:\n")
+    for cat in category_list:
+        f.write(f"#   {cat}:\n")
+        f.write("#     format: '{:,.0f}'\n")
     output_df.to_csv(f, sep="\t", index=False)

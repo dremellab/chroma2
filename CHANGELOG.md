@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(multiqc): render Tn5 Cut Site Counts as a table with integer values instead of a heatmap
+  - switch `tn5_counts_mqc` plot from `heatmap` to `table` — MultiQC's heatmap renderer forces 2-decimal display regardless of the underlying data, showing e.g. `13832.00` for what is actually a plain int
+  - `table` still defaults to 1-decimal display for numeric columns, so `make_tn5_counts_mqc.py` now emits an explicit `headers:` block with `format: '{:,.0f}'` per category column to force integer display
 - fix(multiqc): correct broken custom-content plots for Tn5 counts, peak size, and fragment size
   - `tn5_counts_mqc` rule input (`COUNT_MATRIX_ALL_OUTPUTS`) mixed three incompatible file kinds — reference bin BEDs, per-sample intermediate TSVs, and aggregated per-category matrices — causing the heatmap to show bogus rows (`ref`, `gene_count_matrix`, ...) all under meaningless `unknown_host`/`unknown_trna`/`unknown_virus` columns, with totals that summed bin start/end/tss coordinates in with the real count
   - narrowed the rule input to just the six aggregated `*_count_matrix.tsv` outputs (`GENE_MATRIX_OUTPUTS` + `TRNA_MATRIX_OUTPUTS` + `POL3_MATRIX_OUTPUTS` + `REPEAT_MATRIX_OUTPUTS` + `VIRAL_MATRIX_OUTPUTS` + `RRNA_MATRIX_OUTPUTS`) and rewrote `make_tn5_counts_mqc.py` to derive each category from its file's parent directory name and sum only real sample columns
