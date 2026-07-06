@@ -124,9 +124,16 @@ rule alignment_stats_mqc:
 
 rule tn5_counts_mqc:
     input:
-        COUNT_MATRIX_ALL_OUTPUTS,
+        GENE_MATRIX_OUTPUTS
+        + TRNA_MATRIX_OUTPUTS
+        + POL3_MATRIX_OUTPUTS
+        + REPEAT_MATRIX_OUTPUTS
+        + VIRAL_MATRIX_OUTPUTS
+        + RRNA_MATRIX_OUTPUTS,
     output:
         join(MULTIQC_CUSTOM, "tn5_counts_mqc.tsv"),
+    params:
+        samples=SAMPLES,
     container:
         config["containers"]["pysam"]
     log:

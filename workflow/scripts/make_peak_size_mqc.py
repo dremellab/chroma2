@@ -37,13 +37,13 @@ for input_file in input_files:
     hist, _ = np.histogram(widths, bins=bins)
     peak_data[sample_name] = hist
 
-output_df = pd.DataFrame(peak_data, index=bin_labels).T
+output_df = pd.DataFrame.from_dict(peak_data, orient="index", columns=bin_labels)
 output_df.index.name = "Sample"
 
 with open(output_file, "w") as f:
     f.write("# id: 'peak_size_dist'\n")
     f.write("# section_name: 'Peak Size Distribution'\n")
-    f.write("# plot_type: 'linegraph'\n")
+    f.write("# plot_type: 'bargraph'\n")
     f.write("# pconfig:\n")
     f.write("#   id: 'peak_size_plot'\n")
     output_df.to_csv(f, sep="\t")
