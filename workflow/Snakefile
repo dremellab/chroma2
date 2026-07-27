@@ -20,7 +20,7 @@ pd.set_option("display.max_colwidth", None)
 min_version("5.24")
 
 def cleanup_workdir():
-    """Clean up temporary files and old status markers."""
+    """Clean up temporary files."""
     import shutil
 
     # Remove tmp folder
@@ -28,12 +28,6 @@ def cleanup_workdir():
     if tmpdir.exists():
         print(f"🗑️  Removing tmp folder...")
         shutil.rmtree(tmpdir)
-
-    # Remove old status.failed markers
-    failed_marker = Path("status.failed")
-    if failed_marker.exists():
-        print(f"🗑️  Removing old status.failed marker...")
-        failed_marker.unlink()
 
 def oncomplete():
     import subprocess
@@ -214,10 +208,6 @@ onsuccess:
     # Cleanup temporary files
     cleanup_workdir()
 
-    # Update status files
-    Path("status.running").unlink(missing_ok=True)
-    Path("status.completed").touch()
-
     # Log event
     log_event("INFO", "WORKFLOW_SUCCESS", "All jobs completed")
 
@@ -232,10 +222,6 @@ onerror:
     print("\n" + "=" * 80)
     print("❌ Workflow encountered errors!")
     print("=" * 80)
-
-    # Update status files
-    Path("status.running").unlink(missing_ok=True)
-    Path("status.failed").touch()
 
     # Log event
     log_event("ERROR", "WORKFLOW_FAILED", "Workflow terminated with errors")
@@ -264,10 +250,6 @@ include: "rules/count_matrices.smk"
 include: "rules/multiqc.smk"
 include: "rules/deseq2.smk"
 include: "rules/s3_transfer.smk"
-
-# Mark workflow as running (deleted on success or error)
-if not workflow.dryrun:
-    Path("status.running").touch()
 
 HOST_PEAKS = []
 if HOST != "":

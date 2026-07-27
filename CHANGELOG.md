@@ -1,5 +1,18 @@
 ## dev version
 
+- docs: add Quarto-based documentation site (inspired by HAROLD's docs)
+  - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism)
+  - add `docs/index.md`, `prereq.md`, `usage.md`, `pipeline.qmd` (mermaid architecture diagram), `inputs.md`, `outputs.md`, `s3_configuration.md`, `help.md`
+  - `s3_configuration.md` content verified directly against `workflow/scripts/s3_transfer_chroma2.py`'s transfer rules rather than the older `S3_HIERARCHY.md` design doc, which had drifted from the implementation (e.g. `results/count_matrices/` is not currently transferred to S3)
+  - replace the one-line `README.md` stub with a short pipeline overview + link to the docs site
+- feat(wrapper): replicate HAROLD's INFO/STEP/OK/WARN/ERROR/NEXT logging and pipeline.\* state markers (closes #35)
+  - add `log_info`/`log_step`/`log_ok`/`log_warn`/`log_error`/`log_next`/`log_divider` helpers, used consistently across all runmodes (init, reconfig, recluster, dryrun, touch, unlock, runlocal, run, reset), ending in a `NEXT` line telling you the literal next command to run
+  - replace `status.running`/`status.completed`/`status.failed` with `pipeline.running`/`completed`/`failed`/`canceled` + a `pipeline.status.json` sidecar (pipeline/version/git commit-tag/state/reason/runmode/slurm_job_id/num_failed_rules/failed_rules/timestamp_utc) — **breaking**: anything polling the old `status.*` filenames needs to switch to `pipeline.*`
+  - `run`/`runlocal`/`unlock` now refuse to proceed while `pipeline.running` exists (`check_not_already_running`); `dryrun` warns instead of refusing (`warn_if_already_running`)
+  - live progress snapshots written into `pipeline.running` while a run is in flight — a Python thread for `runlocal`, an embedded bash loop in the generated sbatch head job — both scraping Snakemake's own "N of M steps (P%) done" progress line
+  - failed-rule digest (`rule`/`jobid`/`slurm_job`/`state`/`sample`/`log`, deduped against jobs that succeeded on retry) parsed from the run's own log and written into `pipeline.failed` + `pipeline.status.json`
+  - the generated sbatch head job finalizes state via a hidden `chroma2 --internal-finalize` callback (including SIGTERM/SIGINT -> `pipeline.canceled` via bash traps) instead of duplicating the marker/digest logic in bash
+  - `onsuccess`/`onerror` in the Snakefile no longer touch state-marker files (that's now the wrapper/sbatch-script's sole responsibility, avoiding two writers racing on `pipeline.*`); `logs/events.log`/`events.jsonl` and `logs/summary.txt`/`summary.json` are unchanged
 - fix(multiqc): render Tn5 Cut Site Counts as a table with integer values instead of a heatmap
   - switch `tn5_counts_mqc` plot from `heatmap` to `table` — MultiQC's heatmap renderer forces 2-decimal display regardless of the underlying data, showing e.g. `13832.00` for what is actually a plain int
   - `table` still defaults to 1-decimal display for numeric columns, so `make_tn5_counts_mqc.py` now emits an explicit `headers:` block with `format: '{:,.0f}'` per category column to force integer display
