@@ -94,6 +94,30 @@ def getmemG(rule_name):
     return int(_get_mem_mb(rule_name, profile_config))
 
 ###################################################################################
+
+def _get_runtime(rule_name, profile_config):
+    """
+    Return runtime (minutes) for a rule from profile_config.
+    Falls back to default if not defined.
+    """
+    if (
+        "set-resources" in profile_config
+        and rule_name in profile_config["set-resources"]
+        and "runtime" in profile_config["set-resources"][rule_name]
+    ):
+        return profile_config["set-resources"][rule_name]["runtime"]
+    return profile_config["default-resources"].get("runtime", 240)
+
+
+def _get_runtime_with_retries(rule_name, profile_config, attempt):
+    """
+    Return runtime (minutes) for a rule, doubling on each retry attempt.
+    attempt=1 (first try) returns the base runtime; each subsequent
+    Snakemake retry (see profile `restart-times`) doubles it.
+    """
+    return _get_runtime(rule_name, profile_config) * (2 ** (attempt - 1))
+
+###################################################################################
 ###################################################################################
 
 # import yaml

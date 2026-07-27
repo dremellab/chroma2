@@ -170,6 +170,10 @@ rule genome_coverage_mqc:
     params:
         outpfx=lambda wc: join(RESULTSDIR, wc.sample, "multiqc", f"{wc.sample}"),
         mapqs=MAPQ_THRESHOLDS,
+    resources:
+        runtime=lambda wc, attempt: _get_runtime_with_retries(
+            "genome_coverage_mqc", profile_config, attempt
+        ),
     container:
         config["containers"]["py311"]
     log:

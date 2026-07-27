@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(multiqc): stop `genome_coverage_mqc` from timing out on every case sample (closes #37)
+  - `compute_coverage_mqc.py` called `bam.pileup()` once per MAPQ threshold (4 thresholds), each a full whole-genome per-base pileup traversal with a per-read inner loop -- 4x redundant full-genome scans; rewritten to do a single pileup pass, sorting each column's read MAPQs once and deriving all 4 threshold counts via `bisect_left`
+  - add `_get_runtime`/`_get_runtime_with_retries` helpers in `rules/init.smk` and wire the latter into `genome_coverage_mqc`'s `resources.runtime`, doubling the SLURM runtime on each Snakemake retry (`restart-times`) so a stubborn TIMEOUT gets more walltime automatically instead of repeating with the same limit
 - docs: add Quarto-based documentation site (inspired by HAROLD's docs)
   - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism)
   - add `docs/index.md`, `prereq.md`, `usage.md`, `pipeline.qmd` (mermaid architecture diagram), `inputs.md`, `outputs.md`, `s3_configuration.md`, `help.md`
