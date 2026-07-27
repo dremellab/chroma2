@@ -3,3 +3,6 @@ dag_exports/
 results/
 logs/
 .snakemake/
+
+/.quarto/
+**/*.quarto_ipynb
