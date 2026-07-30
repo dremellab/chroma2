@@ -900,7 +900,7 @@ def write_sbatch_script(
     workdir_q = shlex.quote(str(workdir))
     finalize = (
         f"{chroma2_bin} --internal-finalize --workdir {workdir_q} "
-        f'--job-id "$SLURM_JOB_ID" --log-file {workdir}/logs/slurm-$SLURM_JOB_ID.out'
+        f'--job-id "$SLURM_JOB_ID" --log-file {workdir_q}/logs/slurm-$SLURM_JOB_ID.out'
     )
 
     lines = [
@@ -911,12 +911,12 @@ def write_sbatch_script(
         "#SBATCH --time=3-00:00:00",
         acct_line,
         "#SBATCH --job-name=chroma2_head_job",
-        f"#SBATCH --output={workdir}/logs/slurm-%j.out",
+        f"#SBATCH --output={workdir_q}/logs/slurm-%j.out",
         part_line,
         "",
         "set -euo pipefail",
         "",
-        f"cd {workdir}",
+        f"cd {workdir_q}",
         "",
         # Slurm can terminate this job directly (scancel, walltime) before the
         # snakemake exit-code branch below ever runs, so a trap is the only
@@ -944,8 +944,8 @@ def write_sbatch_script(
             "# Background loop: tails this job's own stdout for Snakemake's progress",
             "# line and periodically snapshots it into pipeline.running.",
             "_progress_monitor() {",
-            f"  local logfile={workdir}/logs/slurm-$SLURM_JOB_ID.out",
-            f"  local marker={workdir}/pipeline.running",
+            f"  local logfile={workdir_q}/logs/slurm-$SLURM_JOB_ID.out",
+            f"  local marker={workdir_q}/pipeline.running",
             '  while [[ -f "$marker" ]]; do',
             '    if [[ -f "$logfile" ]]; then',
             "      raw=$(grep -oP '[0-9]+ of [0-9]+ steps \\([0-9]+%\\) done' \"$logfile\" 2>/dev/null | tail -1 || true)",
@@ -967,7 +967,7 @@ def write_sbatch_script(
             "_monitor_pid=$!",
             "",
             "set +e",
-            f"snakemake -s {SNAKEFILE} --directory {workdir} -j 100 --verbose {apptainer_prefix} --profile config/{profile}",
+            f"snakemake -s {SNAKEFILE} --directory {workdir_q} -j 100 --verbose {apptainer_prefix} --profile config/{profile}",
             "SNAKEMAKE_EXIT_CODE=$?",
             "set -e",
             "",
