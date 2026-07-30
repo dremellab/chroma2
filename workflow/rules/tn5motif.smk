@@ -16,7 +16,6 @@ TN5_EXCLUDE_SUPPLEMENTARY = bool(
 TN5_DEDUP = bool(config.get("tn5_motif", {}).get("dedup", False))
 TN5_LOGO_FORMAT = str(config.get("tn5_motif", {}).get("logo_format", "png"))
 TN5_GENERATE_LOGO = bool(config.get("tn5_motif", {}).get("generate_logo", False))
-TN5_FRACTIONAL_COUNTING = bool(config.get("tn5_motif", {}).get("fractional_counting", False))
 TN5_CALLERS = ("genrich", "macs2")
 
 
@@ -146,7 +145,6 @@ if TN5_GENERATE_LOGO:
                 "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
             ),
             logo_format=TN5_LOGO_FORMAT,
-            fractional_arg=("--fractional-counting" if TN5_FRACTIONAL_COUNTING else ""),
         wildcard_constraints:
             caller="genrich|macs2",
         threads:
@@ -175,9 +173,7 @@ if TN5_GENERATE_LOGO:
               {params.dedup_arg} \
               {params.exclude_secondary_arg} \
               {params.exclude_supplementary_arg} \
-              --logo-format {params.logo_format} \
-              --generate-logo \
-              {params.fractional_arg}
+              --logo-format {params.logo_format}
             """
 
     rule extract_tn5_motifs_virus:
@@ -200,7 +196,6 @@ if TN5_GENERATE_LOGO:
                 "--exclude-supplementary" if TN5_EXCLUDE_SUPPLEMENTARY else ""
             ),
             logo_format=TN5_LOGO_FORMAT,
-            fractional_arg=("--fractional-counting" if TN5_FRACTIONAL_COUNTING else ""),
         wildcard_constraints:
             caller="genrich|macs2",
         threads:
@@ -229,7 +224,5 @@ if TN5_GENERATE_LOGO:
               {params.dedup_arg} \
               {params.exclude_secondary_arg} \
               {params.exclude_supplementary_arg} \
-              --logo-format {params.logo_format} \
-              --generate-logo \
-              {params.fractional_arg}
+              --logo-format {params.logo_format}
             """
