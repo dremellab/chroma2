@@ -73,7 +73,7 @@ CHROMA2_RULES = [
         "suffixes": [".narrowPeak.gz", ".summits.bed.gz"],
         "dest": "peaks",
     },
-    {"kind": "dir", "dir_name": "results/tn5_motif", "dest": "tn5_counts"},
+    {"kind": "dir", "dir_name": "results/count_matrices", "dest": "tn5_counts"},
     {"kind": "dir", "dir_name": "results/deseq2", "dest": "deseq2"},
 ]
 
