@@ -220,6 +220,12 @@ knitr::kable(context$sample_table)
 
 ```{r render-sections, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
 render_section <- function(section, section_title) {
+  if (isTRUE(section$skipped)) {
+    icon <- if (identical(section$skip_type, "skip_list")) "⏭️" else "⚠️"
+    cat(sprintf("## %s\n\n%s %s\n\n", section_title, icon, section$reason))
+    return(invisible(NULL))
+  }
+
   cat(sprintf("## %s\n\n", section_title))
   print(download_link(section))
 

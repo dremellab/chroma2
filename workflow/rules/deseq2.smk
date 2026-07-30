@@ -60,9 +60,6 @@ if COUNT_MATRICES_CONFIG.get("viral_genome_counts", {}).get("enabled", True) and
 if COUNT_MATRICES_CONFIG.get("rrna_counts", {}).get("enabled", True) and HOST != "" and CHRR_GTF != "":
     DESEQ2_AVAILABLE_MATRICES["rrna"] = join(COUNT_MATRICES_FINAL_DIR, "rrna_count_matrix.tsv")
 
-DESEQ2_SKIP_FEATURES = DESEQ2_CONFIG.get("skip_features", [])
-
-
 # Build DESeq2 outputs if enabled
 DESEQ2_OUTPUTS = []
 if DESEQ2_ENABLED and DESEQ2_CONTRASTS:

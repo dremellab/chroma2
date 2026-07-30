@@ -164,6 +164,8 @@ build_deseq2_config <- function(cfg) {
     size_factor_type = as.character(default_if_null(dcfg$size_factor_type, "poscounts")),
     fit_type = as.character(default_if_null(dcfg$fit_type, "parametric")),
     shrink_type = as.character(default_if_null(dcfg$shrink_type, "apeglm")),
+    skip_features = tolower(unlist(default_if_null(dcfg$skip_features, list()), use.names = FALSE)),
+    min_features_per_matrix = as.integer(default_if_null(dcfg$min_features_per_matrix, 50)),
     p_adjust_method = as.character(default_if_null(dcfg$p_adjust_method, "BH")),
     cooks_cutoff = as_bool(default_if_null(dcfg$cooks_cutoff, TRUE), "deseq2.cooks_cutoff"),
     independent_filtering = as_bool(
@@ -263,7 +265,8 @@ prepare_counts <- function(matrix_df, all_manifest_samples, selected_samples, mi
 
   list(
     metadata_df = metadata_df,
-    counts_mat = counts_mat
+    counts_mat = counts_mat,
+    n_features = nrow(metadata_df)
   )
 }
 
@@ -278,6 +281,27 @@ run_deseq2_matrix <- function(
   feature_type,
   cfg
 ) {
+  feature_type_lower <- tolower(feature_type)
+
+  if (feature_type_lower %in% cfg$skip_features) {
+    skip_reason <- sprintf(
+      "Feature type '%s' is in the skip list (configured: %s)",
+      feature_type, paste(cfg$skip_features, collapse = ", ")
+    )
+    cat(sprintf("\n⏭️  ANALYSIS SKIPPED: %s - %s\n%s\n", comparison, feature_type, skip_reason))
+    readr::write_lines(
+      sprintf(
+        "# ANALYSIS SKIPPED: %s - %s\n# Reason: Feature type in skip list\n# Skip list: %s",
+        comparison, feature_type, paste(cfg$skip_features, collapse = ", ")
+      ),
+      output_path
+    )
+    return(list(
+      skipped = TRUE, skip_type = "skip_list", reason = skip_reason,
+      feature_type = feature_type, n_features = NA_integer_
+    ))
+  }
+
   matrix_df <- suppressMessages(readr::read_tsv(matrix_path, show_col_types = FALSE, progress = FALSE))
   if (nrow(matrix_df) == 0) {
     stopf("Matrix has no rows: %s", matrix_path)
@@ -292,6 +316,25 @@ run_deseq2_matrix <- function(
     min_total_count = cfg$min_total_count,
     feature_type = feature_type
   )
+
+  if (prepared$n_features < cfg$min_features_per_matrix) {
+    skip_reason <- sprintf(
+      "Insufficient features for %s: %d remaining after filtering (minimum required: %d). This matrix does not have enough signal for reliable DESeq2 analysis.",
+      comparison, prepared$n_features, cfg$min_features_per_matrix
+    )
+    cat(sprintf("\n⚠️ ANALYSIS SKIPPED: %s - %s\n%s\n", comparison, feature_type, skip_reason))
+    readr::write_lines(
+      sprintf(
+        "# ANALYSIS SKIPPED: %s - %s\n# Reason: Insufficient features after filtering\n# Features remaining: %d (minimum required: %d)",
+        comparison, feature_type, prepared$n_features, cfg$min_features_per_matrix
+      ),
+      output_path
+    )
+    return(list(
+      skipped = TRUE, skip_type = "insufficient_features", reason = skip_reason,
+      feature_type = feature_type, n_features = prepared$n_features
+    ))
+  }
 
   coldata <- selected_manifest %>%
     dplyr::select("sampleName", "groupName", "batch") %>%
@@ -384,7 +427,22 @@ run_deseq2_matrix <- function(
     independentFiltering = cfg$independent_filtering
   )
 
-  res_shrunk <- res_raw
+  res_shrunk <- tryCatch(
+    {
+      if (identical(cfg$shrink_type, "apeglm")) {
+        lfcShrink(dds, coef = resultsNames(dds)[2], res = res_raw, type = "apeglm", quiet = TRUE)
+      } else {
+        lfcShrink(dds, contrast = contrast_vector, res = res_raw, type = cfg$shrink_type, quiet = TRUE)
+      }
+    },
+    error = function(err) {
+      cat(sprintf(
+        "\nNote: LFC shrinkage ('%s') failed for %s (%s): %s. Falling back to unshrunk estimates.\n",
+        cfg$shrink_type, feature_type, comparison, conditionMessage(err)
+      ))
+      res_raw
+    }
+  )
 
   normalized_counts <- counts(dds, normalized = TRUE)
   group1_samples <- rownames(coldata)[coldata$group == group1]
@@ -442,6 +500,7 @@ run_deseq2_matrix <- function(
   }
 
   list(
+    skipped = FALSE,
     feature_type = feature_type,
     matrix_path = matrix_path,
     output_path = output_path,
@@ -533,7 +592,7 @@ if (nzchar(trimws(opts$host_matrix))) {
       stopf("Host analysis failed for comparison '%s': %s", opts$comparison, conditionMessage(err))
     }
   )
-  if (!is.null(host_section) && nzchar(trimws(opts$host_volcano))) {
+  if (!is.null(host_section) && !isTRUE(host_section$skipped) && nzchar(trimws(opts$host_volcano))) {
     save_enhanced_volcano_png(
       result_tbl = host_section$results, feature_labels = host_section$feature_labels,
       png_path = opts$host_volcano, comparison = opts$comparison,
@@ -569,7 +628,9 @@ if (length(virus_labels) > 0) {
         )
       }
     )
-    if (length(virus_volcanos) == length(virus_labels) && nzchar(trimws(virus_volcanos[[idx]]))) {
+    if (length(virus_volcanos) == length(virus_labels) &&
+        !isTRUE(virus_sections[[virus_labels[[idx]]]]$skipped) &&
+        nzchar(trimws(virus_volcanos[[idx]]))) {
       save_enhanced_volcano_png(
         result_tbl = virus_sections[[virus_labels[[idx]]]]$results,
         feature_labels = virus_sections[[virus_labels[[idx]]]]$feature_labels,
