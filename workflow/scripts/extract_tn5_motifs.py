@@ -256,27 +256,6 @@ def alignment_passes_filters(
     return True
 
 
-def paired_cut_sites(rec: pysam.AlignedSegment, ordinal: int) -> List[CutSite]:
-    if rec.reference_start is None or rec.reference_end is None:
-        return []
-
-    left_cut = rec.reference_start + 4
-    right_cut = rec.reference_end - 5
-    if left_cut < 0 or right_cut < 0:
-        return []
-
-    chrom = rec.reference_name
-    base_name = f"{rec.query_name}|frag{ordinal}"
-    return [
-        CutSite(
-            chrom, left_cut, left_cut + 1, f"{base_name}|L", rec.mapping_quality, "+"
-        ),
-        CutSite(
-            chrom, right_cut, right_cut + 1, f"{base_name}|R", rec.mapping_quality, "-"
-        ),
-    ]
-
-
 def single_cut_site(rec: pysam.AlignedSegment, ordinal: int) -> List[CutSite]:
     if rec.reference_start is None or rec.reference_end is None:
         return []
@@ -322,16 +301,13 @@ def cut_sites_from_records(
     if not usable:
         return []
 
-    proper_r1 = [
-        rec for rec in usable if rec.is_paired and rec.is_proper_pair and rec.is_read1
-    ]
+    # Each mapped read independently reveals exactly one Tn5 cut site via its own
+    # strand (single_cut_site handles both strands correctly); a proper pair simply
+    # yields two sites, one from each mate, without needing to derive one mate's
+    # site from the other's coordinates.
     sites: List[CutSite] = []
-    if proper_r1:
-        for i, rec in enumerate(proper_r1, start=1):
-            sites.extend(paired_cut_sites(rec, i))
-    else:
-        for i, rec in enumerate(usable, start=1):
-            sites.extend(single_cut_site(rec, i))
+    for i, rec in enumerate(usable, start=1):
+        sites.extend(single_cut_site(rec, i))
     return sites
 
 
@@ -347,10 +323,6 @@ def cut_sites_from_record(
         exclude_secondary=exclude_secondary,
         exclude_supplementary=exclude_supplementary,
     ):
-        return []
-    if rec.is_paired and rec.is_proper_pair:
-        if rec.is_read1:
-            return paired_cut_sites(rec, 1)
         return []
     return single_cut_site(rec, 1)
 
