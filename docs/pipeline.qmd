@@ -1,0 +1,198 @@
+# 🔄 CHROMA2 Pipeline Architecture
+
+## Pipeline Overview
+
+```{mermaid}
+graph TD
+    A["Raw FASTQ (host + additive + virus co-assay)"] --> B["Reference Assembly<br/>(concat FASTA/GTF, Bowtie2 index, TSS beds)"]
+    A --> C["fastp Trimming"]
+    C --> D["Bowtie2 Alignment"]
+    D --> E["Multi-stage BAM Filtering<br/>(clean → fixmate → markdup → MAPQ/contig filter)"]
+    E --> F["Host / Virus BAM Split"]
+    D --> G["Host / Virus qname-BAM Split<br/>(unfiltered, for Genrich)"]
+    F --> H{"Control samples pooled?"}
+    G --> H
+    H -->|yes| I["Pooled Input-Control BAMs"]
+    H -->|no| J["Peak Calling"]
+    I --> J
+    F --> J
+    G --> J
+    J --> J1["MACS2<br/>(host + per virus)"]
+    J --> J2["Genrich<br/>(host + per virus)"]
+    F --> K["ataqv QC + bigWig/BigBed Tracks"]
+    G --> L{"generate_logo enabled?"}
+    L -->|yes| M["Tn5 Motif Logo Extraction"]
+    L -->|no| N["Tn5 Count Matrices"]
+    G --> N["Tn5 Count Matrices<br/>(gene / tRNA / Pol III ×3 / repeats ×6 / viral / rRNA)"]
+    J1 --> N
+    N --> O{"deseq2.enabled?"}
+    O -->|yes| P["DESeq2 Differential<br/>Accessibility Reports"]
+    O -->|no| Q["MultiQC Report"]
+    J1 --> Q
+    J2 --> Q
+    K --> Q
+    N --> Q
+    P --> Q
+    Q --> R{"push_to_s3 enabled?"}
+    R -->|yes| S["S3 Archival"]
+    R -->|no| T["Done"]
+    S --> T
+```
+
+## Major Pipeline Stages
+
+### **Stage 1: Reference Assembly** {#stage-1-reference-assembly}
+
+- **Trigger:** first `dryrun`/`run`/`runlocal` after `init`
+- **Duration:** one-time per workdir (not repeated per sample)
+- **Parallelization:** single job
+
+**What happens:**
+1. Resolve the selected host genome, additive contigs, and viral genomes against the shared reference data directory.
+2. Validate that every required GTF (main annotation, tRNA, rRNA/"chrR", Pol III, repeat-element classes) exists and is readable for the selection — the pipeline exits early with a clear report if anything is missing.
+3. Concatenate all selected FASTAs into `ref/ref.fa` and all GTFs into `ref/ref.gtf`; build host-only, virus-only, and combined contig ("regions") lists.
+4. Build the Bowtie2 index and per-organism TSS BED + chrom-sizes files from `ref.gtf`.
+
+**Outputs:** `ref/ref.fa`, `ref/ref.gtf`, `ref/ref.fa.*.bt2` (Bowtie2 index), `ref/ref.fa.{host,virus}.regions`, `ref/ref.tss.{host,virus}.bed`.
+
+**Key checks:** gene_id/gene_name uniqueness across concatenated GTFs, sequence-ID uniqueness across concatenated FASTAs.
+
+### **Stage 2: Preprocessing — fastp Trimming and QC** {#stage-2-preprocessing}
+
+- **Trigger:** per sample, immediately
+- **Duration:** short
+- **Parallelization:** fully parallel across samples
+
+Adapter/quality trimming with `fastp` (PE or SE, `--detect_adapter_for_pe` for paired-end), plus FastQC on both raw and trimmed reads.
+
+**Outputs (per sample):** trimmed R1/R2 FASTQ, fastp HTML/JSON report, FastQC HTML/ZIP for raw and trimmed reads.
+
+### **Stage 3: Alignment and Filtering** {#stage-3-alignment}
+
+- **Trigger:** per sample, after trimming
+- **Duration:** medium — the most compute-intensive per-sample stage
+- **Parallelization:** fully parallel across samples
+
+**What happens:**
+1. Bowtie2 aligns trimmed reads against the composite reference (`--very-sensitive` by default, configurable multi-mapping `-k`, insert-size cap), piped directly into a coordinate-sorted BAM.
+2. A four-stage filtering pipeline produces the pipeline's canonical "clean" alignment: **clean** (proper-pair + unmapped/secondary/supplementary filter) → **fixmate** (name-sort, `samtools fixmate -m`, re-sort) → **dedup** (`samtools markdup`, optionally removing duplicates) → **final** (MAPQ filter + exclusion of configured contigs such as `chrM`).
+3. In parallel, the *unfiltered* sorted BAM is also split by host/virus contigs and name-sorted, producing the qname BAMs used later by Genrich (which performs its own internal duplicate/quality handling).
+
+**Outputs (per sample):** `align/{sample}.aligned.sorted.bam`, `align/{sample}.aligned.final.bam` (+ idxstats/flagstat at every stage), `align/{sample}.aligned.{host,virus}.qname.bam`.
+
+### **Stage 4: Host/Virus Split, Pooled Controls, and Peak Calling** {#stage-4-peak-calling}
+
+- **Trigger:** per sample (split, ataqv), per host/virus × pool (pooled controls), per sample × caller × organism (peak calling)
+- **Duration:** medium
+- **Parallelization:** fully parallel across samples/organisms
+
+#### 4a. Postprocess Split and Coverage Tracks
+The filtered `aligned.final.bam` is split into per-organism BAMs (`postprocess/{sample}.host.bam`, `postprocess/{sample}.virus.{virus}.bam`), from which `deeptools bamCoverage` generates bigWig tracks (50bp bins for host, 1bp for virus — reflecting typical genome size differences).
+
+#### 4b. Pooled Input-Control Construction (optional)
+If control samples are assigned to a `host_input_pool`/`virus_input_pool` in the sample manifest, their qname and filtered BAMs are merged per pool (`samtools merge`) into shared control BAMs, used as `-c` input for peak calling when `peakcalling.use_host_input`/`use_virus_input` is enabled.
+
+#### 4c. Peak Calling — Two Independent Callers
+- **MACS2** runs on the filtered, split BAM with an ATAC-centric cut-site model (`--nomodel --shift -100 --extsize 200 --call-summits`), genome size auto-selected for known host names or computed from viral FASTA length.
+- **Genrich** runs on the unfiltered, qname-sorted, organism-split BAM in native ATAC-seq mode (fragment-junction counting, its own duplicate removal, separately tunable MAPQ/fragment-length thresholds for host vs. virus — viral defaults are more permissive given typically lower viral-read MAPQ).
+
+Both callers support the same pooled-control gating logic independently.
+
+**Outputs:** `peaks/{sample}.{host,virus}.macs2.narrowPeak.gz` (+ `.summits.bed.gz`), `peaks/{sample}.{host,virus}.genrich.narrowPeak.gz`.
+
+#### 4d. ataqv Accessibility QC
+`ataqv` computes accessibility QC metrics (TSS enrichment, fragment-length periodicity, peak overlap) per case sample against the host or virus TSS/peak/autosomal references, then `mkarv` aggregates all per-sample JSONs into an interactive HTML report per organism.
+
+### **Stage 5: Tn5 Motif Extraction (Optional)** {#stage-5-tn5-motif}
+
+- **Trigger:** only if `tn5_motif.generate_logo: true`
+- **Duration:** short
+- **Parallelization:** fully parallel across samples × organisms
+
+Identifies exact Tn5 insertion sites from either the Genrich-caller qname BAM or the MACS2-caller postprocess BAM, extracts flanking sequence windows (default ±10bp), builds a position-frequency matrix, and optionally renders a sequence-logo image — useful for confirming the expected Tn5 insertion-site sequence bias as a data-quality sanity check.
+
+### **Stage 6: Tn5 Count Matrix Generation** {#stage-6-count-matrices}
+
+- **Trigger:** per enabled matrix type (up to 6), always runs against the Genrich-caller qname BAMs
+- **Duration:** medium (feature-binning + counting is done per matrix type, per sample)
+- **Parallelization:** parallel across matrix types and samples
+
+Builds genomic bins for each enabled matrix type (gene TSS, tRNA gene midpoints, Pol III gene bodies ×3, repeat-element bodies ×6, fixed-width viral genome bins, rRNA gene TSS), counts Tn5 insertion sites per bin per sample with fractional (NH-weighted) counting for multi-mapping reads, then aggregates into one TSV per matrix type and symlinks all enabled matrices into `results/count_matrices/final_matrices/`.
+
+**Outputs:** `results/count_matrices/{type}_count_matrix.tsv`, `results/count_matrices/final_matrices/`, `COUNT_MATRICES_INDEX.txt`. See [Outputs — Count Matrices](outputs.md#count-matrices) for the full reference.
+
+### **Stage 7: DESeq2 Differential Accessibility (Optional)** {#stage-7-deseq2}
+
+- **Trigger:** only if `deseq2.enabled: true` and `contrasts.tsv` is present
+- **Duration:** medium, per contrast
+- **Parallelization:** parallel across contrasts
+
+For every `group1`/`group2` contrast, runs a DESeq2 analysis against every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other matrix types analyzed alongside), applying configured feature filters (e.g. tRNA skipped by default for insufficient ATAC-seq signal) and rendering a self-contained HTML report.
+
+### **Stage 8: Report Generation — MultiQC** {#stage-8-multiqc}
+
+- **Trigger:** after all upstream outputs complete
+- **Duration:** short
+- **Parallelization:** single aggregation job, after several parallel custom-content-generation jobs
+
+Aggregates FastQC, fastp, alignment/filtering statistics, host-vs-virus read distribution, ataqv metrics, fragment-size distributions, FRiP scores (via `featureCounts` against MACS2 peaks), peak-size distributions, genome coverage breadth, and Tn5 count-matrix summaries into one interactive MultiQC report.
+
+### **Stage 9: S3 Deposition (Optional)** {#stage-9-s3}
+
+- **Trigger:** only if `push_to_s3: true` and `s3_sample_set_name` is set
+- **Duration:** depends on total output size
+- **Parallelization:** single job, depends on essentially all final outputs
+
+Transfers configs, QC reports/data, count matrices, and DESeq2 reports to S3 with configurable storage classes. See [S3 Configuration](s3_configuration.md).
+
+---
+
+## Data Flow Summary
+
+```text
+FASTQ ─┬─> fastp ─> Bowtie2 align ─┬─> filter (clean→fixmate→dedup→final) ─┬─> host/virus split ─┬─> MACS2 ──────┐
+       │                          │                                       │                      ├─> ataqv       │
+       │                          └─> host/virus qname split (unfiltered) ─┴─> Genrich ────────────┤   bigWig     ├─> MultiQC ─> (S3)
+       │                                                                        │                   │             │
+       │                                                                        └─> Tn5 count matrices (×6) ──────┤
+       │                                                                             │                            │
+       │                                                                             └─> DESeq2 (optional) ───────┘
+       └─> FastQC (raw + trimmed)
+```
+
+## Resource Requirements and Runtimes
+
+Runtimes below are qualitative guidance, not measured benchmarks — actual wall-clock time depends heavily on sequencing depth, sample count, and cluster load. Consult `config/rivanna/config.yaml` for the actual per-rule SLURM resource requests used at submission time.
+
+### **Relative Stage Cost**
+
+| Stage | Relative Duration | Notes |
+|---|---|---|
+| Reference Assembly | One-time, short–medium | Dominated by Bowtie2 index build time, which scales with combined genome size |
+| fastp + FastQC | Short | Per sample, highly parallel |
+| Bowtie2 Alignment + Filtering | Medium–Long | Usually the single longest per-sample stage |
+| Peak Calling (MACS2 + Genrich) | Short–Medium | Two callers run independently per organism |
+| ataqv + Coverage Tracks | Short–Medium | |
+| Tn5 Count Matrices | Medium | Scales with number of enabled matrix types |
+| DESeq2 Reports | Short–Medium, per contrast | Scales with number of contrasts × available matrix types |
+| MultiQC | Short | Single aggregation step at the end |
+
+### **Multi-Sample Scaling**
+
+Most stages are fully sample-parallel and submitted as independent SLURM jobs (up to `jobs: 200` concurrently, per `config/rivanna/config.yaml`), so total wall-clock time for a run scales primarily with the longest single sample's alignment/filtering chain plus queue wait time, not linearly with sample count — provided the cluster has capacity to run samples concurrently.
+
+## Performance Tuning
+
+### **Bottlenecks**
+
+- Bowtie2 alignment and the multi-stage BAM filtering chain are typically the slowest per-sample path — increasing `bowtie2_align` thread allocation in the cluster profile has the largest single impact on total runtime.
+- Reference-assembly (Bowtie2 index build) time scales with the combined size of host + additive + virus genomes; adding many large viral genomes or a large additive set increases this one-time cost.
+- Genome-coverage-breadth computation (used by the MultiQC custom content) processes full-genome BAMs at multiple MAPQ thresholds per sample and is comparatively I/O-heavy; its per-sample intermediates are large and marked `temp()` to avoid accumulating disk usage.
+
+### **Memory Requirements**
+
+- Bowtie2 index build and alignment: memory scales with combined reference genome size.
+- `samtools sort`/`markdup` stages: moderate memory, tunable via the cluster profile.
+- DESeq2 contrast reports: memory scales with the number and size of count matrices passed into a single report (all enabled matrix types are analyzed together per contrast).
+
+Per-rule thread/memory/runtime defaults live in `config/rivanna/config.yaml` under `set-resources`, and can be adjusted per rule without modifying pipeline code.

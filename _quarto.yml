@@ -1,0 +1,71 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - docs/index.md
+    - docs/prereq.md
+    - docs/usage.md
+    - docs/pipeline.qmd
+    - docs/inputs.md
+    - docs/outputs.md
+    - docs/s3_configuration.md
+    - docs/help.md
+    - CHANGELOG.md
+
+website:
+  title: "CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline"
+  site-url: https://dremellab.github.io/chroma2/
+  repo-url: https://github.com/dremellab/chroma2
+
+  navbar:
+    pinned: true
+    right:
+      - text: "Docs"
+        href: docs/index.md
+      # Version menu: automatically patched during release builds (docs-release.yml)
+      # For dev docs, this shows dev as current; for release docs, it shows the release version as current
+      # and links to dev. Do not manually edit the menu items below—they are auto-updated during releases.
+      - text: "Version: dev"
+        menu:
+          - text: "dev (current)"
+            href: https://dremellab.github.io/chroma2/dev/docs/index.html
+      - icon: github
+        href: https://github.com/dremellab/chroma2
+
+  sidebar:
+    style: floating
+    collapse-level: 2
+    search: true
+    contents:
+      - section: "Getting Started"
+        contents:
+          - docs/index.md
+          - docs/prereq.md
+          - docs/usage.md
+      - section: "Pipeline"
+        contents:
+          - docs/pipeline.qmd
+          - docs/inputs.md
+          - docs/outputs.md
+      - section: "Cloud & Storage"
+        contents:
+          - docs/s3_configuration.md
+      - section: "Help"
+        contents:
+          - docs/help.md
+
+format:
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
+    toc: true
+    code-copy: true
+    smooth-scroll: true
+    mermaid:
+      theme: default
+    mermaid-format: js
+    css: styles.css
+
+metadata:
+  version: "dev"
