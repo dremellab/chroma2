@@ -550,6 +550,12 @@ if not SAMPLESDF['target'].isin(valid_targets).all():
     bad = sorted(SAMPLESDF.loc[~SAMPLESDF['target'].isin(valid_targets), 'target'].unique())
     raise ValueError(f"Invalid target values found: {bad}. Allowed: {sorted(valid_targets)}")
 
+# Step 3d: Normalize pool columns so pool names match consistently regardless of
+# incidental whitespace (a control declaring "POOL " and a case referencing "POOL"
+# would otherwise silently mismatch, the same as a genuine typo).
+SAMPLESDF['host_input_pool'] = SAMPLESDF['host_input_pool'].str.strip()
+SAMPLESDF['virus_input_pool'] = SAMPLESDF['virus_input_pool'].str.strip()
+
 # Step 4: Check if files in R1 and R2 paths exist and are readable
 def check_file(path):
     return path != "" and os.path.isfile(path) and os.access(path, os.R_OK)
@@ -597,6 +603,36 @@ for _, row in SAMPLESDF.iterrows():
 
 HOST_INPUT_POOLS = sorted(HOST_POOL_CONTROLS.keys())
 VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
+
+# Step 9b: Fail fast if a case sample references a pool no control sample declares --
+# a typo'd/nonexistent pool must not be silently treated the same as "no control".
+case_df = SAMPLESDF.loc[SAMPLESDF['role'] == "case"]
+
+bad_host = case_df.loc[
+    case_df['target'].isin(["host", "both"])
+    & (case_df['host_input_pool'] != "")
+    & (~case_df['host_input_pool'].isin(HOST_POOL_CONTROLS.keys())),
+    ['sampleName', 'host_input_pool'],
+]
+if not bad_host.empty:
+    bad_pairs = sorted(set(zip(bad_host['sampleName'], bad_host['host_input_pool'])))
+    raise ValueError(
+        f"host_input_pool references a pool with no matching control sample: {bad_pairs}. "
+        f"Known host input pools: {HOST_INPUT_POOLS}"
+    )
+
+bad_virus = case_df.loc[
+    case_df['target'].isin(["virus", "both"])
+    & (case_df['virus_input_pool'] != "")
+    & (~case_df['virus_input_pool'].isin(VIRUS_POOL_CONTROLS.keys())),
+    ['sampleName', 'virus_input_pool'],
+]
+if not bad_virus.empty:
+    bad_pairs = sorted(set(zip(bad_virus['sampleName'], bad_virus['virus_input_pool'])))
+    raise ValueError(
+        f"virus_input_pool references a pool with no matching control sample: {bad_pairs}. "
+        f"Known virus input pools: {VIRUS_INPUT_POOLS}"
+    )
 
 
 def _opt_input(path):
