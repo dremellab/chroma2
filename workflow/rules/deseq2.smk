@@ -104,6 +104,24 @@ if DESEQ2_ENABLED:
             virus_labels=shlex.quote(
                 ";;;".join([k for k in DESEQ2_AVAILABLE_MATRICES.keys() if k != "gene"])
             ),
+            virus_outputs=shlex.quote(
+                ";;;".join(
+                    [
+                        join(DESEQ2_OUTDIR, "{comparison}", f"{{comparison}}.{k}.deseq2_results.tsv")
+                        for k in DESEQ2_AVAILABLE_MATRICES.keys()
+                        if k != "gene"
+                    ]
+                )
+            ),
+            virus_volcanos=shlex.quote(
+                ";;;".join(
+                    [
+                        join(DESEQ2_OUTDIR, "{comparison}", f"{{comparison}}.{k}.volcano.png")
+                        for k in DESEQ2_AVAILABLE_MATRICES.keys()
+                        if k != "gene"
+                    ]
+                )
+            ),
         threads:
             _get_threads("deseq2_contrast_report", profile_config)
         container:
@@ -129,8 +147,8 @@ if DESEQ2_ENABLED:
               --host-volcano {params.host_volcano} \
               --virus-labels {params.virus_labels} \
               --virus-matrices {params.virus_matrices} \
-              --virus-outputs "" \
-              --virus-volcanos ""
+              --virus-outputs {params.virus_outputs} \
+              --virus-volcanos {params.virus_volcanos}
             """
 
 
