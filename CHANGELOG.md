@@ -7,8 +7,12 @@
 - fix(multiqc): stop `genome_coverage_mqc` from timing out on every case sample (closes #37)
   - `compute_coverage_mqc.py` called `bam.pileup()` once per MAPQ threshold (4 thresholds), each a full whole-genome per-base pileup traversal with a per-read inner loop -- 4x redundant full-genome scans; rewritten to do a single pileup pass, sorting each column's read MAPQs once and deriving all 4 threshold counts via `bisect_left`
   - add `_get_runtime`/`_get_runtime_with_retries` helpers in `rules/init.smk` and wire the latter into `genome_coverage_mqc`'s `resources.runtime`, doubling the SLURM runtime on each Snakemake retry (`restart-times`) so a stubborn TIMEOUT gets more walltime automatically instead of repeating with the same limit
+- fix(ci): let `docs-dev` GitHub Actions workflow build from an arbitrary branch
+  - `docs-dev.yml` was copied from HAROLD, which has a real `dev` branch; chroma2's repo has no `dev` branch, so the `push: branches: [dev]` trigger could never fire
+  - add a `workflow_dispatch` `branch` input (default `main`) and check out that ref explicitly, so dev docs can be built on demand from any branch (e.g. an active feature branch) while still publishing to the same `/dev/` gh-pages path
+  - the dormant `push: branches: [dev]` trigger is left in place in case a `dev` branch is introduced later
 - docs: add Quarto-based documentation site (inspired by HAROLD's docs)
-  - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism)
+  - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism); gitignore the Quarto output dir (`/_site/`) alongside the already-ignored `/.quarto/` cache
   - add `docs/index.md`, `prereq.md`, `usage.md`, `pipeline.qmd` (mermaid architecture diagram), `inputs.md`, `outputs.md`, `s3_configuration.md`, `help.md`
   - `s3_configuration.md` content verified directly against `workflow/scripts/s3_transfer_chroma2.py`'s transfer rules rather than the older `S3_HIERARCHY.md` design doc, which had drifted from the implementation (at the time of writing, `results/count_matrices/` was not transferred to S3 — since fixed, see the `tn5_counts` entry above)
   - replace the one-line `README.md` stub with a short pipeline overview + link to the docs site
