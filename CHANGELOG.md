@@ -1,12 +1,16 @@
 ## dev version
 
+- fix(s3-transfer): fix `tn5_counts` S3 destination to transfer `count_matrices` instead of an unreachable `tn5_motif` dir
+  - the `results/tn5_motif` dir rule never matched any real path: `tn5_motif.smk` writes to `results/{sample}/tn5_motif/{caller}/{group}/...`, nested per-sample, not a flat `results/tn5_motif/` prefix, so `match_rule()`'s substring check on `/results/tn5_motif/` never fired — confirmed via direct test against a real per-sample path, independent of whether `tn5_motif.generate_logo` is enabled
+  - the actual Tn5 cut-site count data lives in `results/count_matrices/{category}/` (per-sample counts + per-category `*_count_matrix.tsv`, plus `final_matrices/`), a flat dir directly under `results/` that matches the dir rule correctly
+  - changed the `dir_name` for the `tn5_counts` S3 destination from `results/tn5_motif` to `results/count_matrices` in `s3_transfer_chroma2.py`
 - fix(multiqc): stop `genome_coverage_mqc` from timing out on every case sample (closes #37)
   - `compute_coverage_mqc.py` called `bam.pileup()` once per MAPQ threshold (4 thresholds), each a full whole-genome per-base pileup traversal with a per-read inner loop -- 4x redundant full-genome scans; rewritten to do a single pileup pass, sorting each column's read MAPQs once and deriving all 4 threshold counts via `bisect_left`
   - add `_get_runtime`/`_get_runtime_with_retries` helpers in `rules/init.smk` and wire the latter into `genome_coverage_mqc`'s `resources.runtime`, doubling the SLURM runtime on each Snakemake retry (`restart-times`) so a stubborn TIMEOUT gets more walltime automatically instead of repeating with the same limit
 - docs: add Quarto-based documentation site (inspired by HAROLD's docs)
   - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism)
   - add `docs/index.md`, `prereq.md`, `usage.md`, `pipeline.qmd` (mermaid architecture diagram), `inputs.md`, `outputs.md`, `s3_configuration.md`, `help.md`
-  - `s3_configuration.md` content verified directly against `workflow/scripts/s3_transfer_chroma2.py`'s transfer rules rather than the older `S3_HIERARCHY.md` design doc, which had drifted from the implementation (e.g. `results/count_matrices/` is not currently transferred to S3)
+  - `s3_configuration.md` content verified directly against `workflow/scripts/s3_transfer_chroma2.py`'s transfer rules rather than the older `S3_HIERARCHY.md` design doc, which had drifted from the implementation (at the time of writing, `results/count_matrices/` was not transferred to S3 — since fixed, see the `tn5_counts` entry above)
   - replace the one-line `README.md` stub with a short pipeline overview + link to the docs site
 - feat(wrapper): replicate HAROLD's INFO/STEP/OK/WARN/ERROR/NEXT logging and pipeline.\* state markers (closes #35)
   - add `log_info`/`log_step`/`log_ok`/`log_warn`/`log_error`/`log_next`/`log_divider` helpers, used consistently across all runmodes (init, reconfig, recluster, dryrun, touch, unlock, runlocal, run, reset), ending in a `NEXT` line telling you the literal next command to run
