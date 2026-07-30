@@ -161,14 +161,8 @@ rule genome_coverage_mqc:
         bam=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"),
         bai=join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam.bai"),
     output:
-        temp(
-            expand(
-                join(RESULTSDIR, "{{sample}}", "multiqc", "{{sample}}.coverage_q{mapq}.txt"),
-                mapq=MAPQ_THRESHOLDS,
-            )
-        ),
+        join(RESULTSDIR, "{sample}", "multiqc", "{sample}.coverage_summary.tsv"),
     params:
-        outpfx=lambda wc: join(RESULTSDIR, wc.sample, "multiqc", f"{wc.sample}"),
         mapqs=MAPQ_THRESHOLDS,
     resources:
         runtime=lambda wc, attempt: _get_runtime_with_retries(
@@ -184,9 +178,8 @@ rule genome_coverage_mqc:
 rule genome_coverage_aggregate_mqc:
     input:
         expand(
-            join(RESULTSDIR, "{sample}", "multiqc", "{sample}.coverage_q{mapq}.txt"),
+            join(RESULTSDIR, "{sample}", "multiqc", "{sample}.coverage_summary.tsv"),
             sample=CASE_SAMPLES,
-            mapq=MAPQ_THRESHOLDS,
         ),
     output:
         join(MULTIQC_CUSTOM, "genome_coverage_mqc.tsv"),

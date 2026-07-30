@@ -12,31 +12,17 @@ coverage_data = {}
 mapq_thresholds = [0, 10, 20, 30]
 
 for input_file in input_files:
-    basename_file = basename(input_file)
-    sample_name = basename_file.split(".")[0]
-    mapq_match = [q for q in mapq_thresholds if f"_q{q}" in basename_file]
-    if not mapq_match:
-        continue
-    mapq = mapq_match[0]
-
-    df = pd.read_csv(input_file, sep="\t", skiprows=0)
-    if df.shape[0] > 0:
-        mean_depth = df["meandepth"].mean()
-    else:
-        mean_depth = 0
-
-    if sample_name not in coverage_data:
-        coverage_data[sample_name] = {}
-    coverage_data[sample_name][f"MAPQ_{mapq}"] = mean_depth
+    sample_name = basename(input_file).split(".")[0]
+    df = pd.read_csv(input_file, sep="\t")
+    coverage_data[sample_name] = dict(zip(df["mapq"], df["mean_depth"]))
 
 sample_list = sorted(coverage_data.keys())
-mapq_cols = [f"MAPQ_{q}" for q in sorted(mapq_thresholds)]
 
 output_data = []
 for sample in sample_list:
     row = {"Sample": sample}
-    for col in mapq_cols:
-        row[col] = coverage_data[sample].get(col, 0)
+    for q in mapq_thresholds:
+        row[f"MAPQ_{q}"] = coverage_data[sample].get(q, 0)
     output_data.append(row)
 
 output_df = pd.DataFrame(output_data)
