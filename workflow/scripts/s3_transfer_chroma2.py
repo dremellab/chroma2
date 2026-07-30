@@ -51,10 +51,20 @@ CHROMA2_RULES = [
     },
     {"kind": "dir", "dir_name": "results/alignmentqc/ataqv", "dest": "qc/ataqv"},
     {
+        # Per-sample ataqv JSONs live at results/{sample}/alignmentqc/ataqv/..., which
+        # the dir rule above (results/alignmentqc/ataqv) doesn't match -- scope this
+        # explicitly instead of relying on the generic .json rule below to catch them
+        # by coincidence.
         "kind": "suffix",
         "suffixes": [".json"],
         "dest": "qc/ataqv",
-        "exclude_substrings": ["fastp_report"],
+        "include_substrings": ["alignmentqc/ataqv/"],
+    },
+    {
+        "kind": "suffix",
+        "suffixes": [".json"],
+        "dest": "qc/ataqv",
+        "exclude_substrings": ["fastp_report", ".snakemake/"],
     },
     {
         "kind": "suffix",
@@ -62,6 +72,15 @@ CHROMA2_RULES = [
         "dest": "bams",
     },
     {"kind": "suffix", "suffixes": [".bw"], "dest": "bigwigs"},
+    {
+        # ref.tss.{host,virus}.bb are real UCSC browser-track deliverables that
+        # bigbed.smk happens to write into ref/ (the reference-build scaffolding
+        # dir) -- claim them here, ahead of the general ref/ exclusion below.
+        "kind": "suffix",
+        "suffixes": [".bb"],
+        "dest": "bigbeds",
+        "include_substrings": ["ref.tss."],
+    },
     {
         "kind": "suffix",
         "suffixes": [".bb"],
@@ -90,6 +109,11 @@ def match_rule(relpath: str, rule: dict) -> Optional[str]:
         for suffix in rule.get("suffixes", []):
             if relpath.endswith(suffix):
                 if any(s in relpath for s in rule.get("exclude_substrings", [])):
+                    return None
+                include_substrings = rule.get("include_substrings", [])
+                if include_substrings and not any(
+                    s in relpath for s in include_substrings
+                ):
                     return None
                 dest_dir = rule.get("dest", "")
                 base = os.path.basename(relpath)
