@@ -106,7 +106,7 @@ def overlapping_bin_ids(
     return hits
 
 
-def get_nh_value(rec: pysam.AlignmentSegment) -> int:
+def get_nh_value(rec: pysam.AlignedSegment) -> int:
     """
     Safely extract NH tag (number of reported alignments) from BAM record.
     Returns 1 if NH tag is missing (single alignment).
