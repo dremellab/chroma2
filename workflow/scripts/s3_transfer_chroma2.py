@@ -144,6 +144,7 @@ def gather_files(workdir: Path) -> List[Tuple[str, str]]:
     """Walk workdir and match files to rules, returning list of (src_relpath, s3_dest) tuples."""
     entries = []
     seen = {}
+    seen_dest = {}  # dest -> the first relpath that claimed it
 
     for root, dirs, files in os.walk(workdir):
         dirs.sort()
@@ -161,7 +162,14 @@ def gather_files(workdir: Path) -> List[Tuple[str, str]]:
                             file=sys.stderr,
                         )
                     if relpath not in seen:
+                        if dest in seen_dest and seen_dest[dest] != relpath:
+                            print(
+                                f"Warning: {relpath} and {seen_dest[dest]} both resolve to "
+                                f"destination {dest} -- one will silently overwrite the other on S3",
+                                file=sys.stderr,
+                            )
                         seen[relpath] = dest
+                        seen_dest[dest] = relpath
                         entries.append((relpath, dest))
                     break
 
