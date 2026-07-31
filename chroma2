@@ -949,9 +949,24 @@ def write_sbatch_script(
         "",
         # Slurm can terminate this job directly (scancel, walltime) before the
         # snakemake exit-code branch below ever runs, so a trap is the only
-        # reliable way to record pipeline.canceled in that case.
-        f"trap '{finalize} --state canceled --reason signal_SIGTERM; exit 130' SIGTERM",
-        f"trap '{finalize} --state canceled --reason signal_SIGINT; exit 130' SIGINT",
+        # reliable way to record pipeline.canceled in that case. The handler
+        # explicitly kills the background progress monitor and signals/waits
+        # on the snakemake child (backgrounded below) before finalizing --
+        # snakemake's own signal handling is what actually cancels any
+        # per-rule SLURM sub-jobs it already submitted, so it needs a chance
+        # to run before this script records pipeline.canceled and exits.
+        "_handle_signal() {",
+        '  local sig="$1"',
+        '  kill "${_monitor_pid:-}" 2>/dev/null || true',
+        '  if [ -n "${SNAKEMAKE_PID:-}" ]; then',
+        '    kill -TERM "$SNAKEMAKE_PID" 2>/dev/null || true',
+        '    wait "$SNAKEMAKE_PID" 2>/dev/null || true',
+        "  fi",
+        f'  {finalize} --state canceled --reason "signal_${{sig}}"',
+        "  exit 130",
+        "}",
+        "trap '_handle_signal SIGTERM' SIGTERM",
+        "trap '_handle_signal SIGINT' SIGINT",
         "",
     ]
     if apptainer_exports:
@@ -996,7 +1011,9 @@ def write_sbatch_script(
             "_monitor_pid=$!",
             "",
             "set +e",
-            f"snakemake -s {SNAKEFILE} --directory {workdir_q} -j 100 --verbose {apptainer_prefix} --profile config/{profile}",
+            f"snakemake -s {SNAKEFILE} --directory {workdir_q} -j 100 --verbose {apptainer_prefix} --profile config/{profile} &",
+            "SNAKEMAKE_PID=$!",
+            'wait "$SNAKEMAKE_PID"',
             "SNAKEMAKE_EXIT_CODE=$?",
             "set -e",
             "",
