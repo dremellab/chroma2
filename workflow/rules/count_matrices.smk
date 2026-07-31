@@ -495,7 +495,7 @@ TN5_EXCLUDE_SECONDARY = bool(config.get("tn5_motif", {}).get("exclude_secondary"
 TN5_EXCLUDE_SUPPLEMENTARY = bool(
     config.get("tn5_motif", {}).get("exclude_supplementary", False)
 )
-TN5_FRACTIONAL_COUNTING = bool(config.get("tn5_motif", {}).get("fractional_counting", False))
+TN5_FRACTIONAL_COUNTING = bool(config.get("tn5_motif", {}).get("fractional_counting", True))
 
 
 if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
