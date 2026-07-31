@@ -468,6 +468,8 @@ def main() -> None:
         raise ValueError("--flank-size must be >= 0")
     if args.virus_bin_size <= 0:
         raise ValueError("--virus-bin-size must be > 0")
+    if args.mapq_min < 0:
+        raise ValueError("--mapq-min must be >= 0")
     if args.bin_counts_only and not args.bin_counts_output:
         raise ValueError("--bin-counts-output is required with --bin-counts-only")
 

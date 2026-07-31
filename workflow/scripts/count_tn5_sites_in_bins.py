@@ -188,6 +188,8 @@ def validate_output(path: str, rows_written: int, expected_rows: int) -> int:
 
 def main() -> None:
     args = parse_args()
+    if args.mapq_min < 0:
+        raise ValueError("--mapq-min must be >= 0")
     log(f"Starting Tn5 bin counting for sample {args.sample}")
     log(f"Input BAM: {args.bam}")
     log(f"Input bins: {args.bins_bed}")
