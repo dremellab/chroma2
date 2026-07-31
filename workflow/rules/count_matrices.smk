@@ -976,6 +976,7 @@ rule consolidate_count_matrices:
         host=HOST,
         num_samples=len(SAMPLES),
         mapq_min=TN5_MAPQ_MIN,
+        fractional_counting_label=("ENABLED" if TN5_FRACTIONAL_COUNTING else "DISABLED"),
     threads:
         _get_threads("consolidate_count_matrices", profile_config)
     container:
@@ -1039,7 +1040,7 @@ with open(os.path.join(outdir, "COUNT_MATRICES_INDEX.txt"), "w") as idx:
     idx.write("CONFIGURATION\n")
     idx.write("=" * 80 + "\n")
     idx.write("Genrich BAM files used for all counting\n")
-    idx.write("Fractional counting (NH-weighted): ENABLED\n")
+    idx.write("Fractional counting (NH-weighted): {params.fractional_counting_label}\n")
     idx.write(f"Mapq minimum: {params.mapq_min}\n\n")
     idx.write("For detailed documentation, see: COUNT_MATRICES_README.md\n")
     idx.write("=" * 80 + "\n")
