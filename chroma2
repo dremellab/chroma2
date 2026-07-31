@@ -176,10 +176,37 @@ def write_pipeline_state_marker(
     )
 
 
+def _stale_running_marker(workdir: pathlib.Path) -> Optional[str]:
+    """Return the terminal state name if pipeline.running coexists with a
+    terminal pipeline.<state> marker. write_pipeline_state_marker() touches
+    the new marker before unlinking siblings, so a kill in that gap leaves
+    both a terminal marker and the old pipeline.running behind -- this can
+    only happen for a run that already reached a terminal state, since a
+    genuinely active run's own pipeline.running write already cleared any
+    prior terminal marker (in the same call, before this check ever runs).
+    Returns None if pipeline.running doesn't exist, or exists with no
+    terminal marker alongside it (a genuinely active run)."""
+    if not (workdir / "pipeline.running").exists():
+        return None
+    for state in ("completed", "failed", "canceled"):
+        if (workdir / f"pipeline.{state}").exists():
+            return state
+    return None
+
+
 def check_not_already_running(workdir: pathlib.Path) -> None:
     """Refuse to proceed while a prior run still looks active (or crashed
     without cleaning up) in this workdir. Called from run/runlocal/unlock
     before submitting/starting/unlocking."""
+    stale_state = _stale_running_marker(workdir)
+    if stale_state is not None:
+        log_warn(
+            f"Found stale {workdir}/pipeline.running alongside pipeline.{stale_state} -- "
+            "a previous run finished but was killed before removing pipeline.running. "
+            "Removing the stale marker and proceeding."
+        )
+        (workdir / "pipeline.running").unlink(missing_ok=True)
+        return
     if (workdir / "pipeline.running").exists():
         err(
             f"Found {workdir}/pipeline.running -- a run already appears to be in progress "
@@ -191,6 +218,8 @@ def check_not_already_running(workdir: pathlib.Path) -> None:
 def warn_if_already_running(workdir: pathlib.Path) -> None:
     """Unlike check_not_already_running, this does not abort -- dryrun is
     read-only/inspection and legitimately useful while a run is in progress."""
+    if _stale_running_marker(workdir) is not None:
+        return
     if (workdir / "pipeline.running").exists():
         log_warn(
             f"Found {workdir}/pipeline.running -- a pipeline run may already be in progress "
