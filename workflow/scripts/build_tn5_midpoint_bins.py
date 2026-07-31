@@ -236,11 +236,14 @@ def collect_gene_centers(
         # Merge: keep outermost span, preserve metadata
         if include is not None:
             # In filtered mode, merge is expected
-            existing_center = int(existing["center"])
-            existing["center"] = (existing_center + center) // 2
             existing["start"] = min(int(existing["start"]), start_0based)
             existing["end"] = max(int(existing["end"]), end_0based)
         # In per-line mode (include is None), don't merge - each line is unique due to ID
+
+    # Recompute center from the final (possibly multi-line-merged) span, rather than
+    # accumulating an order-dependent running average of each line's own center.
+    for meta in genes.values():
+        meta["center"] = (int(meta["start"]) + int(meta["end"])) // 2
 
     return genes
 
