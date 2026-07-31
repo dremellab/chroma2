@@ -117,8 +117,6 @@ counts_matrix <- as.matrix(gene_counts[, -(1:5)])  # drop metadata columns
 normalized <- sweep(counts_matrix, 2, colSums(counts_matrix), "/")
 ```
 
-See `COUNT_MATRICES_README.md` at the repo root for further worked examples (bash summary stats, sample correlation checks, troubleshooting zero/low counts).
-
 ### Alignment Quality Summary
 
 `results/alignmentqc/idxstats_summary.tsv` — per-sample read counts at every filter stage (raw sorted → clean → dedup → final) plus host/virus split, feeding the MultiQC `alignment_stats` and `host_virus_ratio` custom-content panels.

@@ -1042,7 +1042,6 @@ with open(os.path.join(outdir, "COUNT_MATRICES_INDEX.txt"), "w") as idx:
     idx.write("Genrich BAM files used for all counting\n")
     idx.write("Fractional counting (NH-weighted): {params.fractional_counting_label}\n")
     idx.write(f"Mapq minimum: {params.mapq_min}\n\n")
-    idx.write("For detailed documentation, see: COUNT_MATRICES_README.md\n")
     idx.write("=" * 80 + "\n")
 
 PYTHON_EOF

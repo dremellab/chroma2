@@ -8,3 +8,10 @@ logs/
 /.quarto/
 **/*.quarto_ipynb
 /_site/
+
+# local dev-planning notes, kept on disk but not tracked
+/COUNT_MATRICES_PLAN.md
+/COUNT_MATRICES_README.md
+/GTF_FEATURE_EXPANSION.md
+/GTF_FEATURE_EXPANSION_PLAN.md
+/S3_HIERARCHY.md
