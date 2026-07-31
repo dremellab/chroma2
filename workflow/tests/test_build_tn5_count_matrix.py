@@ -101,7 +101,7 @@ def test_matrix_build_reports_empty_inputs(tmp_path):
     assert not output.exists()
 
 
-def test_matrix_build_reports_header_only_inputs(tmp_path):
+def test_matrix_build_skips_header_only_inputs(tmp_path):
     count_a = tmp_path / "sample_a.tsv"
     header_only = tmp_path / "header_only.tsv"
     output = tmp_path / "matrix.tsv"
@@ -110,7 +110,35 @@ def test_matrix_build_reports_header_only_inputs(tmp_path):
 
     result = _run_matrix([count_a, header_only], output)
 
-    assert result.returncode != 0
-    assert "No count rows were found in input TSV" in result.stderr
-    assert str(header_only) in result.stderr
-    assert not output.exists()
+    assert result.returncode == 0, result.stderr
+    assert "Created Tn5 count matrix" in result.stderr
+    lines = output.read_text().splitlines()
+    assert lines[0].endswith("\tsample_a")
+    assert lines[1].endswith("\t3")
+
+
+def test_matrix_build_writes_header_only_output_when_all_inputs_are_header_only(
+    tmp_path,
+):
+    header_only_a = tmp_path / "header_only_a.tsv"
+    header_only_b = tmp_path / "header_only_b.tsv"
+    output = tmp_path / "matrix.tsv"
+    header_only_a.write_text(HEADER)
+    header_only_b.write_text(HEADER)
+
+    result = _run_matrix([header_only_a, header_only_b], output)
+
+    assert result.returncode == 0, result.stderr
+    lines = output.read_text().splitlines()
+    assert len(lines) == 1
+    assert lines[0].split("\t") == [
+        "chrom",
+        "start",
+        "end",
+        "bin_id",
+        "gene_id",
+        "gene_name",
+        "gene_type",
+        "strand",
+        "tss",
+    ]
