@@ -269,12 +269,45 @@ set-resources:
     threads: 2
     runtime: 240
 
+  macs2_atac_callpeak_virus:
+    # Real sacct/jobbyplus data from a completed run: peak usage ~0.08-0.12 GB
+    # on the 40GB default across all samples -- MACS2 (unlike Genrich) reads
+    # the filtered/deduped BAM and is not memory-hungry. This is an explicit,
+    # deliberately modest override (not a bump), mainly so it's documented as
+    # sized on purpose rather than omitted, and to avoid reserving 40GB of
+    # shared-cluster capacity for a job that needs a fraction of a GB.
+    mem_mb: 8192 # 8 GB
+    threads: 2
+    runtime: 60
+
+  macs2_atac_callpeak_host:
+    mem_mb: 8192 # 8 GB
+    threads: 2
+    runtime: 60
+
   pool_virus_filtered_bam:
     mem_mb: 122880 # 120 GB
     threads: 4
     runtime: 240
 
   pool_virus_qname_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_host_filtered_bam:
+    # No host-pooled run has executed yet to measure real usage against (unlike
+    # pool_virus_*, whose real sacct usage was ~1.5-11GB despite the 120GB
+    # allocation). Host BAMs are whole-genome, far larger than the single-virus-
+    # genome BAMs pool_virus_* merges, so the low virus-pooling usage can't be
+    # assumed to carry over. Matching pool_virus_*'s existing (already generous)
+    # values as a conservative starting point; revisit via sacct/jobbyplus once
+    # a real host-pooled run exists.
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_host_qname_bam:
     mem_mb: 122880 # 120 GB
     threads: 4
     runtime: 240
