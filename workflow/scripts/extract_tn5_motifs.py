@@ -70,14 +70,14 @@ class GroupWriter:
         window_size = 2 * flank_size + 1
         prefix = f"{sample}.{group}.{scenario_name}.tn5_sites.{window_size}bp"
         self.exact_bed_path = (
-            self.outdir / f"{sample}.{group}.{scenario_name}.tn5_sites.1bp.bed"
+            self.outdir / f"{sample}.{group}.{scenario_name}.tn5_sites.1bp.bed.gz"
         )
         self.flank_bed_path = self.outdir / f"{prefix}.bed"
         self.fasta_path = self.outdir / f"{prefix}.fa"
         self.pfm_path = self.outdir / f"{prefix}.pfm.tsv.gz"
         self.logo_path = self.outdir / f"{prefix}.logo.{logo_format}"
 
-        self.exact_bed_fh = self.exact_bed_path.open("w", encoding="utf-8")
+        self.exact_bed_fh = gzip.open(self.exact_bed_path, "wt", encoding="utf-8")
         self.flank_bed_fh = (
             self.flank_bed_path.open("w", encoding="utf-8")
             if not skip_flank_output

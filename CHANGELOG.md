@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(tn5-motif): actually gzip the exact-BED output to match its declared `.gz` rule output (closes #61)
+  - `tn5motif.smk` declares `exact_bed` as `...tn5_sites.1bp.bed.gz`, but `GroupWriter.__init__` in `extract_tn5_motifs.py` still built the path without a `.gz` suffix and opened it with plain-text `.open("w")` -- `390f1a3` ("compress exact BED...") only updated the rule's declared output, never the script
+  - `exact_bed_path` now ends in `.gz` and is opened via `gzip.open(path, "wt", encoding="utf-8")`, matching the pattern already used for `pfm_path`; dormant until now since `tn5_motif.generate_logo` defaults to `false`, but would hard-fail with a missing-output error for anyone who enabled it
 - fix(deseq2): warn on `skip_features` entries that match no available category, and fix the misleading config comment (closes #60)
   - `config/config.yaml`'s comment suggested values like `virus`, `ALU`, `transposable elements`, but `run_deseq2_matrix()` matches `skip_features` against the literal, lowercased internal category key per matrix (`trna`, `rrna`, `pol3_t1`, `repeat_sine_alu`, `viral_<accession>`, ...) -- so those suggested values silently skipped nothing, with no feedback
   - rewrote the config comment to list the actual valid keys
