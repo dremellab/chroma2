@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(wrapper): quote the workdir in the generated `export PROFILE=...` line (closes #64)
+  - `write_sbatch_script()` quotes the workdir consistently everywhere it's spliced into the generated sbatch script via `workdir_q = shlex.quote(str(workdir))`, except one line: `export PROFILE="{workdir}/config/{profile}"` used the raw `workdir` inside a double-quoted string, so a workdir containing `$`, backticks, or `"` could break the script or trigger command substitution at job runtime
+  - fixed by quoting the whole composed path as one unit and splicing it in bare (`profile_dir_q = shlex.quote(f"{workdir}/config/{profile}")`, then `export PROFILE={profile_dir_q}`) rather than reusing `workdir_q` inside another quote layer, which doesn't work -- single quotes have no special meaning inside double quotes, so nesting them would put literal quote characters into the `PROFILE` value
 - fix(s3-transfer): make the destination-collision guard actually block a transfer, not just warn (closes #63)
   - `gather_files()` detected two source files resolving to the same S3 destination but only `print()`ed a stderr warning -- both files were still uploaded and the second silently overwrote the first, with `run_transfer`'s pass/fail counting driven only by `aws cp` exit codes, so a same-run collision never failed the pipeline
   - `gather_files()` now accumulates every collision found during the walk and raises `ValueError` listing all of them if any exist; `run_transfer()` catches this before attempting any upload and returns 1 -- a collision now blocks the whole transfer instead of uploading N-1 files and silently dropping one

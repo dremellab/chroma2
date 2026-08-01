@@ -971,7 +971,8 @@ def write_sbatch_script(
     ]
     if apptainer_exports:
         lines.append(apptainer_exports)
-    lines.append(f'export PROFILE="{workdir}/config/{profile}"')
+    profile_dir_q = shlex.quote(f"{workdir}/config/{profile}")
+    lines.append(f"export PROFILE={profile_dir_q}")
     if path_prepend:
         lines.append(path_prepend)
     if conda_activate:
