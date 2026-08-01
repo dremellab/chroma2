@@ -50,6 +50,49 @@ split_delimited <- function(value, delimiter = ";;;") {
   trimws(pieces[nzchar(trimws(pieces))])
 }
 
+# Human-readable names for the fixed set of repeat classes defined by
+# REPEAT_TYPES in workflow/rules/deseq2.smk (matched on their lowercased key).
+REPEAT_CLASS_LABELS <- c(
+  sine_alu = "SINE Alu",
+  sine_mir = "SINE MIR",
+  line_l1 = "LINE L1",
+  line_l2 = "LINE L2",
+  ltr = "LTR",
+  other_repeat_elements = "Other Repeat Elements"
+)
+
+# Maps an internal DESEQ2_AVAILABLE_MATRICES key (e.g. "trna", "pol3_t1",
+# "repeat_sine_alu", "viral_KT899744.1") to a human-readable report section
+# title. Only "viral_*" keys are actual virus genomes -- everything else is
+# host-associated (tRNA/Pol III/repeat-element/rRNA), despite historically
+# being plumbed through CLI flags named --virus-*.
+category_display_name <- function(feature_type) {
+  if (identical(feature_type, "host")) {
+    return("Host")
+  }
+  if (identical(feature_type, "trna")) {
+    return("tRNA")
+  }
+  if (identical(feature_type, "rrna")) {
+    return("rRNA")
+  }
+  if (grepl("^pol3_t[0-9]+$", feature_type)) {
+    return(sprintf("Pol III (%s)", toupper(sub("^pol3_", "", feature_type))))
+  }
+  if (grepl("^viral_", feature_type)) {
+    return(sprintf("Virus: %s", sub("^viral_", "", feature_type)))
+  }
+  if (grepl("^repeat_", feature_type)) {
+    repeat_key <- sub("^repeat_", "", feature_type)
+    repeat_name <- REPEAT_CLASS_LABELS[[repeat_key]]
+    if (is.null(repeat_name)) {
+      repeat_name <- tools::toTitleCase(gsub("_", " ", repeat_key))
+    }
+    return(sprintf("Repeat Element: %s", repeat_name))
+  }
+  tools::toTitleCase(gsub("_", " ", feature_type))
+}
+
 pick_feature_label_column <- function(df) {
   candidates <- c("gene_name", "gene_id", "bin_id", "chrom")
   for (candidate in candidates) {
@@ -298,7 +341,8 @@ run_deseq2_matrix <- function(
     )
     return(list(
       skipped = TRUE, skip_type = "skip_list", reason = skip_reason,
-      feature_type = feature_type, n_features = NA_integer_
+      feature_type = feature_type, display_name = category_display_name(feature_type),
+      n_features = NA_integer_
     ))
   }
 
@@ -332,7 +376,8 @@ run_deseq2_matrix <- function(
     )
     return(list(
       skipped = TRUE, skip_type = "insufficient_features", reason = skip_reason,
-      feature_type = feature_type, n_features = prepared$n_features
+      feature_type = feature_type, display_name = category_display_name(feature_type),
+      n_features = prepared$n_features
     ))
   }
 
@@ -502,6 +547,7 @@ run_deseq2_matrix <- function(
   list(
     skipped = FALSE,
     feature_type = feature_type,
+    display_name = category_display_name(feature_type),
     matrix_path = matrix_path,
     output_path = output_path,
     feature_label_col = feature_label_col,

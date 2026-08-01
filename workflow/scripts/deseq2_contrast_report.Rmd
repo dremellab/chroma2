@@ -282,12 +282,13 @@ render_section <- function(section, section_title) {
 }
 
 if (!is.null(context$host)) {
-  render_section(context$host, "Host")
+  render_section(context$host, context$host$display_name)
 }
 
 if (length(context$viruses) > 0) {
   for (virus_name in names(context$viruses)) {
-    render_section(context$viruses[[virus_name]], paste("Virus", virus_name))
+    section <- context$viruses[[virus_name]]
+    render_section(section, section$display_name)
   }
 }
 ```
