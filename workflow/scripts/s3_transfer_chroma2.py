@@ -321,6 +321,22 @@ def main():
         print(f"Error: workdir not found: {workdir}", file=sys.stderr)
         return 1
 
+    # pipeline_name/sample_set are each exactly one S3 key segment (see
+    # docs/s3_configuration.md) -- a "/" would silently insert extra segments
+    # into every destination key instead of raising an error.
+    if "/" in args.pipeline_name:
+        print(
+            f"Error: --pipeline-name must not contain '/': {args.pipeline_name!r}",
+            file=sys.stderr,
+        )
+        return 1
+    if "/" in args.sample_set_name:
+        print(
+            f"Error: --sample-set-name must not contain '/': {args.sample_set_name!r}",
+            file=sys.stderr,
+        )
+        return 1
+
     return run_transfer(
         workdir=workdir,
         pipeline_name=args.pipeline_name,
