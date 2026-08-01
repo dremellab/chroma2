@@ -241,7 +241,7 @@ containers:
   multiqc: "docker://multiqc/multiqc:v1.25"
   featurecounts: "docker://seqinfomics/featurecounts:2.0.6"
   bowtie2: "docker://seqinfomics/bowtie2:2.5.0"
-  bedToBigBed: "docker://seqinfomics/bedtobigbed:latest"
+  bedToBigBed: "docker://seqinfomics/bedtobigbed:2.7"
   py311: "docker://seqinfomics/py311:latest"
   pysam: "docker://seqinfomics/pysam:0.22.1"
   macs2: "docker://seqinfomics/macs2:2.2.9.1"
