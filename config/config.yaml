@@ -223,7 +223,13 @@ deseq2:
   report_max_table_rows: 50000
   html_self_contained: true
   design_factors: ["group"]
-  # Feature types to skip analysis for (e.g., host, virus, tRNA, ALU, transposable elements)
+  # Feature types to skip analysis for, matched case-insensitively against the
+  # literal internal category key for each enabled count matrix -- not a
+  # grouping/alias (e.g. "virus" or "ALU" match nothing and skip nothing).
+  # Valid keys: host, trna, rrna, pol3_t1, pol3_t2, pol3_t3,
+  # repeat_sine_alu, repeat_sine_mir, repeat_line_l1, repeat_line_l2,
+  # repeat_ltr, repeat_other_repeat_elements, viral_<accession> (one per
+  # configured virus, e.g. viral_KT899744.1)
   # tRNA is skipped by default (insufficient signal in ATAC-seq)
   skip_features:
     - tRNA

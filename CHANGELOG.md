@@ -1,5 +1,9 @@
 ## dev version
 
+- fix(deseq2): warn on `skip_features` entries that match no available category, and fix the misleading config comment (closes #60)
+  - `config/config.yaml`'s comment suggested values like `virus`, `ALU`, `transposable elements`, but `run_deseq2_matrix()` matches `skip_features` against the literal, lowercased internal category key per matrix (`trna`, `rrna`, `pol3_t1`, `repeat_sine_alu`, `viral_<accession>`, ...) -- so those suggested values silently skipped nothing, with no feedback
+  - rewrote the config comment to list the actual valid keys
+  - added `warn_unmatched_skip_features()` in `run_deseq2_contrast_report.R`, called once the full set of category keys for a comparison is known (`host` + `--virus-labels`); prints a clear warning naming any unmatched `skip_features` entries and the valid keys for that run, instead of staying silent
 - fix(deseq2): stop mislabeling tRNA/Pol III/repeat-element/rRNA report sections as "Virus" (closes #59)
   - `deseq2_contrast_report.Rmd` rendered every non-host section's heading as `paste("Virus", virus_name)`, but `virus_name` is really the internal `DESEQ2_AVAILABLE_MATRICES` key from `deseq2.smk` (`trna`, `pol3_t1`, `repeat_sine_alu`, `rrna`, or `viral_<accession>` for an actual virus) -- so reports showed headers like "## Virus trna" and "## Virus repeat_sine_alu" for categories that have nothing to do with viruses; the underlying per-category data wiring was already correct, only the label was wrong
   - add `category_display_name()` in `run_deseq2_contrast_report.R`, mapping each key to a proper title (`tRNA`, `rRNA`, `Pol III (T1)`, `Repeat Element: SINE Alu`, `Virus: <accession>`), stamped onto every section as `display_name` (skip-list, insufficient-features, and success return paths); the Rmd now renders `section$display_name` instead of deriving a title from the loop variable name

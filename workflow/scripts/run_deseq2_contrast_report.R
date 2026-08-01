@@ -180,6 +180,38 @@ read_config <- function(path) {
   cfg
 }
 
+# deseq2.skip_features is matched against the literal, lowercased internal
+# category key for each matrix (e.g. "trna", "pol3_t1", "repeat_sine_alu",
+# "viral_<accession>") -- it is not a grouping/alias mechanism, so entries
+# like "virus" or "ALU" never match anything and silently skip nothing. Warn
+# loudly (rather than abort) since an unmatched entry is inert, not
+# destructive: the run still produces correct output, just not the reduced
+# scope the user intended.
+warn_unmatched_skip_features <- function(skip_features, available_keys) {
+  if (length(skip_features) == 0) {
+    return(invisible(NULL))
+  }
+  available_lower <- tolower(available_keys)
+  unmatched <- skip_features[!(skip_features %in% available_lower)]
+  if (length(unmatched) > 0) {
+    cat(sprintf(
+      paste(
+        "\nWARNING: deseq2.skip_features contains %s that match no available",
+        "category for this run and will skip nothing: %s",
+        "Available categories: %s",
+        "skip_features matches literal category keys, not groupings like",
+        "'virus' or 'ALU' -- e.g. use 'viral_<accession>' for a specific",
+        "virus, or list each repeat/Pol III class you want skipped.\n",
+        sep = "\n"
+      ),
+      if (length(unmatched) == 1) "an entry" else "entries",
+      paste(unmatched, collapse = ", "),
+      paste(sort(available_lower), collapse = ", ")
+    ))
+  }
+  invisible(NULL)
+}
+
 validate_design_factors <- function(design_factors) {
   if (is.null(design_factors)) {
     stopf("deseq2.design_factors is not set.")
@@ -611,6 +643,12 @@ if (length(virus_labels) != length(virus_matrices) ||
     (length(virus_volcanos) > 0 && length(virus_volcanos) != length(virus_labels))) {
   stopf("Virus labels, matrix paths, output paths, and volcano paths must have the same length.")
 }
+
+available_category_keys <- c(
+  if (nzchar(trimws(opts$host_matrix))) "host" else NULL,
+  virus_labels
+)
+warn_unmatched_skip_features(deseq2_cfg$skip_features, available_category_keys)
 
 dir.create(dirname(opts$report_output), recursive = TRUE, showWarnings = FALSE)
 
