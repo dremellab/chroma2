@@ -845,7 +845,34 @@ def runlocal(
     )
     monitor.start()
 
+    # snakemake/tee are grandchildren (spawned by the intermediate `bash -lc`
+    # process), not direct children of this process, so a plain signal-forward
+    # to the bash PID isn't enough: a non-interactive bash that receives a
+    # signal directly (not via terminal job control) typically dies without
+    # forwarding it to its own children, orphaning snakemake and denying it
+    # the chance to run its own graceful shutdown (which is what actually
+    # cancels any per-rule SLURM sub-jobs it already submitted). Launching in
+    # a new session makes bash the leader of its own process group, so the
+    # whole subtree can be signaled at once via os.killpg().
+    cmd_with_tee = cmd_str + f" 2>&1 | tee {shlex.quote(str(runlocal_log))}"
+    proc = subprocess.Popen(
+        ["bash", "-lc", cmd_with_tee], env=env, start_new_session=True
+    )
+
     def _handle_signal(signum, _frame):
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signum)
+            except ProcessLookupError:
+                pass
+            try:
+                proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                proc.wait()
         write_pipeline_state_marker(
             workdir,
             "canceled",
@@ -857,8 +884,7 @@ def runlocal(
     old_sigterm = signal.signal(signal.SIGTERM, _handle_signal)
     old_sigint = signal.signal(signal.SIGINT, _handle_signal)
     try:
-        cmd_with_tee = cmd_str + f" 2>&1 | tee {shlex.quote(str(runlocal_log))}"
-        rc = subprocess.run(["bash", "-lc", cmd_with_tee], env=env).returncode
+        rc = proc.wait()
     finally:
         signal.signal(signal.SIGTERM, old_sigterm)
         signal.signal(signal.SIGINT, old_sigint)
