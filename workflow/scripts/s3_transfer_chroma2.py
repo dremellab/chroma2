@@ -85,7 +85,7 @@ CHROMA2_RULES = [
         "kind": "suffix",
         "suffixes": [".bb"],
         "dest": "bigbeds",
-        "exclude_substrings": ["ref/"],
+        "exclude_dir_components": ["ref"],
     },
     {
         "kind": "suffix",
@@ -95,6 +95,13 @@ CHROMA2_RULES = [
     {"kind": "dir", "dir_name": "results/count_matrices", "dest": "tn5_counts"},
     {"kind": "dir", "dir_name": "results/deseq2", "dest": "deseq2"},
 ]
+
+
+def _has_dir_component(relpath: str, component: str) -> bool:
+    """True if `component` appears as a distinct path segment in relpath (bounded
+    by slashes on both sides), not merely as a substring -- e.g. "ref" matches
+    ".../ref/file.bb" but not ".../somepref/file.bb"."""
+    return f"/{component}/" in f"/{relpath}"
 
 
 def match_rule(relpath: str, rule: dict) -> Optional[str]:
@@ -109,6 +116,11 @@ def match_rule(relpath: str, rule: dict) -> Optional[str]:
         for suffix in rule.get("suffixes", []):
             if relpath.endswith(suffix):
                 if any(s in relpath for s in rule.get("exclude_substrings", [])):
+                    return None
+                if any(
+                    _has_dir_component(relpath, c)
+                    for c in rule.get("exclude_dir_components", [])
+                ):
                     return None
                 include_substrings = rule.get("include_substrings", [])
                 if include_substrings and not any(
