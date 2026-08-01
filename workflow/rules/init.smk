@@ -606,11 +606,13 @@ VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
 
 # Step 9b: Fail fast if a case sample references a pool no control sample declares --
 # a typo'd/nonexistent pool must not be silently treated the same as "no control".
+# Not scoped by `target`: host/virus peak calling (Snakefile HOST_PEAKS/VIRUS_PEAKS)
+# and the control-lookup functions below run for every case sample regardless of
+# its `target` value, so a declared pool must be validated the same way.
 case_df = SAMPLESDF.loc[SAMPLESDF['role'] == "case"]
 
 bad_host = case_df.loc[
-    case_df['target'].isin(["host", "both"])
-    & (case_df['host_input_pool'] != "")
+    (case_df['host_input_pool'] != "")
     & (~case_df['host_input_pool'].isin(HOST_POOL_CONTROLS.keys())),
     ['sampleName', 'host_input_pool'],
 ]
@@ -622,8 +624,7 @@ if not bad_host.empty:
     )
 
 bad_virus = case_df.loc[
-    case_df['target'].isin(["virus", "both"])
-    & (case_df['virus_input_pool'] != "")
+    (case_df['virus_input_pool'] != "")
     & (~case_df['virus_input_pool'].isin(VIRUS_POOL_CONTROLS.keys())),
     ['sampleName', 'virus_input_pool'],
 ]

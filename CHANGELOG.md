@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(peakcalling): validate a case sample's input-pool reference regardless of its `target` (closes #62)
+  - `HOST_PEAKS`/`VIRUS_PEAKS` (`Snakefile`) and the control-lookup functions run host + virus peak calling for every case sample unconditionally -- `target` was never actually consulted there -- but the pool-typo fail-fast validation added for #48 only checked `host_input_pool`/`virus_input_pool` when `target` included the matching organism, so a case row with e.g. `target=virus` and a typo'd `host_input_pool` skipped validation entirely while host peak calling still ran and silently fell back to no control
+  - dropped the `target`-scoping from `bad_host`/`bad_virus` in `init.smk`: any non-blank pool reference on a case row is now validated against the known pools regardless of `target`, matching what the control-lookup functions actually do
 - fix(tn5-motif): actually gzip the exact-BED output to match its declared `.gz` rule output (closes #61)
   - `tn5motif.smk` declares `exact_bed` as `...tn5_sites.1bp.bed.gz`, but `GroupWriter.__init__` in `extract_tn5_motifs.py` still built the path without a `.gz` suffix and opened it with plain-text `.open("w")` -- `390f1a3` ("compress exact BED...") only updated the rule's declared output, never the script
   - `exact_bed_path` now ends in `.gz` and is opened via `gzip.open(path, "wt", encoding="utf-8")`, matching the pattern already used for `pfm_path`; dormant until now since `tn5_motif.generate_logo` defaults to `false`, but would hard-fail with a missing-output error for anyone who enabled it
