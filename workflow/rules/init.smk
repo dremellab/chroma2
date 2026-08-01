@@ -640,7 +640,14 @@ def _opt_input(path):
     return [] if path == "" else path
 
 
+# Each getter below is gated on the same peakcalling.use_*_input toggle that
+# peakcalling.smk's control_arg checks -- returning "" here, before resolving
+# the pool, keeps the pooled-BAM merge/index rules (inputs.smk) out of the DAG
+# entirely when a toggle is off, instead of building them and then discarding
+# the result in control_arg.
 def get_host_control_qname_bam(wildcards):
+    if not config.get("peakcalling", {}).get("use_host_input", False):
+        return ""
     pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
     if pool == "" or pool not in HOST_POOL_CONTROLS:
         return ""
@@ -648,6 +655,8 @@ def get_host_control_qname_bam(wildcards):
 
 
 def get_host_control_filtered_bam(wildcards):
+    if not config.get("peakcalling", {}).get("use_host_input", False):
+        return ""
     pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
     if pool == "" or pool not in HOST_POOL_CONTROLS:
         return ""
@@ -655,6 +664,8 @@ def get_host_control_filtered_bam(wildcards):
 
 
 def get_virus_control_qname_bam(wildcards):
+    if not config.get("peakcalling", {}).get("use_virus_input", True):
+        return ""
     pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
     if pool == "" or pool not in VIRUS_POOL_CONTROLS:
         return ""
@@ -662,6 +673,8 @@ def get_virus_control_qname_bam(wildcards):
 
 
 def get_virus_control_filtered_bam(wildcards):
+    if not config.get("peakcalling", {}).get("use_virus_input", True):
+        return ""
     pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
     if pool == "" or pool not in VIRUS_POOL_CONTROLS:
         return ""
