@@ -141,10 +141,15 @@ def match_rule(relpath: str, rule: dict) -> Optional[str]:
 
 
 def gather_files(workdir: Path) -> List[Tuple[str, str]]:
-    """Walk workdir and match files to rules, returning list of (src_relpath, s3_dest) tuples."""
+    """Walk workdir and match files to rules, returning list of (src_relpath, s3_dest) tuples.
+
+    Raises ValueError if two different source files resolve to the same S3
+    destination -- uploading both would silently let one overwrite the other.
+    """
     entries = []
     seen = {}
     seen_dest = {}  # dest -> the first relpath that claimed it
+    collisions = []
 
     for root, dirs, files in os.walk(workdir):
         dirs.sort()
@@ -163,15 +168,20 @@ def gather_files(workdir: Path) -> List[Tuple[str, str]]:
                         )
                     if relpath not in seen:
                         if dest in seen_dest and seen_dest[dest] != relpath:
-                            print(
-                                f"Warning: {relpath} and {seen_dest[dest]} both resolve to "
-                                f"destination {dest} -- one will silently overwrite the other on S3",
-                                file=sys.stderr,
-                            )
+                            collisions.append((seen_dest[dest], relpath, dest))
                         seen[relpath] = dest
                         seen_dest[dest] = relpath
                         entries.append((relpath, dest))
                     break
+
+    if collisions:
+        details = "; ".join(
+            f"{first} and {second} -> {dest}" for first, second, dest in collisions
+        )
+        raise ValueError(
+            f"S3 destination collision(s) detected -- refusing to transfer, since "
+            f"one file would silently overwrite the other on S3: {details}"
+        )
 
     return entries
 
@@ -194,7 +204,11 @@ def run_transfer(
     dry_run: bool = False,
 ) -> int:
     """Transfer files to S3. Returns number of successful transfers."""
-    entries = gather_files(workdir)
+    try:
+        entries = gather_files(workdir)
+    except ValueError as err:
+        print(f"Error: {err}", file=sys.stderr)
+        return 1
 
     if not entries:
         print("No files matched Chroma 2 transfer rules", file=sys.stderr)

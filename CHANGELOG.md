@@ -1,5 +1,8 @@
 ## dev version
 
+- fix(s3-transfer): make the destination-collision guard actually block a transfer, not just warn (closes #63)
+  - `gather_files()` detected two source files resolving to the same S3 destination but only `print()`ed a stderr warning -- both files were still uploaded and the second silently overwrote the first, with `run_transfer`'s pass/fail counting driven only by `aws cp` exit codes, so a same-run collision never failed the pipeline
+  - `gather_files()` now accumulates every collision found during the walk and raises `ValueError` listing all of them if any exist; `run_transfer()` catches this before attempting any upload and returns 1 -- a collision now blocks the whole transfer instead of uploading N-1 files and silently dropping one
 - fix(peakcalling): validate a case sample's input-pool reference regardless of its `target` (closes #62)
   - `HOST_PEAKS`/`VIRUS_PEAKS` (`Snakefile`) and the control-lookup functions run host + virus peak calling for every case sample unconditionally -- `target` was never actually consulted there -- but the pool-typo fail-fast validation added for #48 only checked `host_input_pool`/`virus_input_pool` when `target` included the matching organism, so a case row with e.g. `target=virus` and a typo'd `host_input_pool` skipped validation entirely while host peak calling still ran and silently fell back to no control
   - dropped the `target`-scoping from `bad_host`/`bad_virus` in `init.smk`: any non-blank pool reference on a case row is now validated against the known pools regardless of `target`, matching what the control-lookup functions actually do
