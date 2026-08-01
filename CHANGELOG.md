@@ -124,7 +124,7 @@
   - accumulate fractional weights into bin counts (Dict[str, float])
   - round fractional sums to nearest integer before output for DESeq2 compatibility
   - update all 4 bin counting rules to conditionally pass --fractional-counting based on config
-  - add `fractional_counting` config key under `tn5_motif` block (default false)
+  - add `fractional_counting` config key under `tn5_motif` block (default true -- NH-weighted counting is correct for multi-mapping reads and should be on unless a run specifically needs raw integer counts)
 - fix(s3-transfer): add MultiQC outputs as explicit dependencies (closes #21)
   - add multiqc_report.html and multiqc_data as inputs to s3_transfer_if_enabled rule
   - ensures S3 transfer waits for MultiQC report completion before attempting output deposition
