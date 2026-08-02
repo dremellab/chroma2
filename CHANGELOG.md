@@ -1,5 +1,9 @@
 ## dev version
 
+- fix(tn5-motif): `--mapq-min` now rejects negative values via a clean argparse error (closes #70)
+  - `extract_tn5_motifs.py` and `count_tn5_sites_in_bins.py` both validated `--mapq-min` with a post-parse `if args.mapq_min < 0: raise ValueError(...)`, which surfaced as a raw Python traceback instead of a standard `usage: ...` / `error: argument --mapq-min: ...` message; no test exercised the negative case in either script
+  - added a shared `_non_negative_int()` argparse `type=` callable to both scripts (raises `argparse.ArgumentTypeError`, which argparse itself catches and formats), switched `--mapq-min` to use it, and removed the now-redundant post-parse checks; `parse_args()` in both scripts gained an optional `argv=None` parameter so tests can call it directly with a synthetic argument list
+  - added a regression test to each script's test file asserting a negative `--mapq-min` raises `SystemExit(2)`; verified via the cached `pysam_0.22.1.sif` apptainer image that all 20 tests pass, including both new ones
 - chore: untrack personal `.claude/settings.json` (closes #69)
   - every permission entry in the tracked `.claude/settings.json` referenced one contributor's home directory, personal memory dirs, or a single one-off scratch debugging run -- none of it generic/project-wide, and every other contributor cloning the repo would have inherited these auto-approvals
   - removed it from git; a much larger, actively-growing `.claude/settings.local.json` (Claude Code's own convention for personal/machine-specific settings) already exists on disk and supersedes it

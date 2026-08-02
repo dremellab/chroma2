@@ -10,14 +10,21 @@ import bisect
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pysam
 
 from extract_tn5_motifs import cut_sites_from_record
 
 
-def parse_args() -> argparse.Namespace:
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {parsed}")
+    return parsed
+
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Count Tn5 cut sites from a BAM inside custom bins."
     )
@@ -26,7 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True, help="Output TSV")
     parser.add_argument("--sample", required=True, help="Sample label")
     parser.add_argument("--threads", type=int, default=2, help="BAM read threads")
-    parser.add_argument("--mapq-min", type=int, default=0, help="Minimum MAPQ")
+    parser.add_argument(
+        "--mapq-min",
+        type=_non_negative_int,
+        default=0,
+        help="Minimum MAPQ (must be >= 0)",
+    )
     parser.add_argument(
         "--progress-every",
         type=int,
@@ -48,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use NH-weighted fractional counting for multi-mapping reads (1/NH per alignment)",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def log(message: str) -> None:
@@ -188,8 +200,6 @@ def validate_output(path: str, rows_written: int, expected_rows: int) -> int:
 
 def main() -> None:
     args = parse_args()
-    if args.mapq_min < 0:
-        raise ValueError("--mapq-min must be >= 0")
     log(f"Starting Tn5 bin counting for sample {args.sample}")
     log(f"Input BAM: {args.bam}")
     log(f"Input bins: {args.bins_bed}")

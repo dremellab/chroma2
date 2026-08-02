@@ -104,7 +104,14 @@ class GroupWriter:
             self.fasta_fh.close()
 
 
-def parse_args() -> argparse.Namespace:
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {parsed}")
+    return parsed
+
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Extract Tn5 nicking sites from a BAM, write BED/FASTA/PFM outputs, "
@@ -164,9 +171,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mapq-min",
-        type=int,
+        type=_non_negative_int,
         default=0,
-        help="Minimum MAPQ to keep an alignment",
+        help="Minimum MAPQ to keep an alignment (must be >= 0)",
     )
     parser.add_argument(
         "--dedup",
@@ -199,7 +206,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip writing flank BED/FASTA outputs (PFM still computed in-memory)",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def parse_regions_contigs(path: str) -> set[str]:
@@ -468,8 +475,6 @@ def main() -> None:
         raise ValueError("--flank-size must be >= 0")
     if args.virus_bin_size <= 0:
         raise ValueError("--virus-bin-size must be > 0")
-    if args.mapq_min < 0:
-        raise ValueError("--mapq-min must be >= 0")
     if args.bin_counts_only and not args.bin_counts_output:
         raise ValueError("--bin-counts-output is required with --bin-counts-only")
 

@@ -19,6 +19,7 @@ from count_tn5_sites_in_bins import (  # noqa: E402
     get_nh_value,
     load_bins,
     overlapping_bin_ids,
+    parse_args,
     validate_output,
     write_counts,
 )
@@ -213,6 +214,12 @@ def test_end_to_end_counts_each_mates_cut_site_into_its_own_bin(tmp_path):
     }
     assert rows["near_bin"] == "1"
     assert rows["far_bin"] == "1"
+
+
+def test_parse_args_rejects_negative_mapq_min():
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["--mapq-min", "-1"])
+    assert exc_info.value.code == 2
 
 
 if __name__ == "__main__":

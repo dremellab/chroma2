@@ -16,6 +16,7 @@ from extract_tn5_motifs import (  # noqa: E402
     alignment_passes_filters,
     cut_sites_from_record,
     cut_sites_from_records,
+    parse_args,
     single_cut_site,
 )
 
@@ -144,6 +145,12 @@ def test_cut_sites_from_records_derives_each_mates_site_from_its_own_alignment()
     assert by_name["pair1|read2"].strand == "-"
     # Guard against regressing to R1-only derivation for the mate's site.
     assert by_name["pair1|read2"].start != r1.reference_end - 5
+
+
+def test_parse_args_rejects_negative_mapq_min():
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["--mapq-min", "-1"])
+    assert exc_info.value.code == 2
 
 
 if __name__ == "__main__":
