@@ -207,9 +207,10 @@ def write_bins(
             if chrom not in chromsizes:
                 continue
 
-            # Apply size filter
+            # Apply size filter. meta["start"]/meta["end"] are 0-based
+            # *inclusive* coordinates, so true length is end - start + 1.
             if max_size > 0:
-                feature_size = int(meta["end"]) - int(meta["start"])
+                feature_size = int(meta["end"]) - int(meta["start"]) + 1
                 if feature_size > max_size:
                     filtered_by_size += 1
                     continue
