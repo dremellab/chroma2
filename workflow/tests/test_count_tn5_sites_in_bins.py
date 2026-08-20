@@ -216,10 +216,28 @@ def test_end_to_end_counts_each_mates_cut_site_into_its_own_bin(tmp_path):
     assert rows["far_bin"] == "1"
 
 
-def test_parse_args_rejects_negative_mapq_min():
+def test_parse_args_rejects_negative_mapq_min(capsys):
+    # Every other required arg is supplied so the only possible source of a
+    # SystemExit is the --mapq-min type check itself -- otherwise argparse's
+    # unrelated "missing required arguments" error also exits with code 2,
+    # and this test would pass even if the negative-value check were reverted.
     with pytest.raises(SystemExit) as exc_info:
-        parse_args(["--mapq-min", "-1"])
+        parse_args(
+            [
+                "--bam",
+                "in.bam",
+                "--bins-bed",
+                "bins.bed",
+                "--output",
+                "out.tsv",
+                "--sample",
+                "sample_a",
+                "--mapq-min",
+                "-1",
+            ]
+        )
     assert exc_info.value.code == 2
+    assert "--mapq-min" in capsys.readouterr().err
 
 
 if __name__ == "__main__":

@@ -147,10 +147,30 @@ def test_cut_sites_from_records_derives_each_mates_site_from_its_own_alignment()
     assert by_name["pair1|read2"].start != r1.reference_end - 5
 
 
-def test_parse_args_rejects_negative_mapq_min():
+def test_parse_args_rejects_negative_mapq_min(capsys):
+    # Every other required arg is supplied so the only possible source of a
+    # SystemExit is the --mapq-min type check itself -- otherwise argparse's
+    # unrelated "missing required arguments" error also exits with code 2,
+    # and this test would pass even if the negative-value check were reverted.
     with pytest.raises(SystemExit) as exc_info:
-        parse_args(["--mapq-min", "-1"])
+        parse_args(
+            [
+                "--bam",
+                "in.bam",
+                "--fasta",
+                "ref.fa",
+                "--sample",
+                "sample_a",
+                "--scenario-name",
+                "macs2",
+                "--outdir",
+                "/tmp/out",
+                "--mapq-min",
+                "-1",
+            ]
+        )
     assert exc_info.value.code == 2
+    assert "--mapq-min" in capsys.readouterr().err
 
 
 if __name__ == "__main__":
