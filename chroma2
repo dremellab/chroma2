@@ -250,14 +250,13 @@ def extract_failed_rules_digest(logfile: pathlib.Path) -> List[Dict[str, str]]:
     if not logfile.exists():
         return []
 
-    finished_jobids = set(
-        _FINISHED_JOBID_RE.findall(logfile.read_text(errors="replace"))
-    )
+    text = logfile.read_text(errors="replace")
+    finished_jobids = set(_FINISHED_JOBID_RE.findall(text))
 
     digests: "Dict[str, Dict[str, str]]" = {}
     in_block = False
     rule = jobid = message = logline = ""
-    for line in logfile.read_text(errors="replace").splitlines():
+    for line in text.splitlines():
         rule_match = _RULE_RE.match(line)
         if rule_match:
             in_block = True
@@ -343,9 +342,12 @@ def progress_snapshot(logfile: pathlib.Path) -> Optional[str]:
 def run_progress_monitor(
     marker: pathlib.Path, logfile: pathlib.Path, stop_event: threading.Event
 ) -> None:
-    """Background loop: tails `logfile` for Snakemake's own progress line and
-    periodically writes a human-readable progress summary into `marker`
-    (pipeline.running), mirroring HAROLD's _runlocal_progress_monitor."""
+    """Background loop: every 60s, rereads `logfile` in full for Snakemake's
+    own progress line and writes a human-readable progress summary into
+    `marker` (pipeline.running), mirroring HAROLD's
+    _runlocal_progress_monitor. Not a true tail -- progress_snapshot()
+    rescans the whole (monotonically growing) file on each poll rather than
+    reading only newly-appended content."""
     while not stop_event.is_set():
         if not marker.exists():
             break
@@ -698,6 +700,22 @@ def build_env(
     return env
 
 
+def build_shell_cmd(
+    cmd_list,
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+) -> str:
+    """Quote-join cmd_list into a single command string, `&&`-prefixed with
+    any non-empty path_prepend/conda_activate/module_load env-activation
+    commands (in that order). Returns a string suitable for `bash -lc`."""
+    cmd = " ".join(shlex.quote(str(c)) for c in cmd_list)
+    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
+    if parts:
+        cmd = " && ".join(parts + [cmd])
+    return cmd
+
+
 def shell_run(
     cmd_list,
     env: Dict[str, str],
@@ -705,13 +723,11 @@ def shell_run(
     conda_activate: str,
     path_prepend: str,
 ) -> None:
-    cmd = " ".join(shlex.quote(str(c)) for c in cmd_list)
-    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
-    if parts:
-        cmd = " && ".join(parts + [cmd])
-        subprocess.run(["bash", "-lc", cmd], check=True, env=env)
-    else:
+    if not (path_prepend or conda_activate or module_load):
         subprocess.run(cmd_list, check=True, env=env)
+        return
+    cmd = build_shell_cmd(cmd_list, module_load, conda_activate, path_prepend)
+    subprocess.run(["bash", "-lc", cmd], check=True, env=env)
 
 
 def create_runinfo(workdir: pathlib.Path) -> None:
@@ -820,10 +836,7 @@ def runlocal(
     ]
     if env.get("APPTAINER_PREFIX_ARG"):
         cmd.append(env["APPTAINER_PREFIX_ARG"])
-    cmd_str = " ".join(shlex.quote(str(c)) for c in cmd)
-    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
-    if parts:
-        cmd_str = " && ".join(parts + [cmd_str])
+    cmd_str = build_shell_cmd(cmd, module_load, conda_activate, path_prepend)
 
     timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
     logs_dir = ensure_logs_folder(workdir)
@@ -1284,13 +1297,8 @@ def main() -> None:
         if env.get("APPTAINER_PREFIX_ARG"):
             cmd.append(env["APPTAINER_PREFIX_ARG"])
         cmd.extend(["--profile", f"config/{cluster_profile}", "--dry-run"])
-        cmd_str = (
-            " ".join(shlex.quote(str(c)) for c in cmd)
-            + f" | tee {shlex.quote(str(log_path))}"
-        )
-        parts = [p for p in [path_prepend, conda_activate, module_load] if p]
-        if parts:
-            cmd_str = " && ".join(parts + [cmd_str])
+        cmd_str = build_shell_cmd(cmd, module_load, conda_activate, path_prepend)
+        cmd_str += f" | tee {shlex.quote(str(log_path))}"
         log_divider()
         result = subprocess.run(["bash", "-lc", cmd_str], env=env)
         log_divider()
