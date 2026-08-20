@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Dict
 
+from gtf_common import load_chromsizes
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -32,18 +34,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output", required=True, help="Output BED path")
     return parser.parse_args()
-
-
-def load_chromsizes(path: str) -> Dict[str, int]:
-    chromsizes: Dict[str, int] = {}
-    with open(path, "r", encoding="utf-8") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line:
-                continue
-            chrom, size = line.split("\t", 1)
-            chromsizes[chrom] = int(size)
-    return chromsizes
 
 
 def write_bins(path: str, chromsizes: Dict[str, int], bin_size: int) -> None:
