@@ -9,6 +9,24 @@ from __future__ import annotations
 import gzip
 from typing import Dict, Iterator, Optional
 
+# Tn5 counting-bin BED schemas, shared between the writers
+# (build_tn5_midpoint_bins.py, build_tn5_tss_bins.py) and the reader
+# (count_tn5_sites_in_bins.py) so the two sides can never silently drift
+# apart -- both import these instead of hardcoding column names/counts.
+BIN_CORE_COLUMNS = ["chrom", "start", "end", "bin_id"]
+GROUPED_BIN_METADATA_COLUMNS = ["gene_id", "gene_name", "gene_type", "strand", "tss"]
+PERLINE_BIN_METADATA_COLUMNS = [
+    "gene_id",
+    "gene_name",
+    "gene_type",
+    "strand",
+    "reference_pos",
+    "feature_type",
+    "repeat_name",
+    "repeat_family",
+    "sw_score",
+]
+
 
 def open_text(path: str):
     if path.endswith(".gz"):

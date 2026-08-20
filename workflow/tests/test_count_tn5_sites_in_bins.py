@@ -23,6 +23,11 @@ from count_tn5_sites_in_bins import (  # noqa: E402
     validate_output,
     write_counts,
 )
+from gtf_common import (  # noqa: E402
+    BIN_CORE_COLUMNS,
+    GROUPED_BIN_METADATA_COLUMNS,
+    PERLINE_BIN_METADATA_COLUMNS,
+)
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "count_tn5_sites_in_bins.py"
 
@@ -142,6 +147,97 @@ def test_write_counts_and_validate_output_round_trip(tmp_path):
     assert lines[2].split("\t")[-1] == "0"  # round(0.5) -> banker's rounding to 0
 
     validate_output(str(output), rows_written, expected_rows=2)
+
+
+def _write_perline_bins_bed(path, rows):
+    """rows: list of (chrom, start, end, bin_id, gene_id, gene_name, gene_type,
+    strand, reference_pos, feature_type, repeat_name, repeat_family, sw_score)
+    -- the 13-column per-line/repeatMasker-mode schema build_tn5_midpoint_bins.py
+    emits when called without --gene-types."""
+    with open(path, "w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write("\t".join(str(field) for field in row) + "\n")
+
+
+def test_write_counts_detects_perline_repeatmasker_schema(tmp_path):
+    # Regression test for the schema-mismatch bug: write_counts() used to
+    # assume every bins BED was 9-column grouped-mode, silently mislabeling
+    # (and truncating) the 13-column per-line/repeatMasker-mode schema that
+    # build_tn5_midpoint_bins.py emits by default (no --gene-types). This
+    # exercises the real repeat-element path end-to-end through write_counts.
+    bed = tmp_path / "bins.bed"
+    output = tmp_path / "counts.tsv"
+    _write_perline_bins_bed(
+        bed,
+        [
+            (
+                "chr1",
+                3000,
+                3100,
+                "SINE_Alu_chr1_3000_3100_AluY",
+                "SINE_Alu_3000_3100_AluY",
+                "SINE_Alu_3000_3100_AluY",
+                "SINE/Alu",
+                "+",
+                3049,
+                "SINE/Alu",
+                "AluY",
+                "SINE/Alu",
+                500,
+            ),
+        ],
+    )
+    counts = {"SINE_Alu_chr1_3000_3100_AluY": 2.0}
+
+    rows_written = write_counts(str(output), "sample_a", str(bed), counts)
+
+    assert rows_written == 1
+    lines = output.read_text().splitlines()
+    assert lines[0].split("\t") == (
+        ["sample"]
+        + BIN_CORE_COLUMNS
+        + PERLINE_BIN_METADATA_COLUMNS
+        + ["tn5_site_count"]
+    )
+    row = dict(zip(lines[0].split("\t"), lines[1].split("\t")))
+    # None of these should have shifted, and none should have been dropped --
+    # the two bugs the original 9-column-only write_counts() had.
+    assert row["gene_id"] == "SINE_Alu_3000_3100_AluY"
+    assert row["gene_name"] == "SINE_Alu_3000_3100_AluY"
+    assert row["gene_type"] == "SINE/Alu"
+    assert row["strand"] == "+"
+    assert row["reference_pos"] == "3049"
+    assert row["feature_type"] == "SINE/Alu"
+    assert row["repeat_name"] == "AluY"
+    assert row["repeat_family"] == "SINE/Alu"
+    assert row["sw_score"] == "500"
+    assert row["tn5_site_count"] == "2"
+
+
+def test_write_counts_empty_bins_bed_falls_back_to_grouped_schema(tmp_path):
+    bed = tmp_path / "bins.bed"
+    bed.write_text("")
+    output = tmp_path / "counts.tsv"
+
+    rows_written = write_counts(str(output), "sample_a", str(bed), {})
+
+    assert rows_written == 0
+    header = output.read_text().splitlines()[0].split("\t")
+    assert header == (
+        ["sample"]
+        + BIN_CORE_COLUMNS
+        + GROUPED_BIN_METADATA_COLUMNS
+        + ["tn5_site_count"]
+    )
+
+
+def test_write_counts_raises_on_unrecognized_schema(tmp_path):
+    bed = tmp_path / "bins.bed"
+    bed.write_text("chr1\t100\t200\tbin1\tf1\tf2\tf3\tf4\tf5\tf6\n")  # 10 fields
+    output = tmp_path / "counts.tsv"
+
+    with pytest.raises(ValueError, match="Unrecognized bins-BED schema"):
+        write_counts(str(output), "sample_a", str(bed), {"bin1": 1.0})
 
 
 def test_validate_output_raises_on_row_count_mismatch(tmp_path):

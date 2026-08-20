@@ -15,6 +15,11 @@ from typing import Dict, List, Optional, Tuple
 import pysam
 
 from extract_tn5_motifs import cut_sites_from_record
+from gtf_common import (
+    BIN_CORE_COLUMNS,
+    GROUPED_BIN_METADATA_COLUMNS,
+    PERLINE_BIN_METADATA_COLUMNS,
+)
 
 
 def _non_negative_int(value: str) -> int:
@@ -129,6 +134,27 @@ def get_nh_value(rec: pysam.AlignedSegment) -> int:
         return 1
 
 
+def _detect_bin_metadata_schema(lines: List[str]) -> List[str]:
+    """Determine which of gtf_common's two bin-BED schemas `lines` uses, from
+    the field count on the first data line. An empty bins-BED has no data to
+    detect a schema from, so it falls back to the grouped-mode schema (this
+    only affects the header of an otherwise-empty output file)."""
+    if not lines:
+        return GROUPED_BIN_METADATA_COLUMNS
+    field_count = len(lines[0].split("\t"))
+    core = len(BIN_CORE_COLUMNS)
+    if field_count == core + len(GROUPED_BIN_METADATA_COLUMNS):
+        return GROUPED_BIN_METADATA_COLUMNS
+    if field_count == core + len(PERLINE_BIN_METADATA_COLUMNS):
+        return PERLINE_BIN_METADATA_COLUMNS
+    raise ValueError(
+        f"Unrecognized bins-BED schema: {field_count} fields on first data "
+        f"line (expected {core + len(GROUPED_BIN_METADATA_COLUMNS)} for "
+        f"grouped-mode bins or {core + len(PERLINE_BIN_METADATA_COLUMNS)} "
+        "for per-line/repeatMasker-mode bins)"
+    )
+
+
 def write_counts(
     path: str,
     sample: str,
@@ -136,36 +162,29 @@ def write_counts(
     counts: Dict[str, float],
 ) -> int:
     rows_written = 0
-    with open(bins_bed, "r", encoding="utf-8") as inp, open(
-        path, "w", encoding="utf-8"
-    ) as out:
+    with open(bins_bed, "r", encoding="utf-8") as inp:
+        lines = [line.rstrip("\n") for line in inp if line.strip()]
+
+    metadata_columns = _detect_bin_metadata_schema(lines)
+    expected_fields = len(BIN_CORE_COLUMNS) + len(metadata_columns)
+
+    with open(path, "w", encoding="utf-8") as out:
         out.write(
-            "sample\tchrom\tstart\tend\tbin_id\tgene_id\tgene_name\tgene_type\tstrand\ttss\ttn5_site_count\n"
-        )
-        for raw_line in inp:
-            line = raw_line.rstrip("\n")
-            if not line:
-                continue
-            fields = line.split("\t")
-            rounded_count = round(counts[fields[3]])
-            out.write(
-                "\t".join(
-                    [
-                        sample,
-                        fields[0],
-                        fields[1],
-                        fields[2],
-                        fields[3],
-                        fields[4],
-                        fields[5],
-                        fields[6],
-                        fields[7],
-                        fields[8],
-                        str(rounded_count),
-                    ]
-                )
-                + "\n"
+            "\t".join(
+                ["sample"] + BIN_CORE_COLUMNS + metadata_columns + ["tn5_site_count"]
             )
+            + "\n"
+        )
+        for line in lines:
+            fields = line.split("\t")
+            if len(fields) != expected_fields:
+                raise ValueError(
+                    f"{bins_bed}: expected {expected_fields} fields "
+                    f"({', '.join(BIN_CORE_COLUMNS + metadata_columns)}), "
+                    f"got {len(fields)}: {line!r}"
+                )
+            rounded_count = round(counts[fields[3]])
+            out.write("\t".join([sample] + fields + [str(rounded_count)]) + "\n")
             rows_written += 1
     return rows_written
 

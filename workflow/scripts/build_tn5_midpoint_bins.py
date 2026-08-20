@@ -15,14 +15,17 @@ DUAL-MODE OPERATION:
   Mode B (--gene-types NOT specified): Per-line feature processing (repeatMasker mode)
     - Treats each GTF line as individual feature, no merging
     - Accepts all feature types (SINE/Alu, LINE/L1, etc.)
-    - Output: 11+ column BED with repeat metadata (feature_type, repeat_name, repeat_family, sw_score)
+    - Output: 13-column BED (gene_id/gene_name + repeat metadata: feature_type,
+      repeat_name, repeat_family, sw_score)
     - Use case: repeatMasker GTF files without standard gene_id attributes
 
-VERSION: 2.1 (2026-06-22)
-  - Implemented dual-mode GTF processing (grouped vs per-line)
-  - Mode B: Adds repeat metadata columns to BED output
+VERSION: 2.2 (2026-08-20)
+  - Mode B now also writes gene_id/gene_name (previously grouped-mode only),
+    giving both schemas a common gene_id/gene_name/gene_type/strand prefix
+  - Both modes' column schemas live in gtf_common.py (GROUPED_BIN_METADATA_COLUMNS/
+    PERLINE_BIN_METADATA_COLUMNS), shared with count_tn5_sites_in_bins.py so the
+    two sides can't silently drift apart on column count/order again
   - Metadata flows through count_tn5_sites_in_bins.py to final count matrices
-  - Backwards compatible: Mode A unchanged, columns 1-9 stable for all downstream tools
 """
 
 from __future__ import annotations
@@ -33,6 +36,8 @@ from pathlib import Path
 from typing import Dict, Iterable
 
 from gtf_common import (
+    GROUPED_BIN_METADATA_COLUMNS,
+    PERLINE_BIN_METADATA_COLUMNS,
     feature_id,
     feature_name,
     gene_type,
@@ -245,40 +250,32 @@ def write_bins(
                 gene_name = meta.get("gene_name", gene_id)
                 bin_id = f"{gene_id}_{gene_name}"
 
-            output_fields = [
-                chrom,
-                str(start),
-                str(end),
-                bin_id,
-            ]
-
-            # Grouped mode: add gene_id and gene_name for compatibility with count_tn5_sites_in_bins.py
-            if "feature_type" not in meta:
-                output_fields.extend(
-                    [
-                        str(gene_id),
-                        str(meta.get("gene_name", gene_id)),
-                    ]
-                )
-
-            output_fields.extend(
-                [
-                    str(meta["gene_type"]),
-                    str(meta["strand"]),
-                    str(reference_pos),
-                ]
-            )
-
-            # Add repeat metadata columns if present (per-line mode)
+            # gene_id/gene_name/gene_type/strand are common to both schemas;
+            # per-line mode adds reference_pos/repeat metadata instead of tss.
+            # Building this as a name->value lookup (rather than positional
+            # list-building) means a future schema change that isn't matched
+            # here raises KeyError immediately instead of silently shifting
+            # every column after it.
+            metadata_values = {
+                "gene_id": str(gene_id),
+                "gene_name": str(meta.get("gene_name", gene_id)),
+                "gene_type": str(meta["gene_type"]),
+                "strand": str(meta["strand"]),
+            }
             if "feature_type" in meta:
-                output_fields.extend(
-                    [
-                        str(meta["feature_type"]),
-                        str(meta["repeat_name"]),
-                        str(meta["repeat_family"]),
-                        str(meta["sw_score"]),
-                    ]
-                )
+                schema = PERLINE_BIN_METADATA_COLUMNS
+                metadata_values["reference_pos"] = str(reference_pos)
+                metadata_values["feature_type"] = str(meta["feature_type"])
+                metadata_values["repeat_name"] = str(meta["repeat_name"])
+                metadata_values["repeat_family"] = str(meta["repeat_family"])
+                metadata_values["sw_score"] = str(meta["sw_score"])
+            else:
+                schema = GROUPED_BIN_METADATA_COLUMNS
+                metadata_values["tss"] = str(reference_pos)
+
+            output_fields = [chrom, str(start), str(end), bin_id] + [
+                metadata_values[column] for column in schema
+            ]
 
             out.write("\t".join(output_fields) + "\n")
 
