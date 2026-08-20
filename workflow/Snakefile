@@ -255,13 +255,13 @@ include: "rules/s3_transfer.smk"
 HOST_PEAKS = []
 if HOST != "":
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"), sample=HOST_TARGET_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"), sample=HOST_TARGET_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak.gz"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak.gz"), sample=HOST_TARGET_SAMPLES)
     )
 
 VIRUS_PEAKS = []
@@ -269,21 +269,21 @@ if len(VIRUS_LIST) > 0:
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak.gz"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed.gz"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak.gz"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
@@ -364,7 +364,7 @@ rule all:
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"),
-                sample=CASE_SAMPLES,
+                sample=HOST_TARGET_SAMPLES,
             )
             if HOST != ""
             else []
@@ -372,7 +372,7 @@ rule all:
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
-                sample=CASE_SAMPLES,
+                sample=VIRUS_TARGET_SAMPLES,
                 virus=VIRUS_LIST,
             )
             if len(VIRUS_LIST) > 0
@@ -391,11 +391,11 @@ rule all:
         HOST_PEAKS,
         VIRUS_PEAKS,
         # bigWig outputs (host + viruses)
-        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=CASE_SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=CASE_SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=HOST_TARGET_SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=HOST_TARGET_SAMPLES),
         expand(
             join(RESULTSDIR, "{sample}", "bigwig", "{sample}.virus.{virus}.bw"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         ),
         # MultiQC report

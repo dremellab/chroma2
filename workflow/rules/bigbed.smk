@@ -8,13 +8,13 @@ BIGBED_OUTPUTS = []
 if HOST != "":
     BIGBED_OUTPUTS.append(join(REF_DIR, "ref.tss.host.bb"))
     BIGBED_OUTPUTS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bb"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bb"), sample=HOST_TARGET_SAMPLES)
     )
     BIGBED_OUTPUTS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.bb"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.bb"), sample=HOST_TARGET_SAMPLES)
     )
     BIGBED_OUTPUTS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.bb"), sample=CASE_SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.bb"), sample=HOST_TARGET_SAMPLES)
     )
 
 if len(VIRUS_LIST) > 0:
@@ -22,21 +22,21 @@ if len(VIRUS_LIST) > 0:
     BIGBED_OUTPUTS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bb"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     BIGBED_OUTPUTS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.bb"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     BIGBED_OUTPUTS.extend(
         expand(
             join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.bb"),
-            sample=CASE_SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )

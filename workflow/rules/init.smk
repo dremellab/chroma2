@@ -598,14 +598,38 @@ for _, row in SAMPLESDF.iterrows():
 HOST_INPUT_POOLS = sorted(HOST_POOL_CONTROLS.keys())
 VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
 
-# Step 9b: Fail fast if a case sample references a pool no control sample declares --
-# a typo'd/nonexistent pool must not be silently treated the same as "no control".
-# Not scoped by `target`: host/virus peak calling (Snakefile HOST_PEAKS/VIRUS_PEAKS)
-# and the control-lookup functions below run for every case sample regardless of
-# its `target` value, so a declared pool must be validated the same way.
 case_df = SAMPLESDF.loc[SAMPLESDF['role'] == "case"]
 
+# Single gating point for every host/virus-specific output (peaks, bigwig,
+# count matrices, BigBed tracks, etc.): a case sample only gets an organism's
+# downstream outputs built if its `target` includes that organism. Rule files
+# should filter their per-sample `expand(...)` lists through these instead of
+# using CASE_SAMPLES directly for anything host- or virus-specific.
+HOST_TARGET_SAMPLES = case_df.loc[
+    case_df['target'].isin(["host", "both"]), 'sampleName'
+].tolist()
+VIRUS_TARGET_SAMPLES = case_df.loc[
+    case_df['target'].isin(["virus", "both"]), 'sampleName'
+].tolist()
 
+# count_matrices.smk deliberately builds counts for every sample (case AND
+# control), not just CASE_SAMPLES -- these mirror HOST_TARGET_SAMPLES/
+# VIRUS_TARGET_SAMPLES but span all roles so that scoping stays a target-only
+# filter and doesn't also silently drop control samples from count matrices.
+ALL_HOST_TARGET_SAMPLES = SAMPLESDF.loc[
+    SAMPLESDF['target'].isin(["host", "both"]), 'sampleName'
+].tolist()
+ALL_VIRUS_TARGET_SAMPLES = SAMPLESDF.loc[
+    SAMPLESDF['target'].isin(["virus", "both"]), 'sampleName'
+].tolist()
+
+# Step 9b: Fail fast if a case sample references a pool no control sample declares --
+# a typo'd/nonexistent pool must not be silently treated the same as "no control".
+# Deliberately NOT scoped by `target`: even for a sample whose target excludes an
+# organism (so that organism's outputs won't be built for it, per
+# HOST_TARGET_SAMPLES/VIRUS_TARGET_SAMPLES above), a stray pool reference in that
+# column is almost certainly a leftover config mistake worth surfacing, not
+# something to silently ignore just because it's currently unused.
 def _validate_pool_references(case_df, pool_col, pool_controls, known_pools, label):
     bad = case_df.loc[
         (case_df[pool_col] != "") & (~case_df[pool_col].isin(pool_controls.keys())),

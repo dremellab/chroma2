@@ -106,7 +106,7 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
                 "gene",
                 "{sample}.gene_counts.tsv",
             ),
-            sample=SAMPLES,
+            sample=ALL_HOST_TARGET_SAMPLES,
         )
     )
     GENE_MATRIX_OUTPUTS.append(
@@ -128,7 +128,7 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
                 "trna",
                 "{sample}.trna_counts.tsv",
             ),
-            sample=SAMPLES,
+            sample=ALL_HOST_TARGET_SAMPLES,
         )
     )
     TRNA_MATRIX_OUTPUTS.append(
@@ -152,7 +152,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
                     f"pol3_{pol3_lower}",
                     f"{{sample}}.pol3_{pol3_lower}_counts.tsv",
                 ),
-                sample=SAMPLES,
+                sample=ALL_HOST_TARGET_SAMPLES,
             )
         )
         POL3_MATRIX_OUTPUTS.append(
@@ -176,7 +176,7 @@ if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
                     f"repeat_{repeat_lower}",
                     f"{{sample}}.repeat_{repeat_lower}_counts.tsv",
                 ),
-                sample=SAMPLES,
+                sample=ALL_HOST_TARGET_SAMPLES,
             )
         )
         REPEAT_MATRIX_OUTPUTS.append(
@@ -199,7 +199,7 @@ if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
                     f"viral_{virus}",
                     f"{{sample}}.viral_{virus}_counts.tsv",
                 ),
-                sample=SAMPLES,
+                sample=ALL_VIRUS_TARGET_SAMPLES,
             )
         )
         VIRAL_MATRIX_OUTPUTS.append(
@@ -221,7 +221,7 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
                 "rrna",
                 "{sample}.rrna_counts.tsv",
             ),
-            sample=SAMPLES,
+            sample=ALL_HOST_TARGET_SAMPLES,
         )
     )
     RRNA_MATRIX_OUTPUTS.append(
@@ -750,7 +750,7 @@ if COUNT_MATRIX_TYPES.get("gene", True) and HOST != "":
 
     rule aggregate_gene_count_matrix:
         input:
-            expand(join(COUNT_MATRICES_DIR, "gene", "{sample}.gene_counts.tsv"), sample=SAMPLES),
+            expand(join(COUNT_MATRICES_DIR, "gene", "{sample}.gene_counts.tsv"), sample=ALL_HOST_TARGET_SAMPLES),
         output:
             join(COUNT_MATRICES_DIR, "gene", "gene_count_matrix.tsv"),
         threads:
@@ -774,7 +774,7 @@ if COUNT_MATRIX_TYPES.get("trna", True) and HOST != "" and TRNAS_GTF != "":
 
     rule aggregate_trna_count_matrix:
         input:
-            expand(join(COUNT_MATRICES_DIR, "trna", "{sample}.trna_counts.tsv"), sample=SAMPLES),
+            expand(join(COUNT_MATRICES_DIR, "trna", "{sample}.trna_counts.tsv"), sample=ALL_HOST_TARGET_SAMPLES),
         output:
             join(COUNT_MATRICES_DIR, "trna", "trna_count_matrix.tsv"),
         threads:
@@ -804,7 +804,7 @@ if COUNT_MATRIX_TYPES.get("pol3", True) and HOST != "":
             input:
                 expand(
                     join(COUNT_MATRICES_DIR, f"pol3_{pol3_lower}", f"{{sample}}.pol3_{pol3_lower}_counts.tsv"),
-                    sample=SAMPLES,
+                    sample=ALL_HOST_TARGET_SAMPLES,
                 ),
             output:
                 join(COUNT_MATRICES_DIR, f"pol3_{pol3_lower}", f"pol3_{pol3_lower}_count_matrix.tsv"),
@@ -835,7 +835,7 @@ if COUNT_MATRIX_TYPES.get("repeat_elements", True) and HOST != "":
             input:
                 expand(
                     join(COUNT_MATRICES_DIR, f"repeat_{repeat_lower}", f"{{sample}}.repeat_{repeat_lower}_counts.tsv"),
-                    sample=SAMPLES,
+                    sample=ALL_HOST_TARGET_SAMPLES,
                 ),
             output:
                 join(COUNT_MATRICES_DIR, f"repeat_{repeat_lower}", f"repeat_{repeat_lower}_count_matrix.tsv"),
@@ -865,7 +865,7 @@ if COUNT_MATRIX_TYPES.get("viral", True) and len(VIRAL_TYPES_AVAILABLE) > 0:
             input:
                 expand(
                     join(COUNT_MATRICES_DIR, f"viral_{virus}", f"{{sample}}.viral_{virus}_counts.tsv"),
-                    sample=SAMPLES,
+                    sample=ALL_VIRUS_TARGET_SAMPLES,
                 ),
             output:
                 join(COUNT_MATRICES_DIR, f"viral_{virus}", f"viral_{virus}_count_matrix.tsv"),
@@ -890,7 +890,7 @@ if COUNT_MATRIX_TYPES.get("rrna", True) and HOST != "" and CHRR_GTF != "":
 
     rule aggregate_rrna_count_matrix:
         input:
-            expand(join(COUNT_MATRICES_DIR, "rrna", "{sample}.rrna_counts.tsv"), sample=SAMPLES),
+            expand(join(COUNT_MATRICES_DIR, "rrna", "{sample}.rrna_counts.tsv"), sample=ALL_HOST_TARGET_SAMPLES),
         output:
             join(COUNT_MATRICES_DIR, "rrna", "rrna_count_matrix.tsv"),
         threads:
