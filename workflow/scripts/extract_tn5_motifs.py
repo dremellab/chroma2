@@ -293,41 +293,19 @@ def single_cut_site(rec: pysam.AlignedSegment, ordinal: int) -> List[CutSite]:
     ]
 
 
-def cut_sites_from_records(
-    records: List[pysam.AlignedSegment],
-    mapq_min: int,
-    exclude_secondary: bool,
-    exclude_supplementary: bool,
-) -> List[CutSite]:
-    usable = [
-        rec
-        for rec in records
-        if alignment_passes_filters(
-            rec,
-            mapq_min=mapq_min,
-            exclude_secondary=exclude_secondary,
-            exclude_supplementary=exclude_supplementary,
-        )
-    ]
-    if not usable:
-        return []
-
-    # Each mapped read independently reveals exactly one Tn5 cut site via its own
-    # strand (single_cut_site handles both strands correctly); a proper pair simply
-    # yields two sites, one from each mate, without needing to derive one mate's
-    # site from the other's coordinates.
-    sites: List[CutSite] = []
-    for i, rec in enumerate(usable, start=1):
-        sites.extend(single_cut_site(rec, i))
-    return sites
-
-
 def cut_sites_from_record(
     rec: pysam.AlignedSegment,
     mapq_min: int,
     exclude_secondary: bool,
     exclude_supplementary: bool,
 ) -> List[CutSite]:
+    # Each mapped read independently reveals exactly one Tn5 cut site via its own
+    # strand (single_cut_site handles both strands correctly) -- a proper pair
+    # simply yields two sites, one from each mate, without needing the other
+    # mate's coordinates or record adjacency in the BAM stream. The read's own
+    # SAM flags (is_read1/is_read2) label which mate it is regardless of sort
+    # order, unlike grouping by adjacent query_name, which silently breaks on
+    # coordinate-sorted input (every mate pair ends up non-adjacent).
     if not alignment_passes_filters(
         rec,
         mapq_min=mapq_min,
@@ -335,7 +313,8 @@ def cut_sites_from_record(
         exclude_supplementary=exclude_supplementary,
     ):
         return []
-    return single_cut_site(rec, 1)
+    ordinal = 2 if rec.is_read2 else 1
+    return single_cut_site(rec, ordinal)
 
 
 def assign_group(chrom: str, group_contigs: Dict[str, set[str]]) -> Optional[str]:
@@ -353,8 +332,8 @@ def fetch_window_sequence(
     cut_start: int,
     strand: str,
     flank_size: int,
+    chrom_len: int,
 ) -> Optional[str]:
-    chrom_len = fasta.get_reference_length(chrom)
     left = cut_start - flank_size
     right = cut_start + flank_size + 1
     window_size = 2 * flank_size + 1
@@ -377,10 +356,16 @@ def write_exact_bed(fh: TextIO, site: CutSite) -> None:
     )
 
 
-def write_flank_bed(fh: TextIO, site: CutSite, flank_size: int) -> None:
+def write_flank_bed(fh: TextIO, site: CutSite, flank_size: int, chrom_len: int) -> None:
+    # Clamp to the chromosome boundary rather than writing a negative/past-end
+    # coordinate -- same truncate-at-the-edge convention as the bin-building
+    # scripts (build_tn5_tss_bins.py/build_tn5_midpoint_bins.py). A truncated
+    # BED interval is still meaningful; unlike fetch_window_sequence()'s fixed-
+    # width FASTA/PFM window, a flank-BED row has no fixed-length requirement.
+    start = max(0, site.start - flank_size)
+    end = min(chrom_len, site.end + flank_size)
     fh.write(
-        f"{site.chrom}\t{site.start - flank_size}\t{site.end + flank_size}\t"
-        f"{site.name}\t{site.score}\t{site.strand}\n"
+        f"{site.chrom}\t{start}\t{end}\t" f"{site.name}\t{site.score}\t{site.strand}\n"
     )
 
 
@@ -391,10 +376,12 @@ def update_writer(writer: GroupWriter, fasta: pysam.FastaFile, site: CutSite) ->
     if writer.seen is not None:
         writer.seen.add(dedup_key)
 
+    chrom_len = fasta.get_reference_length(site.chrom)
+
     write_exact_bed(writer.exact_bed_fh, site)
     writer.exact_bed_count += 1
     if writer.flank_bed_fh is not None:
-        write_flank_bed(writer.flank_bed_fh, site, writer.flank_size)
+        write_flank_bed(writer.flank_bed_fh, site, writer.flank_size, chrom_len)
         writer.flank_bed_count += 1
 
     seq = fetch_window_sequence(
@@ -403,6 +390,7 @@ def update_writer(writer: GroupWriter, fasta: pysam.FastaFile, site: CutSite) ->
         cut_start=site.start,
         strand=site.strand,
         flank_size=writer.flank_size,
+        chrom_len=chrom_len,
     )
     if seq is None or any(base not in BASES for base in seq):
         return
@@ -545,14 +533,9 @@ def main() -> None:
     with pysam.FastaFile(args.fasta) as fasta, pysam.AlignmentFile(
         args.bam, "rb", threads=args.threads
     ) as bam:
-        current_qname: Optional[str] = None
-        bucket: List[pysam.AlignedSegment] = []
-
-        def flush(records: List[pysam.AlignedSegment]) -> None:
-            if not records:
-                return
-            for site in cut_sites_from_records(
-                records=records,
+        for rec in bam.fetch(until_eof=True):
+            for site in cut_sites_from_record(
+                rec=rec,
                 mapq_min=args.mapq_min,
                 exclude_secondary=args.exclude_secondary,
                 exclude_supplementary=args.exclude_supplementary,
@@ -572,17 +555,6 @@ def main() -> None:
                         skip_flank_output=args.skip_flank_output,
                     )
                 update_writer(writers[group], fasta, site)
-
-        for rec in bam.fetch(until_eof=True):
-            qname = rec.query_name
-            if current_qname is None:
-                current_qname = qname
-            elif qname != current_qname:
-                flush(bucket)
-                bucket = []
-                current_qname = qname
-            bucket.append(rec)
-        flush(bucket)
 
     for group, writer in sorted(writers.items()):
         writer.close()

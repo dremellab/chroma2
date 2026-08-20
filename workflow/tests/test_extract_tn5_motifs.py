@@ -4,6 +4,7 @@ Requires pysam; run inside the pysam apptainer/singularity image, e.g.:
   apptainer exec .../pysam_0.22.1.sif python3 -m pytest workflow/tests/test_extract_tn5_motifs.py
 """
 
+import io
 import subprocess
 import sys
 from pathlib import Path
@@ -14,11 +15,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from extract_tn5_motifs import (  # noqa: E402
+    CutSite,
     alignment_passes_filters,
     cut_sites_from_record,
-    cut_sites_from_records,
+    fetch_window_sequence,
     parse_args,
     single_cut_site,
+    write_flank_bed,
 )
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "extract_tn5_motifs.py"
@@ -135,10 +138,18 @@ def test_cut_sites_from_record_returns_empty_for_unmapped():
     )
 
 
-def test_cut_sites_from_records_derives_each_mates_site_from_its_own_alignment():
+def test_cut_sites_from_record_labels_mates_correctly_when_processed_independently():
+    # Regression test: mate labeling used to rely on grouping adjacent
+    # same-query_name BAM records, which only works on name-sorted input. The
+    # real --bam inputs are coordinate-sorted, so mates are essentially never
+    # adjacent -- this simulates that reality by calling cut_sites_from_record
+    # on each mate as a fully independent, non-adjacent call (no shared state,
+    # no batching) and asserting the SAM is_read1/is_read2 flags alone are
+    # enough to label each site correctly.
+    #
     # Proper pair, FR orientation, with a gap between the mates (the ATAC-seq
     # norm for fragments longer than one read): R1 forward at 1000-1050, R2
-    # reverse at 1100-1150. This is the exact shape of the previously-fixed
+    # reverse at 1100-1150. This is also the exact shape of the previously-fixed
     # R1-only bug: deriving both cut sites from R1 alone would put the "far"
     # site at R1.reference_end - 5 == 1045, not R2's real 1145.
     r1 = _make_record(
@@ -158,18 +169,93 @@ def test_cut_sites_from_records_derives_each_mates_site_from_its_own_alignment()
         template_length=-150,
     )
 
-    sites = cut_sites_from_records(
-        [r1, r2], mapq_min=0, exclude_secondary=False, exclude_supplementary=False
+    r1_sites = cut_sites_from_record(
+        r1, mapq_min=0, exclude_secondary=False, exclude_supplementary=False
+    )
+    r2_sites = cut_sites_from_record(
+        r2, mapq_min=0, exclude_secondary=False, exclude_supplementary=False
     )
 
-    assert len(sites) == 2
-    by_name = {site.name: site for site in sites}
-    assert by_name["pair1|read1"].start == 1004
-    assert by_name["pair1|read1"].strand == "+"
-    assert by_name["pair1|read2"].start == 1145
-    assert by_name["pair1|read2"].strand == "-"
+    assert len(r1_sites) == 1 and len(r2_sites) == 1
+    assert r1_sites[0].name == "pair1|read1"
+    assert r1_sites[0].start == 1004
+    assert r1_sites[0].strand == "+"
+    assert r2_sites[0].name == "pair1|read2"
+    assert r2_sites[0].start == 1145
+    assert r2_sites[0].strand == "-"
     # Guard against regressing to R1-only derivation for the mate's site.
-    assert by_name["pair1|read2"].start != r1.reference_end - 5
+    assert r2_sites[0].start != r1.reference_end - 5
+
+
+def test_cut_sites_from_record_labels_unpaired_read_as_read1():
+    rec = _make_record("single_end", flag=0, reference_start=1000, cigarstring="50M")
+
+    sites = cut_sites_from_record(
+        rec, mapq_min=0, exclude_secondary=False, exclude_supplementary=False
+    )
+
+    assert len(sites) == 1
+    assert sites[0].name == "single_end|read1"
+
+
+def test_write_flank_bed_clamps_negative_start_near_chromosome_beginning():
+    # Regression test: write_flank_bed() used to write start - flank_size
+    # unclamped, producing a negative BED coordinate for a cut site near the
+    # start of a chromosome.
+    site = CutSite("chr1", start=2, end=3, name="r1|read1", score=60, strand="+")
+    fh = io.StringIO()
+
+    write_flank_bed(fh, site, flank_size=10, chrom_len=10000)
+
+    fields = fh.getvalue().rstrip("\n").split("\t")
+    assert int(fields[1]) == 0  # clamped, not 2 - 10 == -8
+    assert int(fields[2]) == 13  # end + flank_size, well within chrom_len
+
+
+def test_write_flank_bed_clamps_end_past_chromosome_length():
+    site = CutSite("chr1", start=995, end=996, name="r1|read1", score=60, strand="+")
+    fh = io.StringIO()
+
+    write_flank_bed(fh, site, flank_size=10, chrom_len=1000)
+
+    fields = fh.getvalue().rstrip("\n").split("\t")
+    assert int(fields[1]) == 985  # start - flank_size, well within chrom_len
+    assert int(fields[2]) == 1000  # clamped, not 996 + 10 == 1006
+
+
+def test_fetch_window_sequence_respects_passed_in_chrom_len(tmp_path):
+    fasta_path = tmp_path / "ref.fa"
+    fasta_path.write_text(">chr1\n" + "ACGT" * 5 + "\n")  # chr1, 20bp
+    pysam.faidx(str(fasta_path))
+
+    with pysam.FastaFile(str(fasta_path)) as fasta:
+        chrom_len = fasta.get_reference_length("chr1")
+        assert chrom_len == 20
+
+        # cut_start=2, flank_size=5 -> left=-3, out of bounds -> None, matching
+        # the site write_flank_bed's sibling test above clamps instead of drops.
+        assert (
+            fetch_window_sequence(
+                fasta,
+                "chr1",
+                cut_start=2,
+                strand="+",
+                flank_size=5,
+                chrom_len=chrom_len,
+            )
+            is None
+        )
+
+        seq = fetch_window_sequence(
+            fasta,
+            "chr1",
+            cut_start=10,
+            strand="+",
+            flank_size=5,
+            chrom_len=chrom_len,
+        )
+        assert seq is not None
+        assert len(seq) == 11
 
 
 def test_bin_counts_only_skips_out_of_bounds_cut_site_without_crashing(tmp_path):
