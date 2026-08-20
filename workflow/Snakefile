@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from snakemake.utils import min_version
 from collections import defaultdict
+from functools import partial
 from pprint import pprint
 import shutil
 

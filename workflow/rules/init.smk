@@ -324,35 +324,29 @@ if not _is_unlock:
             print(f"  {status} rRNA GTF                : {CHRR_GTF}")
             all_gtfs_to_check.append(("rRNA GTF", CHRR_GTF, exists, readable))
 
-        # Pol3 GTFs
-        pol3_config = config.get("pol3_gtf", {})
-        if pol3_config:
-            print(f"\n📋 Pol3 GTFs for {HOST}:")
-            for pol3_type in sorted(pol3_config.keys()):
-                gtf_by_host = pol3_config[pol3_type]
-                if HOST in gtf_by_host:
-                    gtf_name = gtf_by_host[HOST]
-                    gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
-                    exists = os.path.exists(gtf_path)
-                    readable = os.access(gtf_path, os.R_OK) if exists else False
-                    status = "✅" if (exists and readable) else "❌"
-                    print(f"  {status} {pol3_type:18s}      : {gtf_path}")
-                    all_gtfs_to_check.append((f"Pol3 {pol3_type}", gtf_path, exists, readable))
+        # Per-host annotation categories (Pol3 GTFs, Repeat element GTFs, ...):
+        # each category maps annotation-type -> {host: gtf_file}, and is checked
+        # the same way -- resolve the path for the current HOST, verify it
+        # exists and is readable, and record it in all_gtfs_to_check.
+        def _check_annotation_category(config_key, label_prefix):
+            category_config = config.get(config_key, {})
+            if not category_config:
+                return
+            print(f"\n📋 {label_prefix} GTFs for {HOST}:")
+            for ann_type in sorted(category_config.keys()):
+                gtf_by_host = category_config[ann_type]
+                if HOST not in gtf_by_host:
+                    continue
+                gtf_name = gtf_by_host[HOST]
+                gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
+                exists = os.path.exists(gtf_path)
+                readable = os.access(gtf_path, os.R_OK) if exists else False
+                status = "✅" if (exists and readable) else "❌"
+                print(f"  {status} {ann_type:30s} : {gtf_path}")
+                all_gtfs_to_check.append((f"{label_prefix} {ann_type}", gtf_path, exists, readable))
 
-        # Repeat element GTFs
-        repeat_config = config.get("repeat_elements_gtf", {})
-        if repeat_config:
-            print(f"\n📋 Repeat Element GTFs for {HOST}:")
-            for repeat_type in sorted(repeat_config.keys()):
-                gtf_by_host = repeat_config[repeat_type]
-                if HOST in gtf_by_host:
-                    gtf_name = gtf_by_host[HOST]
-                    gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
-                    exists = os.path.exists(gtf_path)
-                    readable = os.access(gtf_path, os.R_OK) if exists else False
-                    status = "✅" if (exists and readable) else "❌"
-                    print(f"  {status} {repeat_type:30s} : {gtf_path}")
-                    all_gtfs_to_check.append((f"Repeat {repeat_type}", gtf_path, exists, readable))
+        _check_annotation_category("pol3_gtf", "Pol3")
+        _check_annotation_category("repeat_elements_gtf", "Repeat")
 
     # Check for failures
     print("\n" + "=" * 100)
@@ -611,29 +605,22 @@ VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
 # its `target` value, so a declared pool must be validated the same way.
 case_df = SAMPLESDF.loc[SAMPLESDF['role'] == "case"]
 
-bad_host = case_df.loc[
-    (case_df['host_input_pool'] != "")
-    & (~case_df['host_input_pool'].isin(HOST_POOL_CONTROLS.keys())),
-    ['sampleName', 'host_input_pool'],
-]
-if not bad_host.empty:
-    bad_pairs = sorted(set(zip(bad_host['sampleName'], bad_host['host_input_pool'])))
-    raise ValueError(
-        f"host_input_pool references a pool with no matching control sample: {bad_pairs}. "
-        f"Known host input pools: {HOST_INPUT_POOLS}"
-    )
 
-bad_virus = case_df.loc[
-    (case_df['virus_input_pool'] != "")
-    & (~case_df['virus_input_pool'].isin(VIRUS_POOL_CONTROLS.keys())),
-    ['sampleName', 'virus_input_pool'],
-]
-if not bad_virus.empty:
-    bad_pairs = sorted(set(zip(bad_virus['sampleName'], bad_virus['virus_input_pool'])))
-    raise ValueError(
-        f"virus_input_pool references a pool with no matching control sample: {bad_pairs}. "
-        f"Known virus input pools: {VIRUS_INPUT_POOLS}"
-    )
+def _validate_pool_references(case_df, pool_col, pool_controls, known_pools, label):
+    bad = case_df.loc[
+        (case_df[pool_col] != "") & (~case_df[pool_col].isin(pool_controls.keys())),
+        ["sampleName", pool_col],
+    ]
+    if not bad.empty:
+        bad_pairs = sorted(set(zip(bad["sampleName"], bad[pool_col])))
+        raise ValueError(
+            f"{pool_col} references a pool with no matching control sample: {bad_pairs}. "
+            f"Known {label} input pools: {known_pools}"
+        )
+
+
+_validate_pool_references(case_df, "host_input_pool", HOST_POOL_CONTROLS, HOST_INPUT_POOLS, "host")
+_validate_pool_references(case_df, "virus_input_pool", VIRUS_POOL_CONTROLS, VIRUS_INPUT_POOLS, "virus")
 
 
 def _opt_input(path):
@@ -645,40 +632,48 @@ def _opt_input(path):
 # the pool, keeps the pooled-BAM merge/index rules (inputs.smk) out of the DAG
 # entirely when a toggle is off, instead of building them and then discarding
 # the result in control_arg.
-def get_host_control_qname_bam(wildcards):
-    if not config.get("peakcalling", {}).get("use_host_input", False):
-        return ""
-    pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
-    if pool == "" or pool not in HOST_POOL_CONTROLS:
-        return ""
-    return join(RESULTSDIR, "inputs", "host", f"{pool}.qname.bam")
+#
+# host and virus differ only in: the toggle config key (and its default --
+# use_host_input defaults False, use_virus_input defaults True), which
+# pool-lookup dicts to use, and whether the output path has a per-virus
+# subdirectory/wildcard segment. That's captured once per organism below
+# instead of once per (organism, bam_kind) function body.
+_CONTROL_ORGANISM_CONFIG = {
+    "host": dict(
+        toggle_key="use_host_input",
+        toggle_default=False,
+        pool_by_sample=HOST_INPUT_POOL_BY_SAMPLE,
+        pool_controls=HOST_POOL_CONTROLS,
+        path=lambda pool, bam_kind, wildcards: join(
+            RESULTSDIR, "inputs", "host", f"{pool}.{bam_kind}.bam"
+        ),
+    ),
+    "virus": dict(
+        toggle_key="use_virus_input",
+        toggle_default=True,
+        pool_by_sample=VIRUS_INPUT_POOL_BY_SAMPLE,
+        pool_controls=VIRUS_POOL_CONTROLS,
+        path=lambda pool, bam_kind, wildcards: join(
+            RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.{bam_kind}.bam"
+        ),
+    ),
+}
 
 
-def get_host_control_filtered_bam(wildcards):
-    if not config.get("peakcalling", {}).get("use_host_input", False):
+def _get_control_bam(wildcards, organism, bam_kind):
+    cfg = _CONTROL_ORGANISM_CONFIG[organism]
+    if not config.get("peakcalling", {}).get(cfg["toggle_key"], cfg["toggle_default"]):
         return ""
-    pool = HOST_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
-    if pool == "" or pool not in HOST_POOL_CONTROLS:
+    pool = cfg["pool_by_sample"].get(wildcards.sample, "")
+    if pool == "" or pool not in cfg["pool_controls"]:
         return ""
-    return join(RESULTSDIR, "inputs", "host", f"{pool}.filtered.bam")
+    return cfg["path"](pool, bam_kind, wildcards)
 
 
-def get_virus_control_qname_bam(wildcards):
-    if not config.get("peakcalling", {}).get("use_virus_input", True):
-        return ""
-    pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
-    if pool == "" or pool not in VIRUS_POOL_CONTROLS:
-        return ""
-    return join(RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.qname.bam")
-
-
-def get_virus_control_filtered_bam(wildcards):
-    if not config.get("peakcalling", {}).get("use_virus_input", True):
-        return ""
-    pool = VIRUS_INPUT_POOL_BY_SAMPLE.get(wildcards.sample, "")
-    if pool == "" or pool not in VIRUS_POOL_CONTROLS:
-        return ""
-    return join(RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.filtered.bam")
+get_host_control_qname_bam = partial(_get_control_bam, organism="host", bam_kind="qname")
+get_host_control_filtered_bam = partial(_get_control_bam, organism="host", bam_kind="filtered")
+get_virus_control_qname_bam = partial(_get_control_bam, organism="virus", bam_kind="qname")
+get_virus_control_filtered_bam = partial(_get_control_bam, organism="virus", bam_kind="filtered")
 
 DUMMYFILE = join(RESOURCES_DIR, "dummy")
 RESULTSDIR = join(WORKDIR, "results")
