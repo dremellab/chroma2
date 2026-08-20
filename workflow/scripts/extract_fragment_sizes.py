@@ -62,18 +62,12 @@ if fragment_sizes:
 else:
     mean_size = median_size = min_size = max_size = p25 = p75 = 0
 
-# Write output TSV with per-bin counts and summary statistics
+# Write output TSV with per-bin counts and summary statistics.
+# This file is an intermediate consumed only by aggregate_fragment_sizes_mqc.py
+# (which builds the actual MultiQC section) -- it must NOT carry MultiQC
+# custom-content headers itself, or MultiQC's wholesale results-dir scan picks
+# it up as a duplicate section (same id) for every sample.
 with open(output_file, "w") as f:
-    # MultiQC headers for bargraph
-    f.write("# id: 'fragment_size_dist'\n")
-    f.write("# section_name: 'Fragment Size Distribution'\n")
-    f.write("# plot_type: 'bargraph'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'fragment_size_plot'\n")
-    f.write("#   title: 'Fragment Size Distribution'\n")
-    f.write("#   ylab: 'Number of Fragments'\n")
-    f.write("#   xlab: 'Fragment Size Range'\n")
-
     # Write data rows
     f.write("Fragment_Size_Range\tCount\n")
     for bin_label in BIN_LABELS:
