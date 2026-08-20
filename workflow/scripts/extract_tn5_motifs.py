@@ -277,6 +277,10 @@ def single_cut_site(rec: pysam.AlignedSegment, ordinal: int) -> List[CutSite]:
     if cut < 0:
         return []
 
+    chrom_len = rec.header.get_reference_length(rec.reference_name)
+    if cut >= chrom_len:
+        return []
+
     return [
         CutSite(
             rec.reference_name,

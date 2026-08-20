@@ -4,6 +4,7 @@ Requires pysam; run inside the pysam apptainer/singularity image, e.g.:
   apptainer exec .../pysam_0.22.1.sif python3 -m pytest workflow/tests/test_extract_tn5_motifs.py
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,8 +21,15 @@ from extract_tn5_motifs import (  # noqa: E402
     single_cut_site,
 )
 
+SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "extract_tn5_motifs.py"
+
 HEADER = pysam.AlignmentHeader.from_dict(
     {"HD": {"VN": "1.6"}, "SQ": [{"SN": "chr1", "LN": 10000}]}
+)
+# A short contig, sized like a real viral genome, for boundary-condition tests
+# where a cut site's offset math can plausibly push it past the contig end.
+SHORT_HEADER = pysam.AlignmentHeader.from_dict(
+    {"HD": {"VN": "1.6"}, "SQ": [{"SN": "hsv1", "LN": 1010}]}
 )
 
 
@@ -74,6 +82,23 @@ def test_single_cut_site_reverse_strand():
 
 def test_single_cut_site_returns_empty_when_shifted_cut_is_negative():
     rec = _make_record("r1", flag=16, reference_start=0, cigarstring="3M")
+
+    assert single_cut_site(rec, 1) == []
+
+
+def test_single_cut_site_returns_empty_when_shifted_cut_exceeds_chrom_length():
+    # Regression test: single_cut_site() only checked cut < 0, never the
+    # upper boundary. A forward-strand read whose alignment ends exactly at
+    # the contig length still pushes the +4 Tn5-offset cut site past it --
+    # this used to crash downstream (--bin-counts-only indexes bin_counts[chrom]
+    # with no bounds check) instead of being dropped like the negative case.
+    rec = pysam.AlignedSegment(SHORT_HEADER)
+    rec.query_name = "r1"
+    rec.flag = 0  # forward strand
+    rec.reference_id = 0
+    rec.reference_start = 1007  # SHORT_HEADER's hsv1 is 1010bp
+    rec.cigarstring = "3M"  # reference_end == 1010, a valid alignment
+    assert rec.reference_end == 1010
 
     assert single_cut_site(rec, 1) == []
 
@@ -145,6 +170,95 @@ def test_cut_sites_from_records_derives_each_mates_site_from_its_own_alignment()
     assert by_name["pair1|read2"].strand == "-"
     # Guard against regressing to R1-only derivation for the mate's site.
     assert by_name["pair1|read2"].start != r1.reference_end - 5
+
+
+def test_bin_counts_only_skips_out_of_bounds_cut_site_without_crashing(tmp_path):
+    # End-to-end regression test for the --bin-counts-only IndexError: a read
+    # whose computed cut site lands past the (short, virus-genome-like)
+    # contig's length must be silently dropped, not crash the whole run.
+    chrom = "hsv1"
+    # chrom_len is an exact multiple of bin_size so the boundary read's
+    # out-of-range cut site maps to bin_idx == len(bin_counts[chrom]) -- an
+    # actual IndexError on the unpatched code, not just an incorrect count
+    # absorbed into a trailing partial bin (which a non-multiple chrom_len
+    # would silently do instead, masking the crash this test exists to catch).
+    chrom_len = 1000
+    bin_size = 100
+
+    fasta_path = tmp_path / "hsv1.fa"
+    fasta_path.write_text(f">{chrom}\n{'A' * chrom_len}\n")
+    pysam.faidx(str(fasta_path))
+
+    regions_path = tmp_path / "hsv1.fa.regions"
+    regions_path.write_text(f"{chrom}\t{chrom}\n")
+
+    header_dict = {"HD": {"VN": "1.6"}, "SQ": [{"SN": chrom, "LN": chrom_len}]}
+    header = pysam.AlignmentHeader.from_dict(header_dict)
+
+    def make_record(query_name, reference_start, cigarstring):
+        rec = pysam.AlignedSegment(header)
+        rec.query_name = query_name
+        rec.flag = 0  # forward strand, not paired
+        rec.reference_id = 0
+        rec.reference_start = reference_start
+        rec.mapping_quality = 60
+        rec.cigarstring = cigarstring
+        rec.next_reference_id = 0
+        return rec
+
+    # Valid read: cut site at 504, inside bin 5 (500-600).
+    valid = make_record("valid_read", reference_start=500, cigarstring="50M")
+    # Boundary read: alignment ends exactly at chrom_len (a valid alignment),
+    # but the +4 Tn5 offset pushes the cut site to chrom_len+1 -- out of range.
+    boundary = make_record(
+        "boundary_read", reference_start=chrom_len - 3, cigarstring="3M"
+    )
+    assert boundary.reference_end == chrom_len
+
+    bam_path = tmp_path / "reads.bam"
+    with pysam.AlignmentFile(str(bam_path), "wb", header=header_dict) as bam:
+        bam.write(valid)
+        bam.write(boundary)
+
+    bin_counts_output = tmp_path / "bin_counts.tsv"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--bam",
+            str(bam_path),
+            "--fasta",
+            str(fasta_path),
+            "--sample",
+            "sample_a",
+            "--scenario-name",
+            "macs2",
+            "--outdir",
+            str(tmp_path / "out"),
+            "--virus-regions",
+            f"{chrom}={regions_path}",
+            "--virus-bin-size",
+            str(bin_size),
+            "--bin-counts-only",
+            "--bin-counts-output",
+            str(bin_counts_output),
+        ],
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+    rows = {}
+    lines = bin_counts_output.read_text().splitlines()
+    for line in lines[1:]:
+        fields = line.split("\t")
+        rows[int(fields[5])] = int(fields[-1])  # bin_index -> tn5_site_count
+
+    total_bins = -(-chrom_len // bin_size)  # ceil division, matches the script
+    assert len(rows) == total_bins
+    assert rows[5] == 1  # valid_read's cut site (504) landed in bin 5 (500-600)
+    assert sum(rows.values()) == 1  # boundary_read contributed nothing
 
 
 def test_parse_args_rejects_negative_mapq_min(capsys):
