@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import pandas as pd
-from os.path import dirname, basename
+from os.path import dirname
 import os
+
+from mqc_common import sample_name_from_path, write_mqc_header
 
 output_file = snakemake.output[0]
 input_files = snakemake.input
@@ -12,7 +14,7 @@ coverage_data = {}
 mapq_thresholds = [0, 10, 20, 30]
 
 for input_file in input_files:
-    sample_name = basename(input_file).split(".")[0]
+    sample_name = sample_name_from_path(input_file)
     df = pd.read_csv(input_file, sep="\t")
     coverage_data[sample_name] = dict(zip(df["mapq"], df["mean_depth"]))
 
@@ -28,9 +30,11 @@ for sample in sample_list:
 output_df = pd.DataFrame(output_data)
 
 with open(output_file, "w") as f:
-    f.write("# id: 'genome_coverage_mapq'\n")
-    f.write("# section_name: 'Genome Coverage at MAPQ Thresholds'\n")
-    f.write("# plot_type: 'table'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'genome_coverage_table'\n")
+    write_mqc_header(
+        f,
+        "genome_coverage_mapq",
+        "Genome Coverage at MAPQ Thresholds",
+        "table",
+        {"id": "genome_coverage_table"},
+    )
     output_df.to_csv(f, sep="\t", index=False)

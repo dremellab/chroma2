@@ -3,6 +3,8 @@ import pandas as pd
 from os.path import dirname
 import os
 
+from mqc_common import write_mqc_header
+
 input_file = snakemake.input.summary
 stats_out = snakemake.output.stats
 ratio_out = snakemake.output.ratio
@@ -44,11 +46,13 @@ stats_df = stats_df[
 ]
 
 with open(stats_out, "w") as f:
-    f.write("# id: 'alignment_stats'\n")
-    f.write("# section_name: 'Alignment Statistics'\n")
-    f.write("# plot_type: 'table'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'alignment_stats_table'\n")
+    write_mqc_header(
+        f,
+        "alignment_stats",
+        "Alignment Statistics",
+        "table",
+        {"id": "alignment_stats_table"},
+    )
     stats_df.to_csv(f, sep="\t", index=False)
 
 ratio_data = []
@@ -76,9 +80,11 @@ for _, row in df.iterrows():
 ratio_df = pd.DataFrame(ratio_data)
 
 with open(ratio_out, "w") as f:
-    f.write("# id: 'host_virus_ratio'\n")
-    f.write("# section_name: 'Host vs. Virus Read Distribution'\n")
-    f.write("# plot_type: 'bargraph'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'host_virus_ratio_plot'\n")
+    write_mqc_header(
+        f,
+        "host_virus_ratio",
+        "Host vs. Virus Read Distribution",
+        "bargraph",
+        {"id": "host_virus_ratio_plot"},
+    )
     ratio_df.to_csv(f, sep="\t", index=False)

@@ -5,6 +5,8 @@ import os
 import gzip
 import numpy as np
 
+from mqc_common import sample_name_from_path, write_mqc_header
+
 output_file = snakemake.output[0]
 input_files = snakemake.input
 
@@ -19,7 +21,7 @@ bin_labels = [f"{b}-{b+BIN_SIZE}" for b in bins[:-1]]
 peak_data = {}
 
 for input_file in input_files:
-    sample_name = os.path.basename(input_file).split(".")[0]
+    sample_name = sample_name_from_path(input_file)
 
     widths = []
     with gzip.open(input_file, "rt") as f:
@@ -41,9 +43,11 @@ output_df = pd.DataFrame.from_dict(peak_data, orient="index", columns=bin_labels
 output_df.index.name = "Sample"
 
 with open(output_file, "w") as f:
-    f.write("# id: 'peak_size_dist'\n")
-    f.write("# section_name: 'Peak Size Distribution'\n")
-    f.write("# plot_type: 'bargraph'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'peak_size_plot'\n")
+    write_mqc_header(
+        f,
+        "peak_size_dist",
+        "Peak Size Distribution",
+        "bargraph",
+        {"id": "peak_size_plot"},
+    )
     output_df.to_csv(f, sep="\t")

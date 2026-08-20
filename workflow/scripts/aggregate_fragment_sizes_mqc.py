@@ -7,6 +7,8 @@ bin ranges appear as the stacked/colored series).
 import pandas as pd
 import os
 
+from mqc_common import sample_name_from_path, write_mqc_header
+
 output_file = snakemake.output[0]
 input_files = snakemake.input
 
@@ -26,8 +28,7 @@ sample_rows = {}
 
 for input_file in input_files:
     # Extract sample name from filename: {sample}.host.fragment_sizes.tsv
-    filename = os.path.basename(input_file)
-    sample_name = filename.split(".")[0]
+    sample_name = sample_name_from_path(input_file)
 
     try:
         # Read TSV, skipping comments
@@ -59,16 +60,19 @@ if sample_rows:
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     with open(output_file, "w") as f:
-        # MultiQC headers for bargraph
-        f.write("# id: 'fragment_size_aggregate'\n")
-        f.write("# section_name: 'Fragment Size Distribution'\n")
-        f.write("# plot_type: 'bargraph'\n")
-        f.write("# pconfig:\n")
-        f.write("#   id: 'fragment_size_aggregate_plot'\n")
-        f.write("#   title: 'Fragment Size Distribution Across Samples'\n")
-        f.write("#   ylab: 'Number of Fragments'\n")
-        f.write("#   xlab: 'Sample'\n")
-        f.write("#   stacking: 'normal'\n")
+        write_mqc_header(
+            f,
+            "fragment_size_aggregate",
+            "Fragment Size Distribution",
+            "bargraph",
+            {
+                "id": "fragment_size_aggregate_plot",
+                "title": "Fragment Size Distribution Across Samples",
+                "ylab": "Number of Fragments",
+                "xlab": "Sample",
+                "stacking": "normal",
+            },
+        )
 
         # Write data
         combined_df.to_csv(f, sep="\t")

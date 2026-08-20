@@ -3,6 +3,8 @@ import pandas as pd
 from os.path import dirname, basename
 import os
 
+from mqc_common import write_mqc_header
+
 output_file = snakemake.output[0]
 input_files = snakemake.input
 
@@ -37,11 +39,13 @@ for sample in sample_list:
 output_df = pd.DataFrame(output_data, columns=["Sample"] + category_list)
 
 with open(output_file, "w") as f:
-    f.write("# id: 'tn5_counts'\n")
-    f.write("# section_name: 'Tn5 Cut Site Counts'\n")
-    f.write("# plot_type: 'table'\n")
-    f.write("# pconfig:\n")
-    f.write("#   id: 'tn5_counts_plot'\n")
+    write_mqc_header(
+        f,
+        "tn5_counts",
+        "Tn5 Cut Site Counts",
+        "table",
+        {"id": "tn5_counts_plot"},
+    )
     f.write("# headers:\n")
     for cat in category_list:
         f.write(f"#   {cat}:\n")
