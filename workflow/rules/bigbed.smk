@@ -61,14 +61,9 @@ rule tss_host_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/ref.tss.host.sorted.bed
-        if [ ! -s {input.bed} ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        sort -k1,1 -k2,2n {input.bed} > $sorted_bed
-        bedToBigBed -type=bed3 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed3
         """
 
 
@@ -91,14 +86,9 @@ rule tss_virus_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/ref.tss.{wildcards.virus}.sorted.bed
-        if [ ! -s {input.bed} ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        sort -k1,1 -k2,2n {input.bed} > $sorted_bed
-        bedToBigBed -type=bed3 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed3
         """
 
 
@@ -121,16 +111,9 @@ rule macs2_summits_host_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/{wildcards.sample}.host.macs2_summits.sorted.bed
-        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
-        if [ ! -s $sorted_bed ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        bedToBigBed -type=bed5 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed5 --gzipped --clamp-score --clamp-mode conditional
         """
 
 
@@ -153,16 +136,9 @@ rule macs2_summits_virus_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.macs2_summits.sorted.bed
-        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{if (NF >= 5) {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score)}} print}}' \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
-        if [ ! -s $sorted_bed ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        bedToBigBed -type=bed5 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed5 --gzipped --clamp-score --clamp-mode conditional
         """
 
 
@@ -188,16 +164,10 @@ rule narrowpeak_host_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/{wildcards.sample}.host.{wildcards.caller}.sorted.narrowPeak
-        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
-        if [ ! -s $sorted_bed ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        bedToBigBed -tab -as={input.autosql} -type=bed6+4 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed6+4 --gzipped --clamp-score --clamp-mode unconditional \
+          --tab --autosql {input.autosql}
         """
 
 
@@ -223,14 +193,8 @@ rule narrowpeak_virus_to_bigbed:
         set -exo pipefail
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
-        mkdir -p {params.tmpdir}
-        sorted_bed={params.tmpdir}/{wildcards.sample}.virus.{wildcards.virus}.{wildcards.caller}.sorted.narrowPeak
-        zcat {input.bed} | awk 'BEGIN{{OFS="\t"}} {{score=$5; if (score == ".") score=0; if (score < 0) score=0; if (score > 1000) score=1000; $5=int(score); print}}' \
-          | sort -k1,1 -k2,2n \
-          > $sorted_bed
-        if [ ! -s $sorted_bed ]; then
-            touch {output.bb}
-            exit 0
-        fi
-        bedToBigBed -tab -as={input.autosql} -type=bed6+4 $sorted_bed {input.chromsizes} {output.bb}
+        bash {SCRIPTS_DIR}/bed_to_bigbed.sh \
+          --input {input.bed} --output {output.bb} --chromsizes {input.chromsizes} \
+          --tmpdir {params.tmpdir} --bed-type bed6+4 --gzipped --clamp-score --clamp-mode unconditional \
+          --tab --autosql {input.autosql}
         """
