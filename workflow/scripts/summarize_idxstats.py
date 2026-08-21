@@ -8,6 +8,7 @@ to sum host and per-virus alignments. chrM is reported explicitly.
 from __future__ import annotations
 
 import argparse
+import glob
 import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Set, Tuple
@@ -92,7 +93,7 @@ def default_ref_dir(results_dir: Path) -> Path | None:
 def find_fastqc_zip(
     results_dir: Path, sample: str, kind: str, read: str
 ) -> Path | None:
-    pattern = f"{sample}.{kind}_{read}_fastqc.zip"
+    pattern = f"{glob.escape(sample)}.{kind}_{read}_fastqc.zip"
     for path in results_dir.rglob(pattern):
         return path
     return None
