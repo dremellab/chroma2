@@ -239,7 +239,7 @@ def write_bins(
             # Generate bin_id: format differs for grouped vs per-line mode
             if "feature_type" in meta:
                 # Per-line mode: feature_type_chrom_start_end_name
-                feature_clean = meta["gene_type"].replace("/", "_")
+                feature_clean = meta["feature_type"].replace("/", "_")
                 start_1based = int(meta["start"]) + 1
                 end_1based = int(meta["end"]) + 1
                 repeat_name = meta.get("repeat_name", "")

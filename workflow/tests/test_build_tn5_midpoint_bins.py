@@ -23,6 +23,24 @@ def _meta(chrom, start, end, strand="+"):
     }
 
 
+def _perline_meta(
+    chrom, start, end, feature_type, gene_type, repeat_name="", strand="+"
+):
+    return {
+        "chrom": chrom,
+        "strand": strand,
+        "center": (start + end) // 2,
+        "start": start,
+        "end": end,
+        "gene_name": "gene_name",
+        "gene_type": gene_type,
+        "feature_type": feature_type,
+        "repeat_name": repeat_name,
+        "repeat_family": "",
+        "sw_score": "",
+    }
+
+
 def _bin_ids_written(path, chromsizes, flank_size, max_size, genes):
     write_bins(str(path), chromsizes, flank_size, max_size, genes)
     return {line.split("\t")[3] for line in path.read_text().splitlines() if line}
@@ -71,6 +89,44 @@ def test_max_size_filter_unaffected_well_above_and_below_the_limit(tmp_path):
     )
 
     assert bin_ids == {"g_small_gene_name"}
+
+
+def test_perline_bin_id_uses_feature_type_not_gene_type(tmp_path):
+    # Regression test: bin_id used to be built from meta["gene_type"] instead
+    # of meta["feature_type"], contradicting the documented
+    # feature_type_chrom_start_end_name format. The two happen to be equal
+    # whenever a GTF line has no gene_type/gene_biotype/transcript_type
+    # attribute (gene_type falls back to the raw feature column), which is
+    # why this went unnoticed -- so this test gives the two fields different
+    # values, as a per-line GTF row carrying an explicit biotype attribute
+    # would. Two rows share coordinates/repeat_name but have different
+    # feature_type values and the SAME gene_type; with the bug they'd
+    # collide on one bin_id, with the fix they're distinct.
+    genes = {
+        "g1": _perline_meta(
+            "chr1",
+            1000,
+            1099,
+            feature_type="exon",
+            gene_type="protein_coding",
+            repeat_name="AluY",
+        ),
+        "g2": _perline_meta(
+            "chr1",
+            1000,
+            1099,
+            feature_type="intron",
+            gene_type="protein_coding",
+            repeat_name="AluY",
+        ),
+    }
+    chromsizes = {"chr1": 1_000_000}
+
+    bin_ids = _bin_ids_written(
+        tmp_path / "out.bed", chromsizes, flank_size=-1, max_size=-1, genes=genes
+    )
+
+    assert bin_ids == {"exon_chr1_1001_1100_AluY", "intron_chr1_1001_1100_AluY"}
 
 
 if __name__ == "__main__":
