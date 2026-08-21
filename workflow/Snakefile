@@ -401,5 +401,6 @@ rule all:
         # MultiQC report
         join(RESULTSDIR, "multiqc", "multiqc_report.html"),
         join(RESULTSDIR, "multiqc", "multiqc_data"),
-        # S3 transfer sentinel (only if push_to_s3=true AND s3_sample_set_name is set)
-        ".s3_transfer.done" if (config.get("push_to_s3", False) and config.get("s3_sample_set_name", "")) else [],
+        # S3 transfer sentinel (only if push_to_s3=true; the rule itself validates
+        # s3_sample_set_name and fails loudly if it's missing -- see s3_transfer.smk)
+        ".s3_transfer.done" if config.get("push_to_s3", False) else [],
