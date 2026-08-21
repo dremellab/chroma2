@@ -41,6 +41,20 @@ as_bool <- function(value, name) {
   stopf("%s must be a boolean value. Found: %s", name, paste(value, collapse = ","))
 }
 
+# Names of every synthetic/computed column that gets attached to a count
+# matrix's metadata columns downstream -- by run_deseq2_matrix() below via
+# dplyr::mutate() into result_tbl, and by deseq2_contrast_report.Rmd's
+# make_volcano()/make_ma() via a further mutate() on that same table. A
+# metadata column sharing one of these names would be silently overwritten
+# by mutate() rather than erroring, so this list backs an explicit collision
+# check instead.
+RESERVED_RESULT_COLUMNS <- c(
+  "comparison", "group1", "group2",
+  "baseMean", "log2FoldChange_raw", "log2FoldChange_shrunk", "shrinkage_applied",
+  "lfcSE", "stat", "pvalue", "padj", "mean_group1", "mean_group2",
+  "padj_recalc", "significant", "direction", "neg_log10_padj", "feature_label"
+)
+
 split_delimited <- function(value, delimiter = ";;;") {
   value <- trimws(default_if_null(value, ""))
   if (identical(value, "")) {
@@ -290,6 +304,13 @@ read_manifest <- function(path, group1, group2) {
 
 prepare_counts <- function(matrix_df, all_manifest_samples, selected_samples, min_total_count, feature_type) {
   metadata_cols <- setdiff(colnames(matrix_df), all_manifest_samples)
+  reserved_collisions <- intersect(metadata_cols, RESERVED_RESULT_COLUMNS)
+  if (length(reserved_collisions) > 0) {
+    stopf(
+      "Matrix metadata column(s) collide with reserved DESeq2 result column name(s) for %s: %s. Rename the matrix column(s) to avoid silent data loss.",
+      feature_type, paste(reserved_collisions, collapse = ", ")
+    )
+  }
   missing_samples <- setdiff(selected_samples, colnames(matrix_df))
   if (length(missing_samples) > 0) {
     stopf(
