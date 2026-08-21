@@ -138,7 +138,11 @@ def write_pipeline_state_marker(
 
     marker_path = workdir / f"pipeline.{state}"
     if content:
-        marker_path.write_text(content)
+        tmp_marker_path = marker_path.with_name(
+            marker_path.name + f".tmp.{os.getpid()}"
+        )
+        tmp_marker_path.write_text(content)
+        tmp_marker_path.replace(marker_path)
     else:
         marker_path.touch()
     for other_state in PIPELINE_STATES:
@@ -353,7 +357,9 @@ def run_progress_monitor(
             break
         snapshot = progress_snapshot(logfile)
         if snapshot:
-            marker.write_text(snapshot)
+            tmp_marker = marker.with_name(marker.name + f".tmp.{os.getpid()}")
+            tmp_marker.write_text(snapshot)
+            tmp_marker.replace(marker)
         stop_event.wait(60)
 
 
@@ -1039,8 +1045,10 @@ def write_sbatch_script(
             "        pct=$(printf '%s' \"$raw\" | grep -oP '[0-9]+(?=%)' || true)",
             '        if [[ -n "$done_n" && -n "$total_n" && -n "$pct" ]]; then',
             "          remaining=$(( total_n - done_n )); (( remaining < 0 )) && remaining=0",
+            '          tmp_marker="$marker.tmp.$$"',
             "          printf 'Progress : %s / %s steps complete (%s%%)\\nRemaining: %s steps\\nUpdated  : %s\\n' \\",
-            '            "$done_n" "$total_n" "$pct" "$remaining" "$(date \'+%Y-%m-%d %H:%M:%S\')" > "$marker"',
+            '            "$done_n" "$total_n" "$pct" "$remaining" "$(date \'+%Y-%m-%d %H:%M:%S\')" > "$tmp_marker"',
+            '          mv -f "$tmp_marker" "$marker"',
             "        fi",
             "      fi",
             "    fi",
