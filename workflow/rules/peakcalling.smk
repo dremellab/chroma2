@@ -169,6 +169,7 @@ rule genrich_atac_callpeak_host:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         rm_flag=""
         if [ "{params.remove_dups}" == "True" ]; then
@@ -193,8 +194,7 @@ rule genrich_atac_callpeak_host:
           -g {params.maxlen} \
           {params.exclude_arg} \
           $bl_arg \
-          -q {params.qvalue} {params.extra_args} \
-          2>&1 | tee -a {log}
+          -q {params.qvalue} {params.extra_args}
         gzip -f {params.narrowpeak_uncompressed}
         """
 
@@ -243,6 +243,7 @@ rule genrich_atac_callpeak_virus:
         r"""
         set -exo pipefail
         mkdir -p $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
         rm_flag=""
         if [ "{params.remove_dups}" == "True" ]; then
@@ -267,7 +268,6 @@ rule genrich_atac_callpeak_virus:
           -g {params.maxlen} \
           {params.exclude_arg} \
           $bl_arg \
-          -q {params.qvalue} {params.extra_args} \
-          2>&1 | tee -a {log}
+          -q {params.qvalue} {params.extra_args}
         gzip -f {params.narrowpeak_uncompressed}
         """
