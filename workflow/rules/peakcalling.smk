@@ -20,10 +20,8 @@ rule macs2_atac_callpeak_host:
             if config.get("peakcalling", {}).get("use_host_input", False) and input.control
             else ""
         ),
-        genome_size=(
-            "hs" if HOST.lower() == "hg38" else
-            "mm" if HOST.lower() == "mm39" else
-            str(config.get("macs2", {}).get("genome_size", "hs"))
+        genome_size=_macs2_genome_size(
+            HOST, str(config.get("macs2", {}).get("genome_size", "hs"))
         ),
         qvalue=str(config.get("macs2", {}).get("qvalue", 0.01)),
         shift=str(config.get("macs2", {}).get("shift", -100)),

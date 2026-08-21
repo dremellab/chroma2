@@ -242,6 +242,20 @@ def _resolve_optional_host_annotation(mapping, host_name, fallback_templates):
     return ""
 
 
+_MACS2_GENOME_SIZE_BY_HOST = {
+    "hg38": "hs",
+    "mm39": "mm",
+}
+
+
+def _macs2_genome_size(host_name, default):
+    for alias in _host_annotation_aliases(host_name):
+        genome_size = _MACS2_GENOME_SIZE_BY_HOST.get(alias.lower())
+        if genome_size:
+            return genome_size
+    return default
+
+
 if HOST != "":
     TRNAS_GTF = _resolve_optional_host_annotation(
         TRNAS_GTF_BY_HOST,
