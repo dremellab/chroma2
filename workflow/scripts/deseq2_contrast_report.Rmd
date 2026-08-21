@@ -37,6 +37,14 @@ ordered_hits <- function(df) {
     dplyr::arrange(.data$padj_sort, dplyr::desc(.data$abs_lfc))
 }
 
+lfc_axis_label <- function(section) {
+  if (isFALSE(section$shrinkage_applied)) {
+    "log2 fold change (unshrunk -- shrinkage failed)"
+  } else {
+    "Shrunken log2 fold change"
+  }
+}
+
 make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
   df <- section$results %>%
     dplyr::mutate(
@@ -78,7 +86,7 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
       )
     ) +
     labs(
-      x = "Shrunken log2 fold change",
+      x = lfc_axis_label(section),
       y = "-log10 adjusted p-value",
       color = "Call"
     ) +
@@ -119,7 +127,7 @@ make_ma <- function(section) {
         "Not significant" = "#9e9e9e"
       )
     ) +
-    labs(x = "baseMean", y = "Shrunken log2 fold change", color = "Call") +
+    labs(x = "baseMean", y = lfc_axis_label(section), color = "Call") +
     theme_minimal(base_size = 12)
 }
 
@@ -228,6 +236,13 @@ render_section <- function(section, section_title) {
 
   cat(sprintf("## %s\n\n", section_title))
   print(download_link(section))
+
+  if (isFALSE(section$shrinkage_applied)) {
+    cat(sprintf(
+      "⚠️ **LFC shrinkage failed for this comparison** (%s) -- the `log2FoldChange_shrunk` column and all plots below show **unshrunk** log2 fold changes instead.\n\n",
+      section$shrinkage_error
+    ))
+  }
 
   cat("### Summary\n\n")
   print(knitr::kable(summary_table(section)))

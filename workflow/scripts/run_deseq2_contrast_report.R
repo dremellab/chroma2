@@ -504,6 +504,7 @@ run_deseq2_matrix <- function(
     independentFiltering = cfg$independent_filtering
   )
 
+  shrinkage_error <- NULL
   res_shrunk <- tryCatch(
     {
       if (identical(cfg$shrink_type, "apeglm")) {
@@ -513,6 +514,7 @@ run_deseq2_matrix <- function(
       }
     },
     error = function(err) {
+      shrinkage_error <<- conditionMessage(err)
       cat(sprintf(
         "\nNote: LFC shrinkage ('%s') failed for %s (%s): %s. Falling back to unshrunk estimates.\n",
         cfg$shrink_type, feature_type, comparison, conditionMessage(err)
@@ -520,6 +522,7 @@ run_deseq2_matrix <- function(
       res_raw
     }
   )
+  shrinkage_applied <- is.null(shrinkage_error)
 
   normalized_counts <- counts(dds, normalized = TRUE)
   group1_samples <- rownames(coldata)[coldata$group == group1]
@@ -533,6 +536,7 @@ run_deseq2_matrix <- function(
       baseMean = res_raw$baseMean,
       log2FoldChange_raw = res_raw$log2FoldChange,
       log2FoldChange_shrunk = res_shrunk$log2FoldChange,
+      shrinkage_applied = shrinkage_applied,
       lfcSE = res_raw$lfcSE,
       stat = res_raw$stat,
       pvalue = res_raw$pvalue,
@@ -586,6 +590,8 @@ run_deseq2_matrix <- function(
     feature_labels = feature_labels,
     results = result_tbl,
     summary = summary_list,
+    shrinkage_applied = shrinkage_applied,
+    shrinkage_error = shrinkage_error,
     pca_data = pca_data,
     percent_var = percent_var,
     sample_distance = sample_distance
