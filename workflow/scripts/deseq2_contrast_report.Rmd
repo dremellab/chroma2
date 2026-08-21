@@ -46,6 +46,11 @@ lfc_axis_label <- function(section) {
 }
 
 make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
+  # padj can underflow to exactly 0 for very small p-values, which would make
+  # -log10(padj) infinite; recompute BH-adjusted p-values from the raw pvalue
+  # column and clamp to the smallest representable positive double instead of
+  # dropping the point (the old NA_real_ fallback made the most significant
+  # hits invisible on the plot while still being counted as significant).
   df <- section$results %>%
     dplyr::mutate(
       significant = sig_mask(section$results, alpha, lfc_threshold),
@@ -54,9 +59,10 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
         .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", context$group2),
         TRUE ~ "Not significant"
       ),
+      padj_recalc = p.adjust(.data$pvalue, method = "BH"),
       neg_log10_padj = dplyr::if_else(
-        !is.na(.data$padj) & .data$padj > 0,
-        -log10(.data$padj),
+        !is.na(.data$padj_recalc),
+        -log10(pmax(.data$padj_recalc, .Machine$double.xmin)),
         NA_real_
       ),
       feature_label = section$feature_labels
@@ -71,7 +77,7 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
     color = .data$direction,
     text = paste0(
       section$feature_labels,
-      "<br>padj: ", signif(.data$padj, 3),
+      "<br>padj: ", signif(.data$padj_recalc, 3),
       "<br>log2FC: ", signif(.data$log2FoldChange_shrunk, 3)
     )
   )) +
