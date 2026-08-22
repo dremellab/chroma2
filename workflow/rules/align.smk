@@ -24,6 +24,8 @@ rule bowtie2_align:
         bowtie2_extra=config.get("bowtie2_align", {}).get("extra_args", ""),
     threads:
         _get_threads("bowtie2_align", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: 480 * attempt,
     container:
         config["containers"]["bowtie2"]
     log:
