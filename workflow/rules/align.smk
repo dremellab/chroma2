@@ -25,7 +25,7 @@ rule bowtie2_align:
     threads:
         _get_threads("bowtie2_align", profile_config)
     resources:
-        runtime=lambda wildcards, attempt: 480 * attempt,
+        runtime=lambda wildcards, attempt: 960 * attempt,
     container:
         config["containers"]["bowtie2"]
     log:
