@@ -25,7 +25,9 @@ rule bowtie2_align:
     threads:
         _get_threads("bowtie2_align", profile_config)
     resources:
-        runtime=lambda wildcards, attempt: 960 * attempt,
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "bowtie2_align", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:
@@ -123,6 +125,10 @@ rule bowtie2_filter:
         markdup_remove_arg="-r" if config.get("bowtie2_align", {}).get("filter", {}).get("markdup_remove", True) else "",
     threads:
         _get_threads("bowtie2_filter", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "bowtie2_filter", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:
@@ -210,6 +216,10 @@ rule split_host_qname_bam:
         tmpdir=join(TEMPDIR, "align", "{sample}", "split_host_qname"),
     threads:
         _get_threads("split_host_qname_bam", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "split_host_qname_bam", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:
@@ -236,6 +246,10 @@ rule split_virus_qname_bam:
         tmpdir=join(TEMPDIR, "align", "{sample}", "split_virus_qname", "{virus}"),
     threads:
         _get_threads("split_virus_qname_bam", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "split_virus_qname_bam", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:

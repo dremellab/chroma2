@@ -73,6 +73,10 @@ rule ataqv_host:
         extra_args=config.get("ataqv", {}).get("extra_args", ""),
     threads:
         _get_threads("ataqv_host", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "ataqv_host", profile_config, attempt
+        ),
     container:
         config["containers"]["ataqv"]
     log:
@@ -127,6 +131,10 @@ rule ataqv_virus:
         tss_extension=str(config.get("ataqv", {}).get("virus_tss_extension", 200)),
     threads:
         _get_threads("ataqv_virus", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "ataqv_virus", profile_config, attempt
+        ),
     container:
         config["containers"]["ataqv"]
     log:

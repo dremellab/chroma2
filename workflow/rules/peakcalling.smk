@@ -161,6 +161,10 @@ rule genrich_atac_callpeak_host:
         extra_args=config.get("genrich", {}).get("extra_args", ""),
     threads:
         _get_threads("genrich_atac_callpeak_host", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "genrich_atac_callpeak_host", profile_config, attempt
+        ),
     container:
         config["containers"]["genrich"]
     log:
@@ -235,6 +239,10 @@ rule genrich_atac_callpeak_virus:
         extra_args=config.get("genrich", {}).get("extra_args", ""),
     threads:
         _get_threads("genrich_atac_callpeak_virus", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "genrich_atac_callpeak_virus", profile_config, attempt
+        ),
     container:
         config["containers"]["genrich"]
     log:

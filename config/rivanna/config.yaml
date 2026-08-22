@@ -92,7 +92,7 @@ set-resources:
   bowtie2_align:
     mem_mb: 122880 # 120 GB
     threads: 16
-    runtime: 480
+    runtime: 960
 
   bowtie2_filter:
     mem_mb: 49152 # 48 GB

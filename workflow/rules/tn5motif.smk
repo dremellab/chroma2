@@ -149,6 +149,10 @@ if TN5_GENERATE_LOGO:
             caller="genrich|macs2",
         threads:
             _get_threads("extract_tn5_motifs_host", profile_config)
+        resources:
+            runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+                "extract_tn5_motifs_host", profile_config, attempt
+            ),
         container:
             config["containers"]["pysam"]
         log:
@@ -200,6 +204,10 @@ if TN5_GENERATE_LOGO:
             caller="genrich|macs2",
         threads:
             _get_threads("extract_tn5_motifs_virus", profile_config)
+        resources:
+            runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+                "extract_tn5_motifs_virus", profile_config, attempt
+            ),
         container:
             config["containers"]["pysam"]
         log:
