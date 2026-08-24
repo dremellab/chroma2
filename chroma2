@@ -1005,27 +1005,42 @@ def runlocal(
         ["bash", "-lc", cmd_with_tee], env=env, start_new_session=True
     )
 
+    # `_handle_signal` must never call proc.wait(): the outer `rc = proc.wait()`
+    # below blocks inside the os.waitpid() syscall while holding Popen's
+    # internal _waitpid_lock, and Python delivers a pending signal by
+    # interrupting that syscall and running the handler nested on the *same*
+    # thread/frame -- so a wait() call from inside the handler tries to
+    # acquire a lock its own caller already holds and can never succeed,
+    # hanging the process indefinitely instead of exiting. The handler only
+    # records the signal and fires the kill; a separate watchdog thread
+    # (which calls proc.wait() from a different thread, where the lock is a
+    # normal cross-thread mutex) owns the timeout/escalate-to-SIGKILL logic.
+    # Once the child actually dies, the outer proc.wait() unblocks on its own.
+    cancel_signum = None
+
+    def _escalation_watchdog():
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            if proc.poll() is None:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        except ValueError:
+            pass  # proc.wait() already reaped the child on the main thread
+
     def _handle_signal(signum, _frame):
+        nonlocal cancel_signum
+        already_cancelling = cancel_signum is not None
+        cancel_signum = signum
         if proc.poll() is None:
             try:
                 os.killpg(proc.pid, signum)
             except ProcessLookupError:
                 pass
-            try:
-                proc.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                proc.wait()
-        write_pipeline_state_marker(
-            workdir,
-            "canceled",
-            reason=f"signal_{signal.Signals(signum).name}",
-            runmode="runlocal",
-        )
-        sys.exit(130)
+            if not already_cancelling:
+                threading.Thread(target=_escalation_watchdog, daemon=True).start()
 
     old_sigterm = signal.signal(signal.SIGTERM, _handle_signal)
     old_sigint = signal.signal(signal.SIGINT, _handle_signal)
@@ -1036,6 +1051,15 @@ def runlocal(
         signal.signal(signal.SIGINT, old_sigint)
         stop_event.set()
         monitor.join(timeout=5)
+
+    if cancel_signum is not None:
+        write_pipeline_state_marker(
+            workdir,
+            "canceled",
+            reason=f"signal_{signal.Signals(cancel_signum).name}",
+            runmode="runlocal",
+        )
+        sys.exit(130)
 
     if rc == 0:
         content = derive_final_progress(runlocal_log)
