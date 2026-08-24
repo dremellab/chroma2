@@ -1,4 +1,14 @@
-## dev version
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+## [2.0.0]
+
+### ⚠️ Breaking Changes
+
+- **Marker files renamed:** `status.running`/`status.completed`/`status.failed` replaced with `pipeline.running`/`pipeline.completed`/`pipeline.failed`/`pipeline.canceled` plus a `pipeline.status.json` sidecar. Anything polling the old `status.*` filenames needs to switch to `pipeline.*`.
 
 - fix(runlocal): fix self-deadlock in the SIGTERM/SIGINT handler (regression from the #65 fix, closes #65)
   - the #65 fix moved `_handle_signal` to `os.killpg(...)` + `proc.wait(timeout=30)` (escalating to `SIGKILL` + another `proc.wait()`) directly inside the signal handler -- this deadlocks, because the outer `rc = proc.wait()` blocks inside the `os.waitpid()` syscall while holding Popen's internal `_waitpid_lock`, and Python delivers a pending signal by running the handler _nested on that same thread/frame_, so the handler's own `proc.wait()` calls try to acquire a lock its own caller already holds and can never succeed
