@@ -131,7 +131,30 @@ Only generated if `tn5_motif.generate_logo: true`. Per sample × caller × organ
 
 ## DESeq2 Reports {#deseq2-reports}
 
-Only generated if `deseq2.enabled: true` and `contrasts.tsv` is present. One self-contained HTML report per contrast at `results/deseq2/{group1}_vs_{group2}/{group1}_vs_{group2}.deseq2_report.html`, analyzing every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other enabled matrix types analyzed alongside, with any `deseq2.skip_features` — tRNA by default — flagged and skipped with a stated reason directly in the report).
+Only generated if `deseq2.enabled: true` and `contrasts.tsv` is present. One self-contained HTML report per contrast at `results/deseq2/{group1}_vs_{group2}/{group1}_vs_{group2}.deseq2_report.html`, analyzing every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other enabled matrix types analyzed alongside, with any `deseq2.skip_features` — tRNA by default — flagged and skipped with a stated reason directly in the report). A parallel `.tsv` of the full DESeq2 results table is written alongside each report, one per analyzed matrix type.
+
+### Significance
+
+A feature is called significant only if **both**:
+
+- `adjusted_pvalue < deseq2.alpha` (default `0.05`)
+- `abs(log2FoldChange_shrunk) >= deseq2.lfc_threshold` (default `1.0`, i.e. ≥2-fold change)
+
+`adjusted_pvalue` is a Benjamini-Hochberg correction recomputed directly from the raw `pvalue` column (`p.adjust(pvalue, method = "BH")`), used throughout the report (up/down summary counts, volcano highlighting/labeling, results-table sorting) **instead of** DESeq2's own `padj` column. DESeq2's `padj` can be `NA` even when a feature has a usable `pvalue` — most commonly from independent filtering (low-count features excluded from multiple-testing correction) or Cook's-distance outlier flagging — which would otherwise silently drop those features from every significance check. Both `padj` and `adjusted_pvalue` are present in the results TSV for reference; `adjusted_pvalue` is the one that drives the report.
+
+Direction ("Up in `{group1}`" vs "Up in `{group2}`") is simply the sign of `log2FoldChange_shrunk` for significant features.
+
+### Results TSV columns
+
+| Column                  | Description                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `log2FoldChange_raw`    | Unshrunk `log2FoldChange` as reported by DESeq2's `results()`                                                                                                                        |
+| `log2FoldChange_shrunk` | LFC after `lfcShrink()` (apeglm by default); falls back to the raw value if shrinkage fails                                                                                          |
+| `shrinkage_applied`     | `TRUE`/`FALSE` — whether `lfcShrink()` succeeded for this comparison; report axis labels and text reflect this (e.g. "log2 fold change (unshrunk -- shrinkage failed)") when `FALSE` |
+| `pvalue`                | Raw DESeq2 p-value                                                                                                                                                                   |
+| `padj`                  | DESeq2's own BH-adjusted p-value (can be `NA`; kept for reference, not used for significance)                                                                                        |
+| `adjusted_pvalue`       | BH correction recomputed from `pvalue`; used for all significance decisions in the report (see above)                                                                                |
+| `baseMean`              | Mean of normalized counts across all samples in the comparison                                                                                                                       |
 
 ## MultiQC Report
 

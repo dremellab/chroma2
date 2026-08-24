@@ -70,7 +70,7 @@ Runs Snakemake directly in the foreground (still submitting one SLURM job per ru
 
 Every `run`/`runlocal` invocation writes and updates:
 
-- `$WORKDIR/pipeline.running` — present while the pipeline is actively executing; contains a live "N/M steps complete" progress snapshot, refreshed roughly every 60 seconds.
+- `$WORKDIR/pipeline.running` — present while the pipeline is actively executing; refreshed roughly every 60 seconds with a live snapshot: overall "N/M steps complete" progress, which job(s) are currently running (rule name + wildcards, e.g. sample/comparison), a live count of any jobs that have already failed, and elapsed time. Useful for spotting a stuck run at a glance -- e.g. a run stuck on the same 3 jobs with a growing failed count, well before the whole pipeline gives up and writes `pipeline.failed`.
 - `$WORKDIR/pipeline.completed` / `pipeline.failed` / `pipeline.canceled` — written on exit, whichever applies. The `failed` marker includes a digest of which rule(s) failed.
 - `$WORKDIR/pipeline.status.json` — machine-readable sidecar mirroring the same state, for scripts/dashboards that want to poll run status without parsing log files.
 - `$WORKDIR/logs/events.log` and `logs/events.jsonl` — structured event log (human-readable and JSONL) of every state transition.
