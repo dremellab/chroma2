@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>outputs – CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-b85bc7c33db8c58e0ec93c3465666fed.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-dark"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = true;
+    const darkModeDefault = authorPrefersDark;
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../docs/index.html" aria-current="page"> 
+<span class="menu-text">Docs</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-version-2.0.0" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Version: 2.0.0</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-version-2.0.0">    
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/2.0.0/docs/index.html">
+ <span class="dropdown-text">2.0.0 (current)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/dev/docs/index.html">
+ <span class="dropdown-text">dev</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dremellab/chroma2"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../docs/pipeline.html">Pipeline</a></li><li class="breadcrumb-item"><a href="../docs/outputs.html">📊 CHROMA2 Output Files</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Getting Started</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧬 CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/prereq.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">⚙️ Prerequisites for Running CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/usage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧭 Using CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Pipeline</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/pipeline.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🔄 CHROMA2 Pipeline Architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/inputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">📥 CHROMA2 Input Requirements</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/outputs.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">📊 CHROMA2 Output Files</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Cloud &amp; Storage</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/s3_configuration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">☁️ S3 Output Deposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Help</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/help.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">❓ Help and Support</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#chroma2-output-files" id="toc-chroma2-output-files" class="nav-link active" data-scroll-target="#chroma2-output-files">📊 CHROMA2 Output Files</a>
+  <ul class="collapse">
+  <li><a href="#output-directory-structure" id="toc-output-directory-structure" class="nav-link" data-scroll-target="#output-directory-structure">Output Directory Structure</a></li>
+  <li><a href="#reference-files" id="toc-reference-files" class="nav-link" data-scroll-target="#reference-files">Reference Files</a></li>
+  <li><a href="#per-sample-output-files" id="toc-per-sample-output-files" class="nav-link" data-scroll-target="#per-sample-output-files">Per-Sample Output Files</a>
+  <ul class="collapse">
+  <li><a href="#trimmed-reads-resultspreprocess" id="toc-trimmed-reads-resultspreprocess" class="nav-link" data-scroll-target="#trimmed-reads-resultspreprocess">Trimmed Reads (<code>results/preprocess/</code>)</a></li>
+  <li><a href="#alignment-files-resultsalign" id="toc-alignment-files-resultsalign" class="nav-link" data-scroll-target="#alignment-files-resultsalign">Alignment Files (<code>results/align/</code>)</a></li>
+  <li><a href="#coverage-tracks" id="toc-coverage-tracks" class="nav-link" data-scroll-target="#coverage-tracks">Coverage Tracks</a></li>
+  <li><a href="#quality-control" id="toc-quality-control" class="nav-link" data-scroll-target="#quality-control">Quality Control</a></li>
+  </ul></li>
+  <li><a href="#aggregate-output-files" id="toc-aggregate-output-files" class="nav-link" data-scroll-target="#aggregate-output-files">Aggregate Output Files</a>
+  <ul class="collapse">
+  <li><a href="#count-matrices" id="toc-count-matrices" class="nav-link" data-scroll-target="#count-matrices">Count Matrices</a></li>
+  <li><a href="#alignment-quality-summary" id="toc-alignment-quality-summary" class="nav-link" data-scroll-target="#alignment-quality-summary">Alignment Quality Summary</a></li>
+  <li><a href="#peak-calls" id="toc-peak-calls" class="nav-link" data-scroll-target="#peak-calls">Peak Calls</a></li>
+  <li><a href="#tn5-motif-outputs-optional" id="toc-tn5-motif-outputs-optional" class="nav-link" data-scroll-target="#tn5-motif-outputs-optional">Tn5 Motif Outputs (Optional)</a></li>
+  </ul></li>
+  <li><a href="#deseq2-reports" id="toc-deseq2-reports" class="nav-link" data-scroll-target="#deseq2-reports">DESeq2 Reports</a>
+  <ul class="collapse">
+  <li><a href="#significance" id="toc-significance" class="nav-link" data-scroll-target="#significance">Significance</a></li>
+  <li><a href="#results-tsv-columns" id="toc-results-tsv-columns" class="nav-link" data-scroll-target="#results-tsv-columns">Results TSV columns</a></li>
+  </ul></li>
+  <li><a href="#multiqc-report" id="toc-multiqc-report" class="nav-link" data-scroll-target="#multiqc-report">MultiQC Report</a></li>
+  <li><a href="#s3-transfer-sentinel-optional" id="toc-s3-transfer-sentinel-optional" class="nav-link" data-scroll-target="#s3-transfer-sentinel-optional">S3 Transfer Sentinel (Optional)</a></li>
+  <li><a href="#output-naming-conventions" id="toc-output-naming-conventions" class="nav-link" data-scroll-target="#output-naming-conventions">Output Naming Conventions</a>
+  <ul class="collapse">
+  <li><a href="#sample-names" id="toc-sample-names" class="nav-link" data-scroll-target="#sample-names">Sample Names</a></li>
+  <li><a href="#organismgenomic-region-names" id="toc-organismgenomic-region-names" class="nav-link" data-scroll-target="#organismgenomic-region-names">Organism/Genomic Region Names</a></li>
+  </ul></li>
+  <li><a href="#how-to-use-these-outputs" id="toc-how-to-use-these-outputs" class="nav-link" data-scroll-target="#how-to-use-these-outputs">How to Use These Outputs</a>
+  <ul class="collapse">
+  <li><a href="#for-differential-accessibility-analysis" id="toc-for-differential-accessibility-analysis" class="nav-link" data-scroll-target="#for-differential-accessibility-analysis">For Differential Accessibility Analysis</a></li>
+  <li><a href="#for-quality-assessment" id="toc-for-quality-assessment" class="nav-link" data-scroll-target="#for-quality-assessment">For Quality Assessment</a></li>
+  <li><a href="#for-visualization" id="toc-for-visualization" class="nav-link" data-scroll-target="#for-visualization">For Visualization</a></li>
+  <li><a href="#for-downstream-integration" id="toc-for-downstream-integration" class="nav-link" data-scroll-target="#for-downstream-integration">For Downstream Integration</a></li>
+  </ul></li>
+  <li><a href="#frequently-asked-questions" id="toc-frequently-asked-questions" class="nav-link" data-scroll-target="#frequently-asked-questions">Frequently Asked Questions</a></li>
+  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../docs/pipeline.html">Pipeline</a></li><li class="breadcrumb-item"><a href="../docs/outputs.html">📊 CHROMA2 Output Files</a></li></ol></nav></header>
+
+
+
+
+
+<section id="chroma2-output-files" class="level1">
+<h1>📊 CHROMA2 Output Files</h1>
+<section id="output-directory-structure" class="level2">
+<h2 class="anchored" data-anchor-id="output-directory-structure">Output Directory Structure</h2>
+<pre class="text"><code>$WORKDIR/
+├── config.yaml                    # rendered pipeline config
+├── samples.tsv                    # sample manifest
+├── contrasts.tsv                  # DESeq2 contrasts manifest (if present)
+├── pipeline.{running,completed,failed,canceled}  # run-state marker (whichever applies)
+├── pipeline.status.json           # machine-readable run-state sidecar
+├── logs/                          # per-rule SLURM logs, events.log/.jsonl, dryrun/run logs
+├── ref/                           # composite reference bundle (see prereq.md §7)
+└── results/
+    ├── preprocess/                # fastp trimmed reads + HTML/JSON reports
+    ├── initqc/                    # FastQC on raw + trimmed reads
+    ├── align/                     # sorted/filtered/qname BAMs + idxstats/flagstat
+    ├── alignmentqc/
+    │   ├── idxstats_summary.tsv   # aggregate alignment stats across all filter stages
+    │   └── ataqv/                 # per-sample ataqv JSON + mkarv aggregate HTML reports
+    ├── inputs/                    # pooled input-control BAMs (host + per-virus)
+    ├── peaks/                     # MACS2 + Genrich narrowPeak/summits (gzipped)
+    ├── postprocess/                # host/virus-split filtered BAMs
+    ├── bigwig/                    # per-organism coverage tracks
+    ├── bigbed/                    # UCSC browser tracks (TSS, peaks, summits)
+    ├── tn5_motif/                 # optional Tn5 insertion-site PFM/logo outputs
+    ├── count_matrices/
+    │   ├── gene/                  # gene-TSS matrix (per-sample + aggregated)
+    │   ├── trna/                  # tRNA matrix
+    │   ├── pol3_pol3_t{1,2,3}/    # Pol III matrices (3 types)
+    │   ├── repeat_{sine_alu,sine_mir,line_l1,line_l2,ltr,other_repeat_elements}/  # repeat matrices (6 types)
+    │   ├── viral_{virus}/         # per-virus genome-bin matrix
+    │   ├── rrna/                  # rRNA matrix
+    │   └── final_matrices/        # consolidated symlinks + COUNT_MATRICES_INDEX.txt
+    ├── deseq2/
+    │   └── {group1}_vs_{group2}/  # one self-contained HTML report per contrast
+    ├── multiqc/                   # multiqc_report.html + multiqc_data/
+    └── multiqc_extra_data/
+        └── custom/                # custom-content TSVs feeding MultiQC (kept out of multiqc's own scan dir)</code></pre>
+</section>
+<section id="reference-files" class="level2">
+<h2 class="anchored" data-anchor-id="reference-files">Reference Files</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 68%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ref/ref.fa</code></td>
+<td>Concatenated host + additive + virus FASTA</td>
+</tr>
+<tr class="even">
+<td><code>ref/ref.gtf</code></td>
+<td>Concatenated annotation GTF</td>
+</tr>
+<tr class="odd">
+<td><code>ref/ref.fa.*.bt2</code></td>
+<td>Bowtie2 index</td>
+</tr>
+<tr class="even">
+<td><code>ref/ref.fa.{host,virus}.regions</code></td>
+<td>Per-organism contig lists (used to split BAMs downstream)</td>
+</tr>
+<tr class="odd">
+<td><code>ref/ref.tss.{host,virus}.bed</code></td>
+<td>TSS positions per organism, derived from <code>ref.gtf</code> <code>transcript</code> features</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="per-sample-output-files" class="level2">
+<h2 class="anchored" data-anchor-id="per-sample-output-files">Per-Sample Output Files</h2>
+<section id="trimmed-reads-resultspreprocess" class="level3">
+<h3 class="anchored" data-anchor-id="trimmed-reads-resultspreprocess">Trimmed Reads (<code>results/preprocess/</code>)</h3>
+<p><code>{sample}.trimmed_R{1,2}.fastq.gz</code> plus fastp <code>{sample}.fastp.{html,json}</code> reports.</p>
+</section>
+<section id="alignment-files-resultsalign" class="level3">
+<h3 class="anchored" data-anchor-id="alignment-files-resultsalign">Alignment Files (<code>results/align/</code>)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 36%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Stage</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>{sample}.aligned.sorted.bam</code></td>
+<td>raw sorted alignment</td>
+<td>temporary, deleted after filtering</td>
+</tr>
+<tr class="even">
+<td><code>{sample}.aligned.clean.bam</code></td>
+<td>proper-pair, unmapped/secondary/supplementary filtered</td>
+<td>temporary</td>
+</tr>
+<tr class="odd">
+<td><code>{sample}.aligned.fixmate.bam</code></td>
+<td>mate info fixed, re-sorted</td>
+<td>temporary</td>
+</tr>
+<tr class="even">
+<td><code>{sample}.aligned.dedup.bam</code></td>
+<td>duplicates marked/removed (<code>samtools markdup</code>)</td>
+<td>temporary</td>
+</tr>
+<tr class="odd">
+<td><code>{sample}.aligned.final.bam</code></td>
+<td>MAPQ + excluded-contig filtered</td>
+<td><strong>canonical filtered alignment</strong>, used everywhere downstream except Genrich</td>
+</tr>
+<tr class="even">
+<td><code>{sample}.aligned.host.qname.bam</code></td>
+<td>host contigs only, from the <strong>unfiltered</strong> sorted BAM, name-sorted</td>
+<td>used by Genrich and the Genrich branch of Tn5 motif/count-matrix rules</td>
+</tr>
+<tr class="odd">
+<td><code>{sample}.aligned.virus.{virus}.qname.bam</code></td>
+<td>same, per virus</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Each stage above also has a matching <code>.idxstats.txt</code>/<code>.flagstat.txt</code> side-output, aggregated by <code>alignmentqc.smk</code> into <code>results/alignmentqc/idxstats_summary.tsv</code>.</p>
+</section>
+<section id="coverage-tracks" class="level3">
+<h3 class="anchored" data-anchor-id="coverage-tracks">Coverage Tracks</h3>
+<p><code>results/bigwig/{sample}.{host,virus}.bw</code> — <code>deeptools bamCoverage</code> on the postprocess-split filtered BAM (50bp bins host, 1bp bins virus).</p>
+</section>
+<section id="quality-control" class="level3">
+<h3 class="anchored" data-anchor-id="quality-control">Quality Control</h3>
+<p><strong>ataqv</strong> (<code>results/alignmentqc/ataqv/</code>): per-case-sample <code>{sample}.{host,virus}.ataqv.json</code>, plus aggregate <code>final_report.host/</code> and <code>final_report.virus.{virus}/</code> interactive HTML directories (via <code>mkarv</code>), scoped to case samples only.</p>
+<p><strong>FastQC</strong> (<code>results/initqc/</code>): <code>{sample}.{raw,trimmed}_R{1,2}_fastqc.{html,zip}</code>.</p>
+</section>
+</section>
+<section id="aggregate-output-files" class="level2">
+<h2 class="anchored" data-anchor-id="aggregate-output-files">Aggregate Output Files</h2>
+<section id="count-matrices" class="level3">
+<h3 class="anchored" data-anchor-id="count-matrices">Count Matrices</h3>
+<p>CHROMA2 generates up to <strong>6 types of Tn5 insertion count matrices</strong>, each capturing insertion events at a different genomic scale, all built exclusively from the Genrich-caller qname BAMs with <strong>fractional (NH-weighted) counting</strong> for multi-mapping reads (a single-mapped read contributes <code>+1.0</code>; an <code>N</code>-way multi-mapped read contributes <code>1/N</code> at each of its <code>N</code> locations — this avoids over-counting insertions in repetitive/multi-copy loci).</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 1%">
+<col style="width: 8%">
+<col style="width: 39%">
+<col style="width: 28%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Matrix</th>
+<th>Path (per-type dir under <code>results/count_matrices/</code>)</th>
+<th>Binning</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Gene</td>
+<td><code>gene/gene_count_matrix.tsv</code></td>
+<td>protein-coding TSS ± 250bp (excludes rRNA/tRNA/Mt_tRNA biotypes)</td>
+<td>Promoter accessibility</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>tRNA</td>
+<td><code>trna/trna_count_matrix.tsv</code></td>
+<td>gene-body midpoint ± 100bp, capped at 1000bp</td>
+<td>tRNA locus accessibility</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Pol III ×3</td>
+<td><code>pol3_pol3_t{1,2,3}/pol3_pol3_t{1,2,3}_count_matrix.tsv</code></td>
+<td>full feature span, capped at 1000bp</td>
+<td>Pol III gene accessibility (5S/7SL RNA loci, etc.)</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Repeat elements ×6</td>
+<td><code>repeat_{sine_alu,sine_mir,line_l1,line_l2,ltr,other_repeat_elements}/*_count_matrix.tsv</code></td>
+<td>full feature span, capped at 1000bp</td>
+<td>Heterochromatin/transposon accessibility</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Viral genome</td>
+<td><code>viral_{virus}/viral_{virus}_count_matrix.tsv</code> (per virus)</td>
+<td>fixed non-overlapping 200bp bins across the whole genome</td>
+<td>Viral genome accessibility/infection dynamics</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>rRNA</td>
+<td><code>rrna/rrna_count_matrix.tsv</code></td>
+<td>TSS ± 250bp</td>
+<td>Ribosomal gene accessibility</td>
+</tr>
+</tbody>
+</table>
+<p>Every enabled matrix’s aggregated TSV is also symlinked into <code>results/count_matrices/final_matrices/</code>, alongside a human-readable <code>COUNT_MATRICES_INDEX.txt</code> summarizing which matrices are available for the current host/virus selection and the counting parameters used.</p>
+<p><strong>Shared TSV format:</strong></p>
+<pre class="text"><code>feature_id    feature_name    [feature_type]    [strand]    [position]    sample1    sample2    ...</code></pre>
+<ul>
+<li><code>feature_id</code> — unique identifier (gene_id, repeat_id, bin_id, etc.)</li>
+<li><code>feature_name</code> / optional type/strand/position metadata columns</li>
+<li>One column per sample, containing Tn5 insertion counts (integer if all contributing reads were uniquely mapped, fractional otherwise)</li>
+</ul>
+<p><strong>Per-sample vs.&nbsp;aggregated:</strong> <code>{type}/{sample}.{type}_counts.tsv</code> holds one sample’s counts (useful for per-sample QC); <code>{type}/{type}_count_matrix.tsv</code> is the column-wise concatenation across all samples (no normalization applied — normalize downstream as needed, e.g.&nbsp;via DESeq2’s size factors or a simple library-size division).</p>
+<p><strong>Example: loading in R</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>gene_counts <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"results/count_matrices/final_matrices/gene_count_matrix.tsv"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>counts_matrix <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(gene_counts[, <span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>)])  <span class="co"># drop metadata columns</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>normalized <span class="ot">&lt;-</span> <span class="fu">sweep</span>(counts_matrix, <span class="dv">2</span>, <span class="fu">colSums</span>(counts_matrix), <span class="st">"/"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="alignment-quality-summary" class="level3">
+<h3 class="anchored" data-anchor-id="alignment-quality-summary">Alignment Quality Summary</h3>
+<p><code>results/alignmentqc/idxstats_summary.tsv</code> — per-sample read counts at every filter stage (raw sorted → clean → dedup → final) plus host/virus split, feeding the MultiQC <code>alignment_stats</code> and <code>host_virus_ratio</code> custom-content panels.</p>
+</section>
+<section id="peak-calls" class="level3">
+<h3 class="anchored" data-anchor-id="peak-calls">Peak Calls</h3>
+<p><code>results/peaks/{sample}.{host,virus}.macs2.narrowPeak.gz</code> (+ <code>.summits.bed.gz</code>) and <code>results/peaks/{sample}.{host,virus}.genrich.narrowPeak.gz</code>. UCSC-browser-ready <code>.bb</code> equivalents live under <code>results/bigbed/</code>.</p>
+</section>
+<section id="tn5-motif-outputs-optional" class="level3">
+<h3 class="anchored" data-anchor-id="tn5-motif-outputs-optional">Tn5 Motif Outputs (Optional)</h3>
+<p>Only generated if <code>tn5_motif.generate_logo: true</code>. Per sample × caller × organism: <code>{sample}.{group}.{caller}.tn5_sites.1bp.bed.gz</code>, <code>...pfm.tsv.gz</code> (position-frequency matrix), <code>...logo.{png|...}</code> (sequence logo image) under <code>results/tn5_motif/</code>.</p>
+</section>
+</section>
+<section id="deseq2-reports" class="level2">
+<h2 class="anchored" data-anchor-id="deseq2-reports">DESeq2 Reports</h2>
+<p>Only generated if <code>deseq2.enabled: true</code> and <code>contrasts.tsv</code> is present. One self-contained HTML report per contrast at <code>results/deseq2/{group1}_vs_{group2}/{group1}_vs_{group2}.deseq2_report.html</code>, analyzing every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other enabled matrix types analyzed alongside, with any <code>deseq2.skip_features</code> — tRNA by default — flagged and skipped with a stated reason directly in the report). A parallel <code>.tsv</code> of the full DESeq2 results table is written alongside each report, one per analyzed matrix type.</p>
+<section id="significance" class="level3">
+<h3 class="anchored" data-anchor-id="significance">Significance</h3>
+<p>A feature is called significant only if <strong>both</strong>:</p>
+<ul>
+<li><code>adjusted_pvalue &lt; deseq2.alpha</code> (default <code>0.05</code>)</li>
+<li><code>abs(log2FoldChange_shrunk) &gt;= deseq2.lfc_threshold</code> (default <code>1.0</code>, i.e.&nbsp;≥2-fold change)</li>
+</ul>
+<p><code>adjusted_pvalue</code> is a Benjamini-Hochberg correction recomputed directly from the raw <code>pvalue</code> column (<code>p.adjust(pvalue, method = "BH")</code>), used throughout the report (up/down summary counts, volcano highlighting/labeling, results-table sorting) <strong>instead of</strong> DESeq2’s own <code>padj</code> column. DESeq2’s <code>padj</code> can be <code>NA</code> even when a feature has a usable <code>pvalue</code> — most commonly from independent filtering (low-count features excluded from multiple-testing correction) or Cook’s-distance outlier flagging — which would otherwise silently drop those features from every significance check. Both <code>padj</code> and <code>adjusted_pvalue</code> are present in the results TSV for reference; <code>adjusted_pvalue</code> is the one that drives the report.</p>
+<p>Direction (“Up in <code>{group1}</code>” vs “Up in <code>{group2}</code>”) is simply the sign of <code>log2FoldChange_shrunk</code> for significant features.</p>
+</section>
+<section id="results-tsv-columns" class="level3">
+<h3 class="anchored" data-anchor-id="results-tsv-columns">Results TSV columns</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 88%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>log2FoldChange_raw</code></td>
+<td>Unshrunk <code>log2FoldChange</code> as reported by DESeq2’s <code>results()</code></td>
+</tr>
+<tr class="even">
+<td><code>log2FoldChange_shrunk</code></td>
+<td>LFC after <code>lfcShrink()</code> (apeglm by default); falls back to the raw value if shrinkage fails</td>
+</tr>
+<tr class="odd">
+<td><code>shrinkage_applied</code></td>
+<td><code>TRUE</code>/<code>FALSE</code> — whether <code>lfcShrink()</code> succeeded for this comparison; report axis labels and text reflect this (e.g.&nbsp;“log2 fold change (unshrunk – shrinkage failed)”) when <code>FALSE</code></td>
+</tr>
+<tr class="even">
+<td><code>pvalue</code></td>
+<td>Raw DESeq2 p-value</td>
+</tr>
+<tr class="odd">
+<td><code>padj</code></td>
+<td>DESeq2’s own BH-adjusted p-value (can be <code>NA</code>; kept for reference, not used for significance)</td>
+</tr>
+<tr class="even">
+<td><code>adjusted_pvalue</code></td>
+<td>BH correction recomputed from <code>pvalue</code>; used for all significance decisions in the report (see above)</td>
+</tr>
+<tr class="odd">
+<td><code>baseMean</code></td>
+<td>Mean of normalized counts across all samples in the comparison</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="multiqc-report" class="level2">
+<h2 class="anchored" data-anchor-id="multiqc-report">MultiQC Report</h2>
+<p><code>results/multiqc/multiqc_report.html</code> + <code>multiqc_data/</code> — aggregates FastQC, fastp, alignment/filtering stats, host-vs-virus read distribution, ataqv metrics, fragment-size distributions, FRiP scores, peak-size distributions, genome coverage breadth, and Tn5 count-matrix summaries. The custom-content TSVs feeding the non-standard panels live in <code>results/multiqc_extra_data/custom/</code> (deliberately outside MultiQC’s own output-scan directory).</p>
+</section>
+<section id="s3-transfer-sentinel-optional" class="level2">
+<h2 class="anchored" data-anchor-id="s3-transfer-sentinel-optional">S3 Transfer Sentinel (Optional)</h2>
+<p><code>$WORKDIR/.s3_transfer.done</code> — only meaningfully populated if <code>push_to_s3: true</code> and <code>s3_sample_set_name</code> is set; always touched (as a no-op) otherwise so it doesn’t block the pipeline’s final target. See <a href="../docs/s3_configuration.html">S3 Configuration</a>.</p>
+</section>
+<section id="output-naming-conventions" class="level2">
+<h2 class="anchored" data-anchor-id="output-naming-conventions">Output Naming Conventions</h2>
+<section id="sample-names" class="level3">
+<h3 class="anchored" data-anchor-id="sample-names">Sample Names</h3>
+<p>All per-sample outputs are prefixed with the exact <code>sampleName</code> from <code>samples.tsv</code>.</p>
+</section>
+<section id="organismgenomic-region-names" class="level3">
+<h3 class="anchored" data-anchor-id="organismgenomic-region-names">Organism/Genomic Region Names</h3>
+<p>Host-space outputs use <code>.host.</code>; virus-space outputs use <code>.virus.{accession}.</code> (or <code>.{accession}.</code> for count-matrix directories), where <code>{accession}</code> is the exact viral accession supplied via <code>-v/--viruses</code> at <code>init</code>.</p>
+</section>
+</section>
+<section id="how-to-use-these-outputs" class="level2">
+<h2 class="anchored" data-anchor-id="how-to-use-these-outputs">How to Use These Outputs</h2>
+<section id="for-differential-accessibility-analysis" class="level3">
+<h3 class="anchored" data-anchor-id="for-differential-accessibility-analysis">For Differential Accessibility Analysis</h3>
+<ol type="1">
+<li>Enable <code>deseq2</code> and provide <code>contrasts.tsv</code> (see <a href="../docs/inputs.html#contrasts-manifest">Inputs</a>) for automated per-contrast reports, or</li>
+<li>Load <code>results/count_matrices/final_matrices/*.tsv</code> directly into your own DESeq2/edgeR/limma workflow.</li>
+</ol>
+</section>
+<section id="for-quality-assessment" class="level3">
+<h3 class="anchored" data-anchor-id="for-quality-assessment">For Quality Assessment</h3>
+<p>Start with <code>results/multiqc/multiqc_report.html</code>, then drill into <code>results/alignmentqc/ataqv/final_report.*/</code> for per-sample accessibility QC detail.</p>
+</section>
+<section id="for-visualization" class="level3">
+<h3 class="anchored" data-anchor-id="for-visualization">For Visualization</h3>
+<p>Load <code>results/bigwig/*.bw</code> and <code>results/bigbed/*.bb</code> into IGV or the UCSC Genome Browser.</p>
+</section>
+<section id="for-downstream-integration" class="level3">
+<h3 class="anchored" data-anchor-id="for-downstream-integration">For Downstream Integration</h3>
+<p><code>results/count_matrices/final_matrices/</code> is the single directory to point any downstream R/Python analysis at — it contains every enabled matrix type with a stable naming scheme.</p>
+</section>
+</section>
+<section id="frequently-asked-questions" class="level2">
+<h2 class="anchored" data-anchor-id="frequently-asked-questions">Frequently Asked Questions</h2>
+<p><strong>Q: Why are peak calls generated by two different tools (MACS2 and Genrich)?</strong> A: They use different underlying models and BAM inputs (MACS2 on the fully filtered BAM, Genrich on the unfiltered qname-sorted BAM with its own duplicate handling) — comparing both gives a sanity check on peak-calling robustness, and downstream FRiP/count-matrix rules can be pointed at whichever caller’s output fits your analysis.</p>
+<p><strong>Q: Why do count matrices only use the Genrich BAM, not the MACS2 BAM?</strong> A: Consistency — using one canonical BAM source for all six matrix types avoids introducing a peak-caller-dependent bias into the count-matrix comparisons across feature classes.</p>
+<p><strong>Q: Some Pol III/repeat-element/tRNA matrices are missing for my host genome — why?</strong> A: Those GTFs are configured per host in <code>config.yaml</code>; if a GTF isn’t defined for your selected host, that matrix type is unavailable and won’t appear in <code>final_matrices/</code>. Check <code>COUNT_MATRICES_INDEX.txt</code> for exactly which matrices were built for your run.</p>
+</section>
+<section id="troubleshooting" class="level2">
+<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
+<p><strong>Missing outputs:</strong> check <code>$WORKDIR/pipeline.failed</code> (if present) for which rule failed, and the corresponding SLURM log under <code>$WORKDIR/logs/</code>.</p>
+<p><strong>Missing count matrices:</strong> check <code>results/count_matrices/final_matrices/COUNT_MATRICES_INDEX.txt</code> to confirm the matrix type was enabled and a GTF was resolved for your host/virus selection.</p>
+<p><strong>Zero counts across all samples in a matrix:</strong> likely a coordinate mismatch between the bin file and BAM contigs, or genuinely low Tn5 signal at those features (e.g.&nbsp;rRNA/repeat loci can be low-accessibility by biology, not by bug) — cross-check against <code>results/alignmentqc/idxstats_summary.tsv</code> for overall alignment health first.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dremellab\.github\.io\/chroma2\/2\.0\.0\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

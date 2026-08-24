@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>changelog – CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-b85bc7c33db8c58e0ec93c3465666fed.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-dark"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = true;
+    const darkModeDefault = authorPrefersDark;
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="./docs/index.html" aria-current="page"> 
+<span class="menu-text">Docs</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-version-2.0.0" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Version: 2.0.0</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-version-2.0.0">    
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/2.0.0/docs/index.html">
+ <span class="dropdown-text">2.0.0 (current)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/dev/docs/index.html">
+ <span class="dropdown-text">dev</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dremellab/chroma2"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Getting Started</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧬 CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/prereq.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">⚙️ Prerequisites for Running CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/usage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧭 Using CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Pipeline</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/pipeline.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🔄 CHROMA2 Pipeline Architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/inputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">📥 CHROMA2 Input Requirements</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">📊 CHROMA2 Output Files</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Cloud &amp; Storage</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/s3_configuration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">☁️ S3 Output Deposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Help</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/help.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">❓ Help and Support</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#changelog" id="toc-changelog" class="nav-link active" data-scroll-target="#changelog">Changelog</a>
+  <ul class="collapse">
+  <li><a href="#unreleased" id="toc-unreleased" class="nav-link" data-scroll-target="#unreleased">[Unreleased]</a></li>
+  <li><a href="#section" id="toc-section" class="nav-link" data-scroll-target="#section">[2.0.0]</a>
+  <ul class="collapse">
+  <li><a href="#breaking-changes" id="toc-breaking-changes" class="nav-link" data-scroll-target="#breaking-changes">⚠️ Breaking Changes</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+
+<section id="changelog" class="level1">
+<h1>Changelog</h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<section id="unreleased" class="level2">
+<h2 class="anchored" data-anchor-id="unreleased">[Unreleased]</h2>
+</section>
+<section id="section" class="level2">
+<h2 class="anchored" data-anchor-id="section">[2.0.0]</h2>
+<section id="breaking-changes" class="level3">
+<h3 class="anchored" data-anchor-id="breaking-changes">⚠️ Breaking Changes</h3>
+<ul>
+<li><p><strong>Marker files renamed:</strong> <code>status.running</code>/<code>status.completed</code>/<code>status.failed</code> replaced with <code>pipeline.running</code>/<code>pipeline.completed</code>/<code>pipeline.failed</code>/<code>pipeline.canceled</code> plus a <code>pipeline.status.json</code> sidecar. Anything polling the old <code>status.*</code> filenames needs to switch to <code>pipeline.*</code>.</p></li>
+<li><p>fix(runlocal): fix self-deadlock in the SIGTERM/SIGINT handler (regression from the #65 fix, closes #65)</p>
+<ul>
+<li>the #65 fix moved <code>_handle_signal</code> to <code>os.killpg(...)</code> + <code>proc.wait(timeout=30)</code> (escalating to <code>SIGKILL</code> + another <code>proc.wait()</code>) directly inside the signal handler – this deadlocks, because the outer <code>rc = proc.wait()</code> blocks inside the <code>os.waitpid()</code> syscall while holding Popen’s internal <code>_waitpid_lock</code>, and Python delivers a pending signal by running the handler <em>nested on that same thread/frame</em>, so the handler’s own <code>proc.wait()</code> calls try to acquire a lock its own caller already holds and can never succeed</li>
+<li>reproduced directly under Python 3.12.11: <code>os.killpg</code> did kill the child process group, but the parent <code>chroma2</code> process itself hung indefinitely – never reached <code>sys.exit(130)</code>, never wrote <code>pipeline.canceled</code> – strictly worse than the pre-#65 behavior, which at least exited promptly</li>
+<li><code>_handle_signal</code> now only records the signal and fires <code>os.killpg()</code>; a separate daemon watchdog thread owns the timeout/escalate-to-<code>SIGKILL</code> logic (calling <code>proc.wait(timeout=30)</code> from a different thread doesn’t hit the same-thread reentrancy problem). Once the child actually dies, the outer <code>proc.wait()</code> unblocks on its own, and the <code>pipeline.canceled</code> marker write + <code>sys.exit(130)</code> now happen after the try/finally, in normal control flow instead of inside the handler</li>
+</ul></li>
+<li><p>fix(deseq2): fix invalid R syntax in volcano/MA color-scale construction that failed every <code>deseq2_contrast_report</code> job</p>
+<ul>
+<li><code>scale_color_manual(values = c(paste("Up in", context$group1) = "#c0392b", ...))</code> tried to use a function call (<code>paste(...)</code>) as a literal argument name to the left of <code>=</code> inside <code>c(...)</code>, which R cannot parse (<code>unexpected '='</code>) – this is not data-dependent, so it failed identically for every contrast that reached the plotting step, not just specific samples</li>
+<li>replaced with <code>setNames(c("#c0392b", ...), c(paste(...), ...))</code>, which builds the same named color vector dynamically; fixed in both the volcano (<code>make_volcano()</code>) and MA (<code>make_ma()</code>) plot color scales</li>
+</ul></li>
+<li><p>fix(deseq2): fix aes() length-mismatch crash in the volcano plotly tooltip (<code>Aesthetics must be either length 1 or the same as the data</code>)</p>
+<ul>
+<li><code>make_volcano()</code>’s <code>text = paste0(section$feature_labels, ...)</code> mixed a raw external vector (<code>section$feature_labels</code>, referenced via closure) with <code>.data$</code>-referenced columns from the plotted <code>df</code> inside one <code>aes()</code> call – <code>plotly::ggplotly()</code>’s internal per-group aesthetic evaluation subsets/reorders <code>df</code> by color group, and the external vector doesn’t get subsetted along with it, so the lengths mismatch as soon as more than one significance group is present</li>
+<li><code>df</code> already carries the same values as <code>feature_label</code> (added via <code>mutate()</code> earlier in the same function); reference <code>.data$feature_label</code> instead</li>
+</ul></li>
+<li><p>fix(deseq2): recover DESeq2 significance calls dropped by <code>padj</code> NAs (extends #85’s underflow fix to the whole significance path, not just the volcano plot)</p>
+<ul>
+<li>DESeq2’s <code>padj</code> can be <code>NA</code> even when <code>pvalue</code> is present (independent filtering, Cook’s-distance outlier flagging), silently excluding those features from every <code>padj</code>-based significance check – the summary up/down counts, the volcano highlighting/labeling, and the report’s <code>sig_mask()</code> all keyed off <code>padj</code> directly</li>
+<li>added a new <code>adjusted_pvalue</code> column (<code>p.adjust(pvalue, method = "BH")</code>, computed once in <code>run_deseq2_contrast_report.R</code> and written to the output TSV) and switched every significance decision in both the R script and the Rmd report to use it instead of <code>padj</code>; removed the Rmd’s now-redundant <code>padj_recalc</code> (previously recomputing the same BH correction independently, just for the volcano plot)</li>
+</ul></li>
+<li><p>fix(deseq2): stop invalidating <code>deseq2_contrast_report</code> on unrelated <code>config.yaml</code> edits</p>
+<ul>
+<li>the rule declared the entire <code>config.yaml</code> as an <code>input:</code>, so Snakemake’s rerun-triggers treated <em>any</em> edit to the file – including unrelated sections like <code>push_to_s3</code>/S3 settings – as reason to rerun every DESeq2 report (<code>reason: Updated input files: config.yaml</code>)</li>
+<li><code>config.yaml</code> is still passed to the R script at runtime (via <code>--config-yaml</code>), just as a plain <code>params:</code> path instead of a tracked <code>input:</code>; added a <code>params: config_digest=</code> hash of only <code>config.get("deseq2", {})</code> (sorted-key JSON, sha256) so a genuine change to the <code>deseq2:</code> block still correctly triggers a rerun, while edits elsewhere in the file no longer do</li>
+</ul></li>
+<li><p>feat(wrapper): <code>pipeline.running</code> now shows live currently-running job(s) and a live failed-job count, not just a completion percentage</p>
+<ul>
+<li>the periodic marker refresh only had something to write when Snakemake logged an “N of M steps (P%) done” line – which only appears on job <em>completion</em> – so a run whose only remaining jobs were failing (e.g.&nbsp;a resume with nothing left to do but 3 already-broken jobs) left <code>pipeline.running</code> empty for the entire run, indistinguishable from a run that hadn’t started</li>
+<li>new <code>extract_running_jobs_digest()</code> (scrapes in-flight <code>rule &lt;name&gt;:</code> blocks, excluding ones already finished or failed) and <code>build_progress_marker()</code>/<code>build_progress_marker_content()</code> combine overall progress (falling back to the DAG’s initial <code>total</code> job count before any job has finished), the currently-running rule(s)/wildcards, a live failed-job count (reusing the existing <code>extract_failed_rules_digest()</code>), and elapsed time; wired into both the <code>runlocal</code> monitor and a new <code>--internal-progress-snapshot</code> CLI mode that the generated sbatch script’s background loop now shells out to (replacing its standalone grep/awk math) – mirrored in HAROLD’s <code>harold</code> wrapper via the same shared <code>.harold_failure_helpers.sh</code> library</li>
+</ul></li>
+<li><p>fix(slurm-runtime): scale <code>runtime</code> on retry for data-size-variable per-sample rules</p>
+<ul>
+<li><code>bowtie2_align</code> retries (<code>restart-times: 3</code> in the Rivanna profile) reused the same fixed runtime budget on every attempt, so a job that timed out once was guaranteed to time out identically on every retry – observed in production where two <code>PCIDNA</code> samples (repetitive vector content driving heavy bowtie2 multi-mapping search under <code>--very-sensitive -k 20</code>) exhausted all retries and failed the run at 86% complete</li>
+<li>added <code>resources: runtime=lambda wildcards, attempt: _get_runtime_with_retries(rule_name, profile_config, attempt)</code> (existing helper in <code>init.smk</code>, already used by <code>genome_coverage_mqc</code>; doubles the profile’s configured base runtime on each retry) to every other per-sample rule whose cost scales with input BAM/FASTQ size and had no runtime scaling: <code>bowtie2_filter</code>, <code>fastp</code>, <code>split_host_qname_bam</code>, <code>split_virus_qname_bam</code>, <code>split_host_bam</code>, <code>split_virus_bam</code>, <code>bamcoverage_host</code>, <code>bamcoverage_virus</code>, <code>genrich_atac_callpeak_host</code>, <code>genrich_atac_callpeak_virus</code>, <code>ataqv_host</code>, <code>ataqv_virus</code>, <code>extract_tn5_motifs_host</code>, <code>extract_tn5_motifs_virus</code></li>
+<li>bumped <code>bowtie2_align</code>‘s base <code>runtime</code> in <code>config/rivanna/config.yaml</code> from 480 to 960 minutes, since the two failing samples’ attempts were still timing out at the old value</li>
+</ul></li>
+<li><p>fix(deseq2): guard against metadata/result column name collisions (closes #89)</p>
+<ul>
+<li><code>metadata_cols</code> was every non-sample column in the count-matrix TSV, flowing unchecked into <code>metadata_df</code> and then into <code>result_tbl</code> via <code>dplyr::mutate(comparison=..., group1=..., baseMean=..., stat=..., ...)</code> – <code>mutate()</code> doesn’t error on an existing column name, it silently overwrites it, so a matrix metadata column sharing a name with one of the synthetic/computed columns would vanish with no warning in the TSV or HTML report</li>
+<li>added a <code>RESERVED_RESULT_COLUMNS</code> list covering every synthetic column name used downstream (this script + the Rmd, including the <code>padj_recalc</code> column added for #85), checked against <code>metadata_cols</code> in <code>prepare_counts()</code>; a collision now fails loudly with the offending column name(s) instead of being silently clobbered</li>
+</ul></li>
+<li><p>fix(idxstats): escape sample name before use as a glob pattern (closes #88)</p>
+<ul>
+<li><code>find_fastqc_zip()</code> spliced the sample name directly into a pattern passed to <code>Path.rglob()</code>, which treats <code>*</code>, <code>?</code>, and <code>[...]</code> as glob syntax rather than literal characters; a sample named e.g.&nbsp;<code>Input[1]</code> (a plausible <code>samples.tsv</code> typo, not otherwise rejected) turned <code>[1]</code> into a character class matching a single <code>1</code>, silently matching nothing (NA in the summary, no warning) or an unintended file</li>
+<li>wrapped the sample name in <code>glob.escape()</code> so metacharacters are matched literally; verified with a synthetic directory containing both a literal <code>Input[1].host_R1_fastqc.zip</code> and a decoy <code>Input1.host_R1_fastqc.zip</code> that the correct file is now matched</li>
+</ul></li>
+<li><p>fix(wrapper): make <code>pipeline.*</code> marker rewrites atomic (closes #87)</p>
+<ul>
+<li><code>write_pipeline_state_marker()</code>, <code>run_progress_monitor()</code>, and the sbatch-generated bash <code>_progress_monitor()</code> loop all rewrote a <code>pipeline.*</code> marker’s content with a plain truncating write/redirect, unlike the temp-file + atomic replace pattern already used for <code>pipeline.status.json</code> – a poller could observe a truncated/empty marker mid-write during any of these periodic (60s) rewrites, contradicting the stated design goal that a poller never sees zero <code>pipeline.*</code> files</li>
+<li>routed all three through the same write-tmp-then-atomically-replace pattern: <code>Path.replace()</code> in the two Python call sites, <code>mv -f</code> in the generated bash script</li>
+</ul></li>
+<li><p>fix(genrich): capture post-Genrich gzip errors in <code>{log}</code> (closes #86)</p>
+<ul>
+<li>the Genrich rules only piped the <code>Genrich</code> command’s own stderr into <code>{log}</code> via a trailing <code>2&gt;&amp;1 | tee -a {log}</code>; the subsequent <code>gzip -f</code> step fell outside that pipe, so its stderr on failure went only to Slurm stdout/stderr, inconsistent with the macs2 rules, which wrap the whole rule body in <code>exec &gt; &gt;(tee -a {log}) 2&gt;&amp;1</code></li>
+<li>applied the same <code>exec</code> wrapper to both <code>genrich_atac_callpeak_host</code> and <code>genrich_atac_callpeak_virus</code>, dropping the now-redundant per-command pipe</li>
+</ul></li>
+<li><p>fix(deseq2): stop dropping underflowed-padj hits from the volcano plot (closes #85)</p>
+<ul>
+<li><code>padj</code> underflowing to exactly 0 (routine for very small p-values) made <code>neg_log10_padj</code> <code>NA</code>, and <code>geom_point(na.rm=TRUE)</code> silently dropped those points, while <code>summary_table()</code>’s “Significant” count has no such guard – so the count and the rendered plot disagreed on the most significant hits</li>
+<li>recompute BH-adjusted p-values from the raw <code>pvalue</code> column and clamp to <code>.Machine$double.xmin</code> before <code>-log10()</code> instead of falling back to <code>NA_real_</code>, so an exact-0 underflow yields a large finite y-value instead of vanishing from the plot; tooltip text updated to match</li>
+</ul></li>
+<li><p>fix(deseq2): surface LFC shrinkage failures in TSV and HTML report (closes #84)</p>
+<ul>
+<li>when <code>lfcShrink()</code> errors (common for apeglm on the sparse viral/repeat/tRNA bin matrices this pipeline routinely analyzes), the fallback wrote raw LFCs into the <code>log2FoldChange_shrunk</code> column with only a <code>cat()</code> line in the Snakemake log noting it – nothing in the TSV or HTML report signaled that shrinkage didn’t actually happen, while the report still labeled axes “Shrunken log2 fold change”</li>
+<li>capture the shrinkage error explicitly and derive a <code>shrinkage_applied</code> flag; added as a TSV column and propagated into the per-section list consumed by the Rmd, which now shows a visible warning when shrinkage failed for a comparison and reflects shrunk vs.&nbsp;unshrunk LFCs in the volcano/MA plot axis labels via a shared <code>lfc_axis_label()</code> helper</li>
+</ul></li>
+<li><p>fix(s3): schedule <code>s3_transfer_if_enabled</code> whenever <code>push_to_s3=true</code> (closes #83)</p>
+<ul>
+<li>the <code>all</code> rule’s S3 sentinel target required both <code>push_to_s3=true</code> AND a non-empty <code>s3_sample_set_name</code>, so <code>push_to_s3=true</code> with a missing/empty sample set name expanded the target to <code>[]</code> – the rule was never pulled into the DAG, its own “s3_sample_set_name is required” shell check never ran, and the pipeline succeeded having silently never attempted the S3 transfer</li>
+<li>gated the target on <code>push_to_s3</code> alone; the rule’s existing shell-level validation now runs and fails loudly when <code>s3_sample_set_name</code> is missing</li>
+</ul></li>
+<li><p>fix(macs2): resolve <code>genome_size</code> for <code>_basic</code>-suffixed host names (closes #82)</p>
+<ul>
+<li><code>HOST.lower() == "hg38"/"mm39"</code> never matched <code>hg38_basic</code>/<code>mm39_basic</code>, so <code>mm39_basic</code> silently fell through to the config default genome size, skewing MACS2 q-values; <code>hg38_basic</code> happened to still resolve to <code>"hs"</code> by coincidence, masking the bug for the human case</li>
+<li>added <code>_macs2_genome_size()</code>, reusing <code>_host_annotation_aliases()</code> (the same base-alias resolution already used for GTF lookups) so <code>mm39_basic</code> -&gt; <code>mm39</code> -&gt; <code>"mm"</code></li>
+</ul></li>
+<li><p>fix(tn5-motif): correct mate labeling on coordinate-sorted BAMs; clamp flank-BED coordinates (closes #80, #81)</p>
+<ul>
+<li>mate read1/read2 labeling relied on grouping adjacent same-query_name BAM records, which only works on name-sorted input; the actual <code>--bam</code> inputs are coordinate-sorted, so every bucket ended up size 1 and both mates of every pair got labeled <code>"{query_name}|read1"</code> in the exact-BED, flank-BED, and FASTA-header outputs – cut-site coordinates and counts were unaffected, only the site name was wrong</li>
+<li>removed the qname-bucketing entirely; <code>cut_sites_from_record()</code> now derives ordinal from <code>rec.is_read2</code> (a SAM flag, independent of sort order) instead of hardcoding 1</li>
+<li><code>write_flank_bed()</code> wrote <code>site.start - flank_size</code> / <code>site.end + flank_size</code> unclamped, producing negative BED coordinates near a chromosome’s start even when the paired FASTA/PFM entry was already correctly skipped; now clamps to <code>[0, chrom_len]</code>, same convention as the bin-building scripts</li>
+</ul></li>
+<li><p>fix(tn5-bins): <code>--max-size</code> feature filter is off by one bp (closes #79)</p>
+<ul>
+<li><code>write_bins()</code> computed <code>feature_size</code> as <code>end - start</code>, but <code>meta["start"]</code>/<code>meta["end"]</code> are 0-based inclusive coordinates, so true length is <code>end - start + 1</code> – every feature’s computed size was 1bp short, so a feature exactly <code>max_size+1</code> bp long was incorrectly retained instead of filtered out</li>
+</ul></li>
+<li><p>fix(tn5-motif): <code>single_cut_site()</code> enforces upper chromosome boundary (closes #78)</p>
+<ul>
+<li>checked <code>cut &lt; 0</code> but never the corresponding upper bound, so a forward-strand read whose Tn5-offset math pushed the computed cut site past the chromosome’s end was allowed through, crashing the <code>--bin-counts-only</code> viral path with <code>IndexError</code> – viral genomes are typically only a few kb, so reads landing near a contig’s end are routine, not an edge case</li>
+<li>drops a site past the chromosome boundary, same policy as the existing negative-cut case</li>
+</ul></li>
+<li><p>fix(tn5-bins): correct schema mismatch between per-line bin BEDs and <code>count_tn5_sites_in_bins.py</code> (closes #77)</p>
+<ul>
+<li><code>count_tn5_sites_in_bins.py</code>’s <code>write_counts()</code> hardcoded the 9-column grouped-mode bin-BED layout unconditionally, but <code>build_tn5_midpoint_bins.py</code>’s per-line/repeatMasker mode (the default for <code>build_repeat_bins</code>) emits a different layout – every default-config run’s repeat-element count matrix shipped with mislabeled, truncated metadata</li>
+<li>named both bin-BED schemas once in <code>gtf_common.py</code>, shared by the writer and reader; the reader now detects which schema a bins-BED uses from its field count and raises a clear error on any other field count instead of silently misinterpreting</li>
+</ul></li>
+<li><p>fix(target-scoping): honor the <code>target</code> column for host/virus outputs (closes #76)</p>
+<ul>
+<li>a case sample’s <code>target</code> (host/virus/both) was only consulted by control-pool validation/lookup – every downstream host- and virus-specific output (peaks, ataqv, bigwig, BigBed tracks, count matrices) was built for every case sample regardless of <code>target</code>, wasting compute and producing output nobody asked for</li>
+<li>added <code>HOST_TARGET_SAMPLES</code>/<code>VIRUS_TARGET_SAMPLES</code> (case samples only) and <code>ALL_HOST_TARGET_SAMPLES</code>/<code>ALL_VIRUS_TARGET_SAMPLES</code> (all roles, preserving <code>count_matrices.smk</code>’s deliberate inclusion of control samples) in <code>init.smk</code>, and swapped every host/virus-specific <code>expand()</code> call site (22 total across <code>Snakefile</code>, <code>bigbed.smk</code>, <code>count_matrices.smk</code>) to use the matching list</li>
+</ul></li>
+<li><p>fix(tn5-motif): <code>--mapq-min</code> now rejects negative values via a clean argparse error (closes #70)</p>
+<ul>
+<li><code>extract_tn5_motifs.py</code> and <code>count_tn5_sites_in_bins.py</code> both validated <code>--mapq-min</code> with a post-parse <code>if args.mapq_min &lt; 0: raise ValueError(...)</code>, which surfaced as a raw Python traceback instead of a standard <code>usage: ...</code> / <code>error: argument --mapq-min: ...</code> message; no test exercised the negative case in either script</li>
+<li>added a shared <code>_non_negative_int()</code> argparse <code>type=</code> callable to both scripts (raises <code>argparse.ArgumentTypeError</code>, which argparse itself catches and formats), switched <code>--mapq-min</code> to use it, and removed the now-redundant post-parse checks; <code>parse_args()</code> in both scripts gained an optional <code>argv=None</code> parameter so tests can call it directly with a synthetic argument list</li>
+<li>added a regression test to each script’s test file asserting a negative <code>--mapq-min</code> raises <code>SystemExit(2)</code>; verified via the cached <code>pysam_0.22.1.sif</code> apptainer image that all 20 tests pass, including both new ones</li>
+</ul></li>
+<li><p>chore: untrack personal <code>.claude/settings.json</code> (closes #69)</p>
+<ul>
+<li>every permission entry in the tracked <code>.claude/settings.json</code> referenced one contributor’s home directory, personal memory dirs, or a single one-off scratch debugging run – none of it generic/project-wide, and every other contributor cloning the repo would have inherited these auto-approvals</li>
+<li>removed it from git; a much larger, actively-growing <code>.claude/settings.local.json</code> (Claude Code’s own convention for personal/machine-specific settings) already exists on disk and supersedes it</li>
+<li>added <code>/.claude/settings.local.json</code> to <code>.gitignore</code> – the only reason it wasn’t already showing up as untracked was one contributor’s own global <code>~/.config/git/ignore</code>, which isn’t something the shared repo can rely on for anyone else</li>
+</ul></li>
+<li><p>fix(s3-transfer): sanitize S3 pipeline-name/sample-set config values (closes #68)</p>
+<ul>
+<li><code>s3_transfer.smk</code>’s shell block interpolated <code>{params.sample_set}</code>/<code>{params.pipeline_name}</code>/etc. into a double-quoted bash string with no escaping; confirmed directly that a value containing <code>$(...)</code> executes command substitution even inside the existing double quotes (only single quotes fully suppress that in bash) – <code>shlex.quote()</code>d every config-derived string param (mirroring <code>deseq2.smk</code>’s existing pattern) and spliced them into the shell command bare, per the same “never re-wrap an already-quoted value” rule from the <code>chroma2</code> <code>PROFILE</code> fix (#64); verified the adversarial value now renders as an inert literal argument</li>
+<li><code>s3_path = f"s3://{bucket}/{s3_prefix}/{pipeline_name}/{sample_set}/{s3_dest_path}"</code> in <code>s3_transfer_chroma2.py</code> concatenated <code>pipeline_name</code>/<code>sample_set</code> with no validation, even though <code>docs/s3_configuration.md</code> documents both as exactly one path segment each; <code>main()</code> now rejects either containing <code>/</code> up front with a clear error, before any transfer is attempted – <code>s3_output_prefix</code>/<code>bucket</code> are left unrestricted since the former is documented as an allowed multi-segment prefix and bucket names can’t contain <code>/</code> anyway</li>
+</ul></li>
+<li><p>fix(s3-transfer): make the <code>.bb</code> <code>ref/</code> exclusion match a real path segment, not a raw substring (closes #67)</p>
+<ul>
+<li>the general <code>.bb</code> exclusion rule’s <code>exclude_substrings: ["ref/"]</code> was a bare <code>"ref/" in relpath</code> check with no path-segment boundary – any directory/sample name ending in <code>...ref</code> (e.g.&nbsp;<code>results/somepref/output.bb</code>) would falsely match and get silently dropped from the S3 transfer, even though it has nothing to do with the real <code>ref/</code> reference-scaffolding directory <code>bigbed.smk</code> writes into</li>
+<li>added <code>_has_dir_component()</code> (reusing the same slash-bounded technique the <code>dir</code>-kind rules already use correctly) and a new <code>exclude_dir_components</code> rule key, and switched the <code>.bb</code> rule to <code>exclude_dir_components: ["ref"]</code>; every other rule’s <code>exclude_substrings</code>/<code>include_substrings</code> is untouched, since those are legitimate filename-fragment matches (<code>fastp_report</code>, <code>.snakemake/</code>, <code>alignmentqc/ataqv/</code>) not prone to this class of false positive</li>
+<li>verified directly: <code>ref/other_scaffolding.bb</code> is still excluded, <code>ref/ref.tss.{host,virus}.bb</code> are still included via the existing carve-out, and <code>results/somepref/output.bb</code> is now correctly included instead of falsely dropped</li>
+</ul></li>
+<li><p>fix(peakcalling): stop building pooled control BAMs when the corresponding input toggle is off (closes #66)</p>
+<ul>
+<li><code>peakcalling.smk</code>’s <code>use_host_input</code>/<code>use_virus_input</code> toggles were only checked in <code>params.control_arg</code> (resolved when assembling the shell command), not in the <code>control</code> <code>input:</code> function (resolved when Snakemake builds the DAG) – so a case sample with a valid <code>host_input_pool</code> still triggered <code>pool_host_qname_bam</code>/<code>pool_host_filtered_bam</code> (<code>samtools merge</code> + <code>samtools index</code>) even with the default <code>use_host_input: false</code>, and the result was then silently discarded because <code>control_arg</code> came out empty</li>
+<li>gated the four getter functions in <code>init.smk</code> (<code>get_host_control_qname_bam</code>, <code>get_host_control_filtered_bam</code>, <code>get_virus_control_qname_bam</code>, <code>get_virus_control_filtered_bam</code>) on the same toggle, returning <code>""</code> before even resolving the pool – Snakemake never sees the pooled-BAM dependency at all when a toggle is off, so <code>pool_host_*</code>/<code>pool_virus_*</code> simply aren’t scheduled; confirmed via grep these getters are used only by the four peak-calling rules’ <code>control</code> input, so gating at the source is safe</li>
+</ul></li>
+<li><p>fix(wrapper): <code>runlocal()</code>’s signal handler now kills the whole snakemake process tree, not just the bash wrapper (closes #65)</p>
+<ul>
+<li><code>runlocal()</code> launches its run via <code>subprocess.run(["bash", "-lc", "snakemake ... | tee log"], ...)</code>, so <code>snakemake</code>/<code>tee</code> are grandchildren spawned by an intermediate bash, not direct children; the SIGTERM/SIGINT handler only wrote the <code>canceled</code> marker and called <code>sys.exit(130)</code>, never signaling or waiting on that child – unlike the sbatch script’s bash trap, which explicitly kills and waits on its snakemake PID</li>
+<li>a Ctrl-C happened to work today only because the whole foreground process group receives SIGINT together; a targeted <code>kill &lt;chroma2 pid&gt;</code> left the bash/snakemake/tee subtree orphaned while the marker already said <code>canceled</code></li>
+<li>switched to <code>subprocess.Popen(..., start_new_session=True)</code> so bash and everything it spawns form their own process group, and the handler now forwards the signal to the whole group via <code>os.killpg(proc.pid, signum)</code> (escalating to <code>SIGKILL</code> after a 30s timeout) and waits for it before finalizing – verified directly that a plain signal to just the bash PID leaves a grandchild process running, while <code>os.killpg</code> on the new session correctly reaps it</li>
+<li>this removes the previous implicit dependence on “Ctrl-C happens to hit the whole foreground group” – cleanup no longer depends on how the signal was originally delivered</li>
+</ul></li>
+<li><p>fix(wrapper): quote the workdir in the generated <code>export PROFILE=...</code> line (closes #64)</p>
+<ul>
+<li><code>write_sbatch_script()</code> quotes the workdir consistently everywhere it’s spliced into the generated sbatch script via <code>workdir_q = shlex.quote(str(workdir))</code>, except one line: <code>export PROFILE="{workdir}/config/{profile}"</code> used the raw <code>workdir</code> inside a double-quoted string, so a workdir containing <code>$</code>, backticks, or <code>"</code> could break the script or trigger command substitution at job runtime</li>
+<li>fixed by quoting the whole composed path as one unit and splicing it in bare (<code>profile_dir_q = shlex.quote(f"{workdir}/config/{profile}")</code>, then <code>export PROFILE={profile_dir_q}</code>) rather than reusing <code>workdir_q</code> inside another quote layer, which doesn’t work – single quotes have no special meaning inside double quotes, so nesting them would put literal quote characters into the <code>PROFILE</code> value</li>
+</ul></li>
+<li><p>fix(s3-transfer): make the destination-collision guard actually block a transfer, not just warn (closes #63)</p>
+<ul>
+<li><code>gather_files()</code> detected two source files resolving to the same S3 destination but only <code>print()</code>ed a stderr warning – both files were still uploaded and the second silently overwrote the first, with <code>run_transfer</code>’s pass/fail counting driven only by <code>aws cp</code> exit codes, so a same-run collision never failed the pipeline</li>
+<li><code>gather_files()</code> now accumulates every collision found during the walk and raises <code>ValueError</code> listing all of them if any exist; <code>run_transfer()</code> catches this before attempting any upload and returns 1 – a collision now blocks the whole transfer instead of uploading N-1 files and silently dropping one</li>
+</ul></li>
+<li><p>fix(peakcalling): validate a case sample’s input-pool reference regardless of its <code>target</code> (closes #62)</p>
+<ul>
+<li><code>HOST_PEAKS</code>/<code>VIRUS_PEAKS</code> (<code>Snakefile</code>) and the control-lookup functions run host + virus peak calling for every case sample unconditionally – <code>target</code> was never actually consulted there – but the pool-typo fail-fast validation added for #48 only checked <code>host_input_pool</code>/<code>virus_input_pool</code> when <code>target</code> included the matching organism, so a case row with e.g.&nbsp;<code>target=virus</code> and a typo’d <code>host_input_pool</code> skipped validation entirely while host peak calling still ran and silently fell back to no control</li>
+<li>dropped the <code>target</code>-scoping from <code>bad_host</code>/<code>bad_virus</code> in <code>init.smk</code>: any non-blank pool reference on a case row is now validated against the known pools regardless of <code>target</code>, matching what the control-lookup functions actually do</li>
+</ul></li>
+<li><p>fix(tn5-motif): actually gzip the exact-BED output to match its declared <code>.gz</code> rule output (closes #61)</p>
+<ul>
+<li><code>tn5motif.smk</code> declares <code>exact_bed</code> as <code>...tn5_sites.1bp.bed.gz</code>, but <code>GroupWriter.__init__</code> in <code>extract_tn5_motifs.py</code> still built the path without a <code>.gz</code> suffix and opened it with plain-text <code>.open("w")</code> – <code>390f1a3</code> (“compress exact BED…”) only updated the rule’s declared output, never the script</li>
+<li><code>exact_bed_path</code> now ends in <code>.gz</code> and is opened via <code>gzip.open(path, "wt", encoding="utf-8")</code>, matching the pattern already used for <code>pfm_path</code>; dormant until now since <code>tn5_motif.generate_logo</code> defaults to <code>false</code>, but would hard-fail with a missing-output error for anyone who enabled it</li>
+</ul></li>
+<li><p>fix(deseq2): warn on <code>skip_features</code> entries that match no available category, and fix the misleading config comment (closes #60)</p>
+<ul>
+<li><code>config/config.yaml</code>’s comment suggested values like <code>virus</code>, <code>ALU</code>, <code>transposable elements</code>, but <code>run_deseq2_matrix()</code> matches <code>skip_features</code> against the literal, lowercased internal category key per matrix (<code>trna</code>, <code>rrna</code>, <code>pol3_t1</code>, <code>repeat_sine_alu</code>, <code>viral_&lt;accession&gt;</code>, …) – so those suggested values silently skipped nothing, with no feedback</li>
+<li>rewrote the config comment to list the actual valid keys</li>
+<li>added <code>warn_unmatched_skip_features()</code> in <code>run_deseq2_contrast_report.R</code>, called once the full set of category keys for a comparison is known (<code>host</code> + <code>--virus-labels</code>); prints a clear warning naming any unmatched <code>skip_features</code> entries and the valid keys for that run, instead of staying silent</li>
+</ul></li>
+<li><p>fix(deseq2): stop mislabeling tRNA/Pol III/repeat-element/rRNA report sections as “Virus” (closes #59)</p>
+<ul>
+<li><code>deseq2_contrast_report.Rmd</code> rendered every non-host section’s heading as <code>paste("Virus", virus_name)</code>, but <code>virus_name</code> is really the internal <code>DESEQ2_AVAILABLE_MATRICES</code> key from <code>deseq2.smk</code> (<code>trna</code>, <code>pol3_t1</code>, <code>repeat_sine_alu</code>, <code>rrna</code>, or <code>viral_&lt;accession&gt;</code> for an actual virus) – so reports showed headers like “## Virus trna” and “## Virus repeat_sine_alu” for categories that have nothing to do with viruses; the underlying per-category data wiring was already correct, only the label was wrong</li>
+<li>add <code>category_display_name()</code> in <code>run_deseq2_contrast_report.R</code>, mapping each key to a proper title (<code>tRNA</code>, <code>rRNA</code>, <code>Pol III (T1)</code>, <code>Repeat Element: SINE Alu</code>, <code>Virus: &lt;accession&gt;</code>), stamped onto every section as <code>display_name</code> (skip-list, insufficient-features, and success return paths); the Rmd now renders <code>section$display_name</code> instead of deriving a title from the loop variable name</li>
+</ul></li>
+<li><p>fix(s3-transfer): fix <code>tn5_counts</code> S3 destination to transfer <code>count_matrices</code> instead of an unreachable <code>tn5_motif</code> dir</p>
+<ul>
+<li>the <code>results/tn5_motif</code> dir rule never matched any real path: <code>tn5_motif.smk</code> writes to <code>results/{sample}/tn5_motif/{caller}/{group}/...</code>, nested per-sample, not a flat <code>results/tn5_motif/</code> prefix, so <code>match_rule()</code>’s substring check on <code>/results/tn5_motif/</code> never fired — confirmed via direct test against a real per-sample path, independent of whether <code>tn5_motif.generate_logo</code> is enabled</li>
+<li>the actual Tn5 cut-site count data lives in <code>results/count_matrices/{category}/</code> (per-sample counts + per-category <code>*_count_matrix.tsv</code>, plus <code>final_matrices/</code>), a flat dir directly under <code>results/</code> that matches the dir rule correctly</li>
+<li>changed the <code>dir_name</code> for the <code>tn5_counts</code> S3 destination from <code>results/tn5_motif</code> to <code>results/count_matrices</code> in <code>s3_transfer_chroma2.py</code></li>
+</ul></li>
+<li><p>fix(multiqc): stop <code>genome_coverage_mqc</code> from timing out on every case sample (closes #37)</p>
+<ul>
+<li><code>compute_coverage_mqc.py</code> called <code>bam.pileup()</code> once per MAPQ threshold (4 thresholds), each a full whole-genome per-base pileup traversal with a per-read inner loop – 4x redundant full-genome scans; rewritten to do a single pileup pass, sorting each column’s read MAPQs once and deriving all 4 threshold counts via <code>bisect_left</code></li>
+<li>add <code>_get_runtime</code>/<code>_get_runtime_with_retries</code> helpers in <code>rules/init.smk</code> and wire the latter into <code>genome_coverage_mqc</code>’s <code>resources.runtime</code>, doubling the SLURM runtime on each Snakemake retry (<code>restart-times</code>) so a stubborn TIMEOUT gets more walltime automatically instead of repeating with the same limit</li>
+</ul></li>
+<li><p>fix(ci): let <code>docs-dev</code> GitHub Actions workflow build from an arbitrary branch</p>
+<ul>
+<li><code>docs-dev.yml</code> was copied from HAROLD, which has a real <code>dev</code> branch; chroma2’s repo has no <code>dev</code> branch, so the <code>push: branches: [dev]</code> trigger could never fire</li>
+<li>add a <code>workflow_dispatch</code> <code>branch</code> input (default <code>main</code>) and check out that ref explicitly, so dev docs can be built on demand from any branch (e.g.&nbsp;an active feature branch) while still publishing to the same <code>/dev/</code> gh-pages path</li>
+<li>the dormant <code>push: branches: [dev]</code> trigger is left in place in case a <code>dev</code> branch is introduced later</li>
+</ul></li>
+<li><p>docs: add Quarto-based documentation site (inspired by HAROLD’s docs)</p>
+<ul>
+<li>add <code>_quarto.yml</code>, <code>styles.css</code>, and <code>.github/workflows/docs-dev.yml</code>/<code>docs-release.yml</code> (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD’s deploy/version-patch mechanism); gitignore the Quarto output dir (<code>/_site/</code>) alongside the already-ignored <code>/.quarto/</code> cache</li>
+<li>add <code>docs/index.md</code>, <code>prereq.md</code>, <code>usage.md</code>, <code>pipeline.qmd</code> (mermaid architecture diagram), <code>inputs.md</code>, <code>outputs.md</code>, <code>s3_configuration.md</code>, <code>help.md</code></li>
+<li><code>s3_configuration.md</code> content verified directly against <code>workflow/scripts/s3_transfer_chroma2.py</code>’s transfer rules rather than the older <code>S3_HIERARCHY.md</code> design doc, which had drifted from the implementation (at the time of writing, <code>results/count_matrices/</code> was not transferred to S3 — since fixed, see the <code>tn5_counts</code> entry above)</li>
+<li>replace the one-line <code>README.md</code> stub with a short pipeline overview + link to the docs site</li>
+</ul></li>
+<li><p>feat(wrapper): replicate HAROLD’s INFO/STEP/OK/WARN/ERROR/NEXT logging and pipeline.* state markers (closes #35)</p>
+<ul>
+<li>add <code>log_info</code>/<code>log_step</code>/<code>log_ok</code>/<code>log_warn</code>/<code>log_error</code>/<code>log_next</code>/<code>log_divider</code> helpers, used consistently across all runmodes (init, reconfig, recluster, dryrun, touch, unlock, runlocal, run, reset), ending in a <code>NEXT</code> line telling you the literal next command to run</li>
+<li>replace <code>status.running</code>/<code>status.completed</code>/<code>status.failed</code> with <code>pipeline.running</code>/<code>completed</code>/<code>failed</code>/<code>canceled</code> + a <code>pipeline.status.json</code> sidecar (pipeline/version/git commit-tag/state/reason/runmode/slurm_job_id/num_failed_rules/failed_rules/timestamp_utc) — <strong>breaking</strong>: anything polling the old <code>status.*</code> filenames needs to switch to <code>pipeline.*</code></li>
+<li><code>run</code>/<code>runlocal</code>/<code>unlock</code> now refuse to proceed while <code>pipeline.running</code> exists (<code>check_not_already_running</code>); <code>dryrun</code> warns instead of refusing (<code>warn_if_already_running</code>)</li>
+<li>live progress snapshots written into <code>pipeline.running</code> while a run is in flight — a Python thread for <code>runlocal</code>, an embedded bash loop in the generated sbatch head job — both scraping Snakemake’s own “N of M steps (P%) done” progress line</li>
+<li>failed-rule digest (<code>rule</code>/<code>jobid</code>/<code>slurm_job</code>/<code>state</code>/<code>sample</code>/<code>log</code>, deduped against jobs that succeeded on retry) parsed from the run’s own log and written into <code>pipeline.failed</code> + <code>pipeline.status.json</code></li>
+<li>the generated sbatch head job finalizes state via a hidden <code>chroma2 --internal-finalize</code> callback (including SIGTERM/SIGINT -&gt; <code>pipeline.canceled</code> via bash traps) instead of duplicating the marker/digest logic in bash</li>
+<li><code>onsuccess</code>/<code>onerror</code> in the Snakefile no longer touch state-marker files (that’s now the wrapper/sbatch-script’s sole responsibility, avoiding two writers racing on <code>pipeline.*</code>); <code>logs/events.log</code>/<code>events.jsonl</code> and <code>logs/summary.txt</code>/<code>summary.json</code> are unchanged</li>
+</ul></li>
+<li><p>fix(multiqc): render Tn5 Cut Site Counts as a table with integer values instead of a heatmap</p>
+<ul>
+<li>switch <code>tn5_counts_mqc</code> plot from <code>heatmap</code> to <code>table</code> — MultiQC’s heatmap renderer forces 2-decimal display regardless of the underlying data, showing e.g.&nbsp;<code>13832.00</code> for what is actually a plain int</li>
+<li><code>table</code> still defaults to 1-decimal display for numeric columns, so <code>make_tn5_counts_mqc.py</code> now emits an explicit <code>headers:</code> block with <code>format: '{:,.0f}'</code> per category column to force integer display</li>
+</ul></li>
+<li><p>fix(multiqc): correct broken custom-content plots for Tn5 counts, peak size, and fragment size</p>
+<ul>
+<li><code>tn5_counts_mqc</code> rule input (<code>COUNT_MATRIX_ALL_OUTPUTS</code>) mixed three incompatible file kinds — reference bin BEDs, per-sample intermediate TSVs, and aggregated per-category matrices — causing the heatmap to show bogus rows (<code>ref</code>, <code>gene_count_matrix</code>, …) all under meaningless <code>unknown_host</code>/<code>unknown_trna</code>/<code>unknown_virus</code> columns, with totals that summed bin start/end/tss coordinates in with the real count</li>
+<li>narrowed the rule input to just the six aggregated <code>*_count_matrix.tsv</code> outputs (<code>GENE_MATRIX_OUTPUTS</code> + <code>TRNA_MATRIX_OUTPUTS</code> + <code>POL3_MATRIX_OUTPUTS</code> + <code>REPEAT_MATRIX_OUTPUTS</code> + <code>VIRAL_MATRIX_OUTPUTS</code> + <code>RRNA_MATRIX_OUTPUTS</code>) and rewrote <code>make_tn5_counts_mqc.py</code> to derive each category from its file’s parent directory name and sum only real sample columns</li>
+<li>sample columns are now identified against the pipeline’s known <code>SAMPLES</code> list (passed in via <code>params</code>), not a hardcoded metadata-column blacklist — some matrices (e.g.&nbsp;viral) carry different/extra metadata columns (<code>feature_type</code>, <code>repeat_name</code>, <code>repeat_family</code>, <code>sw_score</code>) than the base 9-column schema, which a blacklist approach initially misclassified as bogus “samples”</li>
+<li>switch <code>peak_size_dist</code> plot from <code>linegraph</code> to <code>bargraph</code>: MultiQC’s linegraph requires numeric x-axis column headers, but peak-size bins are labeled as string ranges (<code>"0-50"</code>, <code>"50-100"</code>, …), so MultiQC silently fell back to a positional 1..40 index, rendering the wrong x-axis; <code>bargraph</code> accepts categorical column headers, so the existing bin-range labels now render correctly with no data changes</li>
+<li>flip axes in the Fragment Size Distribution bargraph: <code>aggregate_fragment_sizes_mqc.py</code> previously pivoted with bin ranges as rows and real sample names as columns, so MultiQC treated the bins as “samples” (visible in the “N samples” caption and y-axis) and real samples as the legend, with bins additionally scrambled into alphabetical order; rows are now real samples (sorted), columns are bin ranges in fixed size order</li>
+</ul></li>
+<li><p>fix(s3-transfer): correct broken transfer rules for MultiQC outputs, add multiqc_extra_data</p>
+<ul>
+<li><code>multiqc_report.html</code>/<code>multiqc_data</code> transfer rules referenced <code>results/multiqc_report.html</code> and <code>results/multiqc_data/</code>, but the actual paths are <code>results/multiqc/multiqc_report.html</code> and <code>results/multiqc/multiqc_data/</code> (nested under <code>multiqc/</code>) — the report and its data directory were silently never uploaded to S3, verified via <code>match_rule()</code> against real output paths</li>
+<li>add a <code>results/multiqc_extra_data/custom</code> → <code>qc/custom/</code> dir rule so the custom QC TSVs feeding MultiQC also reach S3 (they had no matching rule at all)</li>
+<li><code>multiqc_extra_data/ataqv/*.json</code> already reaches S3 via the existing generic <code>.json</code> suffix rule, so no change needed there</li>
+</ul></li>
+<li><p>fix(multiqc): exclude <code>logs/</code> from the MultiQC search path (closes #34, for real this time)</p>
+<ul>
+<li>root cause, confirmed against the actual v1.25 container log: the <code>peak_size_mqc</code>, <code>alignment_stats_mqc</code>, <code>tn5_counts_mqc</code>, <code>genome_coverage_aggregate_mqc</code>, and <code>fragment_size_aggregate_mqc</code> rules use <code>script:</code>, so Snakemake creates their <code>results/logs/&lt;rule&gt;/&lt;rule&gt;.log</code> files but nothing ever writes to them — they stay 0 bytes</li>
+<li>those log paths sit under <code>RESULTSDIR</code> (MultiQC’s search dir) and their filenames coincidentally end in <code>_mqc.log</code>, matching MultiQC’s custom-content auto-detect pattern — MultiQC tries to sniff the column format of the empty file and crashes (<code>ValueError: max() iterable argument is empty</code> in <code>_guess_file_format()</code>), which is an unhandled exception inside <code>custom_module_classes()</code> that takes out the <em>entire</em> <code>custom_content</code> module for the run, discarding all 6 already-parsed custom sections, not just the file that triggered it</li>
+<li>reproduced locally (multiqc v1.25 and v1.27.1, pip-installed) with a zero-byte <code>logs/peak_size_mqc/peak_size_mqc.log</code> alongside the real custom TSVs — confirmed the exact same crash, and confirmed <code>--ignore logs</code> on the <code>multiqc</code> CLI call avoids it and restores all 6 sections in the rendered HTML</li>
+<li>add <code>--ignore logs</code> to the <code>multiqc</code> shell command in <code>multiqc.smk</code></li>
+<li>the <code>multiqc_extra_data/</code> relocation below was not the fix (MultiQC has no such “skip my own outdir” behavior — see the entry after this one) but is harmless and stays, since it’s a reasonable directory layout regardless</li>
+<li>correction to the note below: MultiQC v1.25 has no mechanism that skips scanning its own <code>--outdir</code>; verified against upstream source (<code>fn_ignore_dirs</code> only excludes exact-name matches like <code>multiqc_data</code>, <code>.git</code>, etc.) — the real cause of #34 was the <code>logs/</code> crash above, not directory nesting</li>
+</ul></li>
+<li><p>fix(multiqc): move custom QC data out of MultiQC output directory (closes #34)</p>
+<ul>
+<li>MultiQC skips scanning its own <code>--outdir</code>, so custom TSVs and ataqv JSONs nested under <code>{RESULTSDIR}/multiqc</code> were silently excluded from the final report</li>
+<li>relocate <code>MULTIQC_CUSTOM</code>/<code>MULTIQC_ATAQV</code> to a sibling <code>multiqc_extra_data/</code> directory outside the excluded output subtree</li>
+<li>add the missing <code>fragment_size_mqc.tsv</code> to the S3 transfer inputs in <code>s3_transfer.smk</code></li>
+</ul></li>
+<li><p>feat: implement status file lifecycle and workdir cleanup (implements #33)</p>
+<ul>
+<li>add <code>cleanup_workdir()</code> function to remove <code>tmp/</code> and stale <code>status.failed</code></li>
+<li>create <code>status.running</code> marker at pipeline start (skipped on dry-run)</li>
+<li>call cleanup on successful completion before marking <code>status.completed</code></li>
+<li>three-state system: running → (success/failure) → completed/failed, enabling programmatic monitoring and preventing stale state markers</li>
+</ul></li>
+<li><p>fix(count-matrices): add –gene-types gene to build_trna_bins and build_pol3_bins rules</p>
+<ul>
+<li>tRNA and Pol3 GTF files are standard GTF format with gene_id attributes, requiring grouped mode processing</li>
+<li>without –gene-types, script incorrectly ran in per-line mode (designed for RepeatMasker files)</li>
+<li>per-line mode prevented transcript consolidation and added unwanted repeat metadata columns</li>
+<li>fix ensures transcript variants are properly merged</li>
+<li>affected rules: build_trna_bins, build_pol3_bins (build_repeat_bins remains unchanged as correct for RepeatMasker)</li>
+</ul></li>
+<li><p>fix(build-tn5-midpoint-bins): add gene_id and gene_name columns to grouped mode output for count script compatibility</p>
+<ul>
+<li>grouped mode now outputs 9 columns: chrom, start, end, bin_id, gene_id, gene_name, gene_type, strand, reference_pos</li>
+<li>matches TSS script output format, fixing IndexError in count_tn5_sites_in_bins.py when accessing fields[7] and fields[8]</li>
+<li>per-line mode unaffected (still outputs 11 columns with repeat metadata)</li>
+</ul></li>
+<li><p>fix(build-tn5-midpoint-bins): remove trailing underscore in per-line mode bin_id when repeat_name is empty</p>
+<ul>
+<li>per-line mode bin*id format: <code>{feature_clean}*{chrom}_{start_1based}_{end*1based}*{repeat_name}</code></li>
+<li>previously produced trailing underscore (e.g., <code>SINE_Alu_chr1_100_200_</code>) when repeat_name was empty</li>
+<li>now produces clean ID without trailing underscore (e.g., <code>SINE_Alu_chr1_100_200</code>)</li>
+</ul></li>
+<li><p>fix(tn5-count): fix bin_id duplicates when genes overlap after hg38→hs1 liftover</p>
+<ul>
+<li>updated bin*id format to include both gene_id and gene_name: <code>{gene_id}*{gene_name}</code></li>
+<li>prevents duplicate identifiers when different genes end up at same genomic coordinates post-liftover</li>
+<li>resolves count_tn5_sites_in_bins.py row count mismatches (expected 514 bins, wrote 515 rows)</li>
+<li>affected scripts: build_tn5_tss_bins.py, build_tn5_midpoint_bins.py (grouped mode)</li>
+</ul></li>
+<li><p>fix(tn5-count): add –exclude-gene-types parameter to build_tn5_tss_bins.py</p>
+<ul>
+<li>previous implementation treated –gene-types as INCLUDE filter, causing inverted behavior</li>
+<li>added –exclude-gene-types parameter for proper exclusion of rRNA, tRNA, Mt_tRNA</li>
+<li>script now correctly outputs all genes EXCEPT excluded types</li>
+</ul></li>
+<li><p>fix(build-gene-bins): fix Snakemake shell syntax for conditional exclude arguments</p>
+<ul>
+<li>moved Python logic from shell template to params section using lambda function</li>
+<li>simplifies conditional handling for –exclude-gene-types flag in build_gene_bins rule</li>
+</ul></li>
+<li><p>feat(tn5-count): implement NH-weighted fractional counting for multi-mapping reads (closes #25)</p>
+<ul>
+<li>add <code>--fractional-counting</code> flag to count_tn5_sites_in_bins.py for NH-weighted read handling</li>
+<li>implement <code>get_nh_value()</code> helper to safely extract NH tag from BAM records (returns 1 if missing)</li>
+<li>calculate per-alignment weight as 1/NH when fractional counting enabled, else 1.0 for integer counting</li>
+<li>accumulate fractional weights into bin counts (Dict[str, float])</li>
+<li>round fractional sums to nearest integer before output for DESeq2 compatibility</li>
+<li>update all 4 bin counting rules to conditionally pass –fractional-counting based on config</li>
+<li>add <code>fractional_counting</code> config key under <code>tn5_motif</code> block (default true – NH-weighted counting is correct for multi-mapping reads and should be on unless a run specifically needs raw integer counts)</li>
+</ul></li>
+<li><p>fix(s3-transfer): add MultiQC outputs as explicit dependencies (closes #21)</p>
+<ul>
+<li>add multiqc_report.html and multiqc_data as inputs to s3_transfer_if_enabled rule</li>
+<li>ensures S3 transfer waits for MultiQC report completion before attempting output deposition</li>
+</ul></li>
+<li><p>feat(multiqc): implement interactive Fragment/Insert Size Distribution visualization (closes #27)</p>
+<ul>
+<li>add per-sample fragment size extraction from BAM files with 7 size range bins</li>
+<li>aggregate fragment size data across samples into interactive MultiQC linegraph</li>
+<li>new scripts: <code>extract_fragment_sizes.py</code>, <code>aggregate_fragment_sizes_mqc.py</code></li>
+<li>new rules: <code>extract_fragment_size_data</code>, <code>fragment_size_aggregate_mqc</code></li>
+<li>replaces static per-sample PNG images with interactive cross-sample visualization</li>
+</ul></li>
+<li><p>fix(multiqc): switch pandas-dependent rules from py311 to pysam container</p>
+<ul>
+<li>pysam container includes pandas, numpy, scipy as core dependencies</li>
+<li>fixes CalledProcessError in Singularity environment when running alignment_stats_mqc, peak_size_mqc, tn5_counts_mqc, genome_coverage_aggregate_mqc</li>
+<li>affected rules now execute successfully in HPC Singularity runtime</li>
+</ul></li>
+<li><p>fix(multiqc): mark genome coverage intermediates as temporary files</p>
+<ul>
+<li>per-sample coverage_q*.txt files (624M each) now marked as temp()</li>
+<li>automatically deleted after genome_coverage_aggregate_mqc completes</li>
+<li>saves ~2.5GB per sample after successful pipeline completion</li>
+</ul></li>
+<li><p>fix: add params to rerun-triggers for Tn5 config changes (closes #26)</p>
+<ul>
+<li>changes to Tn5 motif config parameters now trigger automatic rule re-execution</li>
+<li>supports exclude_supplementary, exclude_secondary, fractional_counting, mapq_min config changes</li>
+</ul></li>
+<li><p>feat(multiqc): ensure MultiQC report always generated as top-level output</p>
+<ul>
+<li>added multiqc_report.html and multiqc_data to rule all</li>
+<li>guarantees all MultiQC components generated regardless of S3 configuration</li>
+</ul></li>
+<li><p>feat(deseq2): add global feature filtering with configurable skip list for DESeq2 analysis</p>
+<ul>
+<li>add <code>min_total_count: 10</code> (was 1) to filter features with insufficient signal before DESeq2 analysis</li>
+<li>add <code>min_features_per_matrix: 50</code> threshold to require minimum number of features for reliable dispersion estimation</li>
+<li>add <code>skip_features: [tRNA]</code> configurable list to exclude specific feature types (host, virus, tRNA, ALU, transposable elements, etc.) from analysis</li>
+<li>tRNA analyses now skipped by default (insufficient ATAC-seq signal in condensed chromatin regions)</li>
+<li>implement detailed logging of feature filtering: total features before/after, count distributions, and filtered feature details</li>
+<li>distinguish between two skip types: user-configured skip vs.&nbsp;insufficient features after filtering</li>
+<li>modify <code>prepare_counts()</code> to return feature count for downstream minimum threshold checking</li>
+<li>add early skip check in <code>run_deseq2_matrix()</code> before matrix loading (skip_features list)</li>
+<li>create placeholder output files with skip reason explanations for skipped analyses</li>
+</ul></li>
+<li><p>feat(deseq2-report): display skipped analyses in HTML report with skip reason and type</p>
+<ul>
+<li>add <code>extract_skip_info()</code> function to detect and parse skip information from TSV file headers</li>
+<li>modify report script to detect and handle skipped analyses (empty result files) separately from successful analyses</li>
+<li>add <code>render_skipped_section()</code> function to display skipped analyses with clear formatting and icons</li>
+<li>use <code>⏭️</code> icon for user-configured skips and <code>⚠️</code> icon for insufficient feature skips</li>
+<li>include skip reason in report for transparency and documentation</li>
+</ul></li>
+<li><p>feat(s3): add S3 output deposition for pipeline results (closes #17)</p></li>
+<li><p>implement conditional S3 transfer of final outputs to AWS S3 bucket with configurable namespace hierarchy (<code>_HTS/CHROMA/sample_set/...</code>)</p></li>
+<li><p>add <code>s3_transfer_chroma2.py</code> script with 14 transfer rules covering config, QC reports, BAMs (GLACIER storage), BigWigs, peaks, Tn5 counts, and DESeq2 reports</p></li>
+<li><p>add <code>s3_transfer.smk</code> rule with guarded execution (requires both <code>push_to_s3: true</code> AND non-empty <code>s3_sample_set_name</code> in config)</p></li>
+<li><p>configure Rivanna resources (4 GB mem, 1 thread, 480 min runtime) in profile <code>set-resources</code></p></li>
+<li><p>add 8 S3 config keys to <code>config.yaml</code>: <code>push_to_s3</code>, <code>s3_pipeline_name</code>, <code>s3_sample_set_name</code>, <code>s3_aws_credentials_file</code>, <code>s3_bucket</code>, <code>s3_output_prefix</code>, <code>s3_default_storage_class</code>, <code>s3_large_file_storage_class</code></p></li>
+<li><p>apply consistent S3 integration to HAROLD pipeline with matching namespace hierarchy and resource settings</p></li>
+<li><p>fix(tn5-motif): fix <code>extract_tn5_motifs</code> output declarations to match <code>--skip-flank-output</code> behavior</p></li>
+<li><p>removed undeclared <code>flank_bed</code> and <code>fasta</code> outputs from rules when <code>TN5_GENERATE_LOGO=false</code> to prevent job failures</p></li>
+<li><p>feat(init): auto-copy <code>contrasts.tsv</code> to workflow output directory during initialization</p></li>
+<li><p><code>chroma2 init</code> now copies <code>config/contrasts.tsv</code> to the output workdir (matching <code>samples.tsv</code> behavior) for self-contained workflow runs</p></li>
+<li><p>feat(deseq2): add volcano plot generation for DESeq2 contrast reporting</p></li>
+<li><p>generate caller-agnostic volcano plots for host gene bins, viral bins, and tRNA gene bins in DESeq2 output</p></li>
+<li><p>add <code>save_enhanced_volcano_png()</code> function to <code>run_deseq2_contrast_report.R</code> with LFC and significance thresholds</p></li>
+<li><p>extend deseq2 rule outputs to include <code>.volcano.png</code> files for all three bin types</p></li>
+<li><p>feat(tn5-count): add input/output validation to count matrix builder</p></li>
+<li><p>validate input Tn5 count TSVs exist, are regular files, and are non-empty before matrix construction</p></li>
+<li><p>validate output matrix TSV exists, is non-empty, and has expected row/line counts after build</p></li>
+<li><p>feat(tn5-count): add progress logging with timestamps to Tn5 site counting</p></li>
+<li><p>add configurable <code>--progress-every</code> argument (default 1M BAM records) to report batch counting progress</p></li>
+<li><p>add timestamped logging of bin loading, sample metrics, and final output summary</p></li>
+<li><p>fix(tn5-motif): add <code>generate_logo</code> config toggle to optionally disable Tn5 logo generation (closes #18)</p></li>
+<li><p>add <code>generate_logo: false</code> config key under <code>tn5_motif</code> block; logos now only generated when explicitly enabled (default false to reduce output size)</p></li>
+<li><p>feat(compression): compress PFM outputs to .pfm.tsv.gz reducing file sizes by 60-70% (closes #20)</p></li>
+<li><p>updated <code>extract_tn5_motifs.py</code> to gzip-compress PFM files at write time</p></li>
+<li><p>updated <code>_tn5_pfm()</code> helper in <code>tn5motif.smk</code> to declare outputs as <code>.pfm.tsv.gz</code></p></li>
+<li><p>feat(compression): compress peak call outputs reducing file sizes by 40-50% (closes #19)</p></li>
+<li><p>MACS2 and Genrich peak outputs (.narrowPeak, .summits.bed) now compressed with gzip</p></li>
+<li><p>MACS2/Genrich .xls files marked as temp() (not retained in final output)</p></li>
+<li><p>updated 4 bigbed conversion rules to decompress peak inputs via zcat pipe before processing</p></li>
+<li><p>updated ataqv rule to accept compressed peak input via bash process substitution &lt;(zcat {input.peaks})</p></li>
+<li><p>feat(deseq2): add DESeq2 contrast reporting module</p></li>
+<li><p>add <code>deseq2_contrast_report</code> rule driven by a user-supplied contrasts TSV; generates per-comparison HTML reports and differential accessibility TSVs for host gene bins and per-virus bins</p></li>
+<li><p>add full config schema (<code>deseq2</code> block) with validated parameters and init-time contrast validation</p></li>
+<li><p>add <code>deseq2_report</code> container and Rivanna resource settings</p></li>
+<li><p>feat(trna): refactor tRNA analysis into a dedicated count matrix pipeline (closes #11)</p></li>
+<li><p>separate tRNA genes from protein-coding genes into their own bin reference (<code>ref.tn5.host_trna_gene_bins.{flank}bp.bed</code>) using gene body center ± configurable flank (default 100 bp) instead of TSS</p></li>
+<li><p>add per-sample tRNA count rules for genrich and macs2 callers and aggregate tRNA count matrices</p></li>
+<li><p>remove tRNA genes from the protein-coding host gene bin pipeline (no regression)</p></li>
+<li><p>add <code>trna_gene_flank_size</code> config key (default 100 bp) under <code>tn5_motif</code></p></li>
+<li><p>GTF filtering for tRNA gene_type is case-insensitive (tRNA/trna/TRNA all match)</p></li>
+<li><p>add Rivanna SLURM resource settings for all 5 new tRNA rules</p></li>
+<li><p>chore(ci): remove <code>style-files</code> pre-commit hook (Rscript unavailable in this environment)</p></li>
+<li><p>feat(bigbed): add UCSC BigBed outputs for browser-facing BED tracks</p></li>
+<li><p>convert host/virus TSS BEDs, MACS2 summit BEDs, and MACS2/Genrich narrowPeak outputs to <code>.bb</code></p></li>
+<li><p>add <code>bedToBigBed</code> container support and Rivanna resource settings for the new conversion rules</p></li>
+<li><p>feat(tn5-motif): add Tn5 motif extraction outputs to the workflow</p></li>
+<li><p>generate caller-specific host and viral Tn5 BED/FASTA/PFM/logo outputs from the Genrich and MACS2 input BAMs</p></li>
+<li><p>add viral 100 bp bin counts, host TSS-centered gene bins, per-sample Tn5 count TSVs, and aggregate count matrices across samples</p></li>
+<li><p>add Tn5 motif config defaults, helper scripts, <code>pysam</code>/<code>py311</code> container support, and Rivanna resources for motif extraction and counting jobs</p></li>
+</ul>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dremellab\.github\.io\/chroma2\/2\.0\.0\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
