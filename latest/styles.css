@@ -1,0 +1,24 @@
+/* Scrollable table styling */
+.scrollable-table {
+  overflow-x: auto;
+  display: block;
+  max-width: 100%;
+}
+
+.scrollable-table table {
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.scrollable-table table th,
+.scrollable-table table td {
+  white-space: nowrap;
+  padding: 0.5rem;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.scrollable-table table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
