@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>inputs – CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-b85bc7c33db8c58e0ec93c3465666fed.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../docs/index.html" aria-current="page"> 
+<span class="menu-text">Docs</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-version-dev" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Version: dev</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-version-dev">    
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/dev/docs/index.html">
+ <span class="dropdown-text">dev (current)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://dremellab.github.io/chroma2/2.0.0/docs/index.html">
+ <span class="dropdown-text">2.0.0</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dremellab/chroma2"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../docs/pipeline.html">Pipeline</a></li><li class="breadcrumb-item"><a href="../docs/inputs.html">📥 CHROMA2 Input Requirements</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Getting Started</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧬 CHROMA2 — ATAC-seq Host/Virus Co-analysis Pipeline</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/prereq.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">⚙️ Prerequisites for Running CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/usage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🧭 Using CHROMA2 on Rivanna</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Pipeline</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/pipeline.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">🔄 CHROMA2 Pipeline Architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/inputs.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">📥 CHROMA2 Input Requirements</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">📊 CHROMA2 Output Files</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Cloud &amp; Storage</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/s3_configuration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">☁️ S3 Output Deposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Help</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../docs/help.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">❓ Help and Support</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#chroma2-input-requirements" id="toc-chroma2-input-requirements" class="nav-link active" data-scroll-target="#chroma2-input-requirements">📥 CHROMA2 Input Requirements</a>
+  <ul class="collapse">
+  <li><a href="#sample-manifest" id="toc-sample-manifest" class="nav-link" data-scroll-target="#sample-manifest">1. Sample Manifest (Required for Initialization)</a>
+  <ul class="collapse">
+  <li><a href="#example-sample-manifest" id="toc-example-sample-manifest" class="nav-link" data-scroll-target="#example-sample-manifest">Example Sample Manifest</a></li>
+  <li><a href="#supported-library-types" id="toc-supported-library-types" class="nav-link" data-scroll-target="#supported-library-types">Supported Library Types</a></li>
+  <li><a href="#validation-rules" id="toc-validation-rules" class="nav-link" data-scroll-target="#validation-rules">Validation Rules</a></li>
+  <li><a href="#input-pooling-mechanism" id="toc-input-pooling-mechanism" class="nav-link" data-scroll-target="#input-pooling-mechanism">Input-Pooling Mechanism</a></li>
+  </ul></li>
+  <li><a href="#working-directory" id="toc-working-directory" class="nav-link" data-scroll-target="#working-directory">2. Working Directory (<code>--workdir</code>)</a></li>
+  <li><a href="#reference-configuration" id="toc-reference-configuration" class="nav-link" data-scroll-target="#reference-configuration">3. Reference Configuration (Host, Additives, and Viruses)</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#reference-data-paths" id="toc-reference-data-paths" class="nav-link" data-scroll-target="#reference-data-paths">Reference Data Paths</a></li>
+  <li><a href="#per-host-annotation-gtfs" id="toc-per-host-annotation-gtfs" class="nav-link" data-scroll-target="#per-host-annotation-gtfs">Per-Host Annotation GTFs</a></li>
+  <li><a href="#validation-rules-1" id="toc-validation-rules-1" class="nav-link" data-scroll-target="#validation-rules-1">Validation Rules</a></li>
+  </ul></li>
+  <li><a href="#contrasts-manifest" id="toc-contrasts-manifest" class="nav-link" data-scroll-target="#contrasts-manifest">4. Contrasts Manifest (Optional, for DESeq2)</a></li>
+  <li><a href="#config.yaml-reference" id="toc-config.yaml-reference" class="nav-link" data-scroll-target="#config.yaml-reference">5. <code>config.yaml</code> Reference</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a>
+  <ul class="collapse">
+  <li><a href="#required-inputs" id="toc-required-inputs" class="nav-link" data-scroll-target="#required-inputs">Required Inputs</a></li>
+  <li><a href="#optional-but-recommended-inputs" id="toc-optional-but-recommended-inputs" class="nav-link" data-scroll-target="#optional-but-recommended-inputs">Optional but Recommended Inputs</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../docs/pipeline.html">Pipeline</a></li><li class="breadcrumb-item"><a href="../docs/inputs.html">📥 CHROMA2 Input Requirements</a></li></ol></nav></header>
+
+
+
+
+
+<section id="chroma2-input-requirements" class="level1">
+<h1>📥 CHROMA2 Input Requirements</h1>
+<section id="sample-manifest" class="level2">
+<h2 class="anchored" data-anchor-id="sample-manifest">1. Sample Manifest (Required for Initialization)</h2>
+<p><code>samples.tsv</code> is a tab-delimited file, copied into the working directory at <code>init</code> time via <code>-s/--manifest</code> (or taken from the pipeline’s checked-in <code>config/samples.tsv</code> template if omitted).</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 22%">
+<col style="width: 67%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sampleName</code></td>
+<td><strong>Required</strong>, unique</td>
+<td>Sample identifier, used throughout output file/directory naming</td>
+</tr>
+<tr class="even">
+<td><code>groupName</code></td>
+<td><strong>Required</strong>, non-empty</td>
+<td>Biological group/condition — used for DESeq2 contrasts (<code>contrasts.tsv</code>) and count-matrix grouping</td>
+</tr>
+<tr class="odd">
+<td><code>batch</code></td>
+<td>Optional</td>
+<td>Batch label; blank values are normalized to <code>batch1</code></td>
+</tr>
+<tr class="even">
+<td><code>path_to_R1_fastq</code></td>
+<td><strong>Required</strong>, must exist/be readable</td>
+<td>Absolute path to R1 FASTQ (<code>.fastq.gz</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>path_to_R2_fastq</code></td>
+<td>Optional</td>
+<td>Absolute path to R2 FASTQ; leave blank for single-end samples — presence/absence determines PE vs.&nbsp;SE per sample</td>
+</tr>
+<tr class="even">
+<td><code>role</code></td>
+<td><strong>Required</strong>, one of <code>case</code>, <code>control</code></td>
+<td>Whether this sample is an experimental case or an input/IgG-style control used as a peak-calling background</td>
+</tr>
+<tr class="odd">
+<td><code>target</code></td>
+<td><strong>Required</strong>, one of <code>host</code>, <code>virus</code>, <code>both</code></td>
+<td>For control samples, which alignment space (host and/or virus) this control applies to</td>
+</tr>
+<tr class="even">
+<td><code>host_input_pool</code></td>
+<td>Optional</td>
+<td>Pool name grouping this control sample’s <strong>host</strong> reads with other controls into a shared input BAM, used as <code>-c</code> for MACS2/Genrich</td>
+</tr>
+<tr class="odd">
+<td><code>virus_input_pool</code></td>
+<td>Optional</td>
+<td>Same, for <strong>virus</strong>-space pooling</td>
+</tr>
+</tbody>
+</table>
+<section id="example-sample-manifest" class="level3">
+<h3 class="anchored" data-anchor-id="example-sample-manifest">Example Sample Manifest</h3>
+<pre class="text"><code>sampleName  groupName   batch   path_to_R1_fastq    path_to_R2_fastq    role    target  host_input_pool virus_input_pool
+KOS_1h_rep1 KOS_1h      /data/KOS_1h_rep1_R1.fastq.gz   /data/KOS_1h_rep1_R2.fastq.gz   case    both
+KOS_1h_rep2 KOS_1h      /data/KOS_1h_rep2_R1.fastq.gz   /data/KOS_1h_rep2_R2.fastq.gz   case    both
+KOS_4h_rep1 KOS_4h      /data/KOS_4h_rep1_R1.fastq.gz   /data/KOS_4h_rep1_R2.fastq.gz   case    both
+Input_ctrl_rep1 Input   batch1  /data/Input_ctrl_rep1_R1.fastq.gz   /data/Input_ctrl_rep1_R2.fastq.gz   control virus       VPOOL_ALL
+Input_ctrl_rep2 Input   batch1  /data/Input_ctrl_rep2_R1.fastq.gz   /data/Input_ctrl_rep2_R2.fastq.gz   control virus       VPOOL_ALL</code></pre>
+</section>
+<section id="supported-library-types" class="level3">
+<h3 class="anchored" data-anchor-id="supported-library-types">Supported Library Types</h3>
+<p>Both paired-end and single-end libraries are supported, determined per sample by whether <code>path_to_R2_fastq</code> is populated — there is no separate config flag.</p>
+</section>
+<section id="validation-rules" class="level3">
+<h3 class="anchored" data-anchor-id="validation-rules">Validation Rules</h3>
+<p>Applied when Snakemake first parses the manifest (during <code>dryrun</code>/<code>run</code>/<code>runlocal</code>, not at <code>init</code>):</p>
+<ul>
+<li><code>sampleName</code> values must be unique across the manifest.</li>
+<li><code>groupName</code> must be non-empty for every sample.</li>
+<li><code>path_to_R1_fastq</code> must point to an existing, readable file for every sample.</li>
+<li><code>role</code> must be exactly <code>case</code> or <code>control</code>.</li>
+<li><code>target</code> must be exactly <code>host</code>, <code>virus</code>, or <code>both</code>.</li>
+<li>Any missing required column raises an error before any rules run.</li>
+</ul>
+</section>
+<section id="input-pooling-mechanism" class="level3">
+<h3 class="anchored" data-anchor-id="input-pooling-mechanism">Input-Pooling Mechanism</h3>
+<p>Control samples (<code>role: control</code>) are not aligned/filtered any differently from case samples — the pooling happens downstream, when their host and/or virus alignments are merged by pool name:</p>
+<ol type="1">
+<li>All <code>control</code> samples sharing the same <code>host_input_pool</code> value have their host-space BAMs (<code>aligned.host.qname.bam</code> for Genrich, <code>postprocess/*.host.bam</code> for MACS2) merged into one pooled control BAM per pool.</li>
+<li>The same happens per virus for <code>virus_input_pool</code>.</li>
+<li>A <code>case</code> sample’s peak-calling rule looks up the pool assigned to whichever control samples are configured, and passes that pooled BAM as <code>-c</code> — but <strong>only if</strong> <code>peakcalling.use_host_input</code>/<code>use_virus_input</code> is <code>true</code> in <code>config.yaml</code> (see <a href="#reference-configuration">§3</a> below; defaults are host input <strong>off</strong>, virus input <strong>on</strong>).</li>
+<li>If no pool resolves for a given case sample/organism, peak calling proceeds without a control (<code>-c</code> omitted).</li>
+</ol>
+</section>
+</section>
+<section id="working-directory" class="level2">
+<h2 class="anchored" data-anchor-id="working-directory">2. Working Directory (<code>--workdir</code>)</h2>
+<p>Set via <code>-w/--workdir</code> on every <code>chroma2</code> invocation. Must not already exist at <code>init</code> time; all other runmodes require it to already exist with a valid <code>config.yaml</code> inside.</p>
+</section>
+<section id="reference-configuration" class="level2">
+<h2 class="anchored" data-anchor-id="reference-configuration">3. Reference Configuration (Host, Additives, and Viruses)</h2>
+<section id="parameters" class="level3">
+<h3 class="anchored" data-anchor-id="parameters">Parameters</h3>
+<ul>
+<li><code>--host|-g</code> — a single host genome name. Must have an entry in <code>reference_gtf</code> (currently <code>mm39</code>, <code>hg38</code>, <code>hg38_basic</code>, <code>hs1</code>). Default: <code>hg38_basic</code>.</li>
+<li><code>--additives|-a</code> — comma-separated list of additive reference contigs (e.g.&nbsp;<code>ERCC</code>, <code>BAC16Insert</code>). Default: none.</li>
+<li><code>--viruses|-v</code> — comma-separated list of viral genome accessions to co-align against. Default: <code>KT899744.1</code>.</li>
+</ul>
+<p>At least one of host or viruses must be non-empty, or the pipeline exits with an error.</p>
+</section>
+<section id="reference-data-paths" class="level3">
+<h3 class="anchored" data-anchor-id="reference-data-paths">Reference Data Paths</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Default Location</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Host/additive/virus FASTA + GTFs</td>
+<td><code>fastas_gtfs_dir</code> in <code>config.yaml</code>, default <code>/project/dremel_lab/workflows/reference_data/fasta_gtf/</code></td>
+</tr>
+<tr class="even">
+<td>Kraken2 database</td>
+<td><code>kraken2_db</code> in <code>config.yaml</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="per-host-annotation-gtfs" class="level3">
+<h3 class="anchored" data-anchor-id="per-host-annotation-gtfs">Per-Host Annotation GTFs</h3>
+<p>CHROMA2 resolves several optional/required annotation GTFs per selected host genome from <code>config.yaml</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">reference_gtf</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">mm39</span><span class="kw">:</span><span class="at"> </span><span class="st">"mm39.no_tRNA.gtf"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">hg38</span><span class="kw">:</span><span class="at"> </span><span class="st">"hg38-rDNA_v1.0_enriched.canonical_chromosomes_plus_chrR.gtf"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">hg38_basic</span><span class="kw">:</span><span class="at"> </span><span class="st">"hg38_basic.canonical_chromosomes.gtf"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">hs1</span><span class="kw">:</span><span class="at"> </span><span class="st">"hs1-rDNA_v1.0_enriched.canonical_plus_chrR.gtf"</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">trnas_gtf</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">mm39</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hg38</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hg38_basic</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hs1</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">chrr_gtf</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">mm39</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hg38</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hg38_basic</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="kw">,</span><span class="at"> </span><span class="fu">hs1</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">pol3_gtf</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">Pol3_T1</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span><span class="at"> </span><span class="fu">Pol3_T2</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span><span class="at"> </span><span class="fu">Pol3_T3</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">}</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">repeat_elements_gtf</span><span class="kw">:</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">{</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">SINE_Alu</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">SINE_MIR</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LINE_L1</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LINE_L2</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LTR</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">other_repeat_elements</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> ... </span><span class="kw">},</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><strong><code>reference_gtf</code></strong> — main annotation, required for every selected host; used for the composite <code>ref.gtf</code>, TSS beds, and the gene count matrix.</li>
+<li><strong><code>trnas_gtf</code></strong> — tRNA gene annotations; used for the tRNA count matrix. If unresolved for the selected host, the tRNA matrix is silently unavailable.</li>
+<li><strong><code>chrr_gtf</code></strong> — rRNA (“chrR”) gene annotations; used for the rRNA count matrix.</li>
+<li><strong><code>pol3_gtf</code></strong> — three separate Pol III gene-class GTFs (T1/T2/T3); each unresolved class is dropped from the available Pol III matrices.</li>
+<li><strong><code>repeat_elements_gtf</code></strong> — six separate repeat-class GTFs (RepeatMasker-derived); each unresolved class is dropped from the available repeat-element matrices.</li>
+</ul>
+</section>
+<section id="validation-rules-1" class="level3">
+<h3 class="anchored" data-anchor-id="validation-rules-1">Validation Rules</h3>
+<p>Before any pipeline rules run, CHROMA2 prints a validation report confirming every GTF required for the selected host/viruses exists and is readable, and exits non-zero (with the specific missing paths listed) if any is not.</p>
+</section>
+</section>
+<section id="contrasts-manifest" class="level2">
+<h2 class="anchored" data-anchor-id="contrasts-manifest">4. Contrasts Manifest (Optional, for DESeq2)</h2>
+<p><code>contrasts.tsv</code> is a 2-column tab-delimited file, auto-copied into the workdir at <code>init</code> from the pipeline’s <code>config/contrasts.tsv</code>. Only consumed if <code>deseq2.enabled: true</code>.</p>
+<pre class="text"><code>group1  group2
+KOS_1h  KOS_4h
+KOS_1h  KOS_8h
+KOS_4h  KOS_8h</code></pre>
+<ul>
+<li>Header must be exactly <code>group1</code> / <code>group2</code>.</li>
+<li>Each row references two <code>groupName</code> values from <code>samples.tsv</code>; both must exist and must differ from each other.</li>
+<li>Each group referenced in a contrast must have at least <code>deseq2.min_replicates_per_group</code> samples (default <code>2</code>).</li>
+<li>Each row generates a comparison slug <code>{group1}_vs_{group2}</code>; duplicate slugs are rejected.</li>
+</ul>
+</section>
+<section id="config.yaml-reference" class="level2">
+<h2 class="anchored" data-anchor-id="config.yaml-reference">5. <code>config.yaml</code> Reference</h2>
+<p>Rendered from <code>config/config.yaml</code> at <code>init</code>/<code>reconfig</code> time — <code>WORKDIR</code>, <code>HOST</code>, <code>ADDITIVES</code>, <code>VIRUSES</code>, <code>TEMP_DIR</code>, <code>REFS_DIR</code>, <code>KRAKEN2_DB</code> placeholders are substituted automatically; everything else is a plain default you can hand-edit after <code>init</code>.</p>
+<div class="scrollable-table">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Section</th>
+<th>Key(s)</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>top-level</td>
+<td><code>workdir</code>, <code>tempdir</code>, <code>samples</code>, <code>host</code>, <code>additives</code>, <code>viruses</code>, <code>scriptsdir</code>, <code>resourcesdir</code>, <code>fastas_gtfs_dir</code></td>
+<td>templated</td>
+<td>Core paths and reference-genome selection</td>
+</tr>
+<tr class="even">
+<td>top-level</td>
+<td><code>kraken2_db</code></td>
+<td>templated</td>
+<td>Kraken2 database path (present in config; not consumed by any current rule)</td>
+</tr>
+<tr class="odd">
+<td><code>count_matrices.gene_counts</code></td>
+<td><code>enabled</code>, <code>flank_size</code>, <code>exclude_features</code></td>
+<td><code>true</code>, <code>250</code>, <code>[rRNA, tRNA, Mt_tRNA]</code></td>
+<td>Gene-TSS Tn5 count matrix — bin width and excluded biotypes</td>
+</tr>
+<tr class="even">
+<td><code>count_matrices.trna_counts</code></td>
+<td><code>enabled</code>, <code>flank_size</code>, <code>max_size</code></td>
+<td><code>true</code>, <code>100</code>, <code>1000</code></td>
+<td>tRNA gene-midpoint count matrix</td>
+</tr>
+<tr class="odd">
+<td><code>count_matrices.pol3_counts</code></td>
+<td><code>enabled</code>, <code>flank_size</code>, <code>max_size</code></td>
+<td><code>true</code>, <code>-1</code> (full feature span), <code>1000</code></td>
+<td>Pol III count matrices (3 gene classes)</td>
+</tr>
+<tr class="even">
+<td><code>count_matrices.repeat_element_counts</code></td>
+<td><code>enabled</code>, <code>flank_size</code>, <code>max_size</code></td>
+<td><code>true</code>, <code>-1</code>, <code>1000</code></td>
+<td>Repeat-element count matrices (6 classes)</td>
+</tr>
+<tr class="odd">
+<td><code>count_matrices.viral_genome_counts</code></td>
+<td><code>enabled</code>, <code>bin_size</code></td>
+<td><code>true</code>, <code>200</code></td>
+<td>Fixed-width viral genome bin matrix</td>
+</tr>
+<tr class="even">
+<td><code>count_matrices.rrna_counts</code></td>
+<td><code>enabled</code>, <code>flank_size</code></td>
+<td><code>true</code>, <code>250</code></td>
+<td>rRNA-TSS count matrix</td>
+</tr>
+<tr class="odd">
+<td><code>fastp</code></td>
+<td><code>length_required</code>, <code>qualified_quality_phred</code></td>
+<td><code>15</code>, <code>15</code></td>
+<td>Read trimming thresholds</td>
+</tr>
+<tr class="even">
+<td><code>bowtie2_align</code></td>
+<td><code>preset</code>, <code>k</code>, <code>max_insert</code>, <code>no_mixed</code>, <code>no_discordant</code>, <code>extra_args</code></td>
+<td><code>--very-sensitive</code>, <code>20</code>, <code>2000</code>, <code>true</code>, <code>true</code>, <code>""</code></td>
+<td>Alignment parameters</td>
+</tr>
+<tr class="odd">
+<td><code>bowtie2_align.filter</code></td>
+<td><code>include_flag</code>, <code>exclude_flag</code>, <code>mapq</code>, <code>exclude_rnames</code>, <code>markdup_enable</code>, <code>markdup_remove</code></td>
+<td><code>2</code>, <code>0x904</code>, <code>30</code>, <code>[chrM, MT]</code>, <code>true</code>, <code>true</code></td>
+<td>Post-alignment BAM filtering</td>
+</tr>
+<tr class="even">
+<td><code>macs2</code></td>
+<td><code>qvalue</code>, <code>shift</code>, <code>extsize</code>, <code>keep_dup</code>, <code>extra_args</code></td>
+<td><code>0.01</code>, <code>-100</code>, <code>200</code>, <code>all</code>, <code>""</code></td>
+<td>MACS2 ATAC-seq peak-calling parameters</td>
+</tr>
+<tr class="odd">
+<td><code>peakcalling</code></td>
+<td><code>use_host_input</code>, <code>use_virus_input</code></td>
+<td><code>false</code>, <code>true</code></td>
+<td>Whether pooled input-control BAMs are passed to peak callers</td>
+</tr>
+<tr class="even">
+<td><code>genrich</code></td>
+<td><code>qvalue</code>, <code>remove_dups</code>, <code>junctions</code>, <code>exclude_chr</code>, <code>virus_exclude_chr</code>, <code>blacklist</code>, <code>virus_blacklist</code>, <code>host_fraglen</code>, <code>virus_fraglen</code>, <code>host_mval</code>, <code>virus_mval</code>, <code>minlen</code>, <code>maxlen</code>, <code>extra_args</code></td>
+<td><code>0.05</code>, <code>true</code>, <code>true</code>, <code>chrM,MT</code>, <code>""</code>, <code>""</code>, <code>""</code>, <code>200</code>, <code>100</code>, <code>30</code>, <code>5</code>, <code>150</code>, <code>1000</code>, <code>""</code></td>
+<td>Genrich peak-calling parameters, separately tunable for host vs.&nbsp;virus</td>
+</tr>
+<tr class="odd">
+<td><code>postprocessing</code></td>
+<td><code>host_bin_size</code>, <code>virus_bin_size</code>, <code>host_bw_extra_args</code>, <code>virus_bw_extra_args</code></td>
+<td><code>50</code>, <code>1</code>, <code>""</code>, <code>""</code></td>
+<td>bigWig generation bin sizes</td>
+</tr>
+<tr class="even">
+<td><code>tn5_motif</code></td>
+<td><code>flank_size</code>, <code>virus_bin_size</code>, <code>host_gene_flank_size</code>, <code>trna_gene_flank_size</code>, <code>trna_gene_max_size</code>, <code>mapq_min</code>, <code>dedup</code>, <code>exclude_secondary</code>, <code>exclude_supplementary</code>, <code>fractional_counting</code>, <code>logo_format</code>, <code>generate_logo</code></td>
+<td><code>10</code>, <code>100</code>, <code>250</code>, <code>100</code>, <code>1000</code>, <code>0</code>, <code>false</code>, <code>false</code>, <code>true</code>, <code>true</code>, <code>png</code>, <code>false</code></td>
+<td>Tn5 cut-site extraction / motif-logo config; also read by count-matrix rules for shared filters</td>
+</tr>
+<tr class="odd">
+<td><code>ataqv</code></td>
+<td><code>extra_args</code>, <code>virus_tss_extension</code></td>
+<td><code>""</code>, <code>200</code></td>
+<td>ataqv QC parameters</td>
+</tr>
+<tr class="even">
+<td><code>deseq2</code></td>
+<td><code>enabled</code>, <code>contrasts_tsv</code>, <code>outdir</code>, <code>alpha</code>, <code>lfc_threshold</code>, <code>min_replicates_per_group</code>, <code>min_total_count</code>, <code>min_features_per_matrix</code>, <code>size_factor_type</code>, <code>fit_type</code>, <code>shrink_type</code>, <code>p_adjust_method</code>, <code>cooks_cutoff</code>, <code>independent_filtering</code>, <code>vst_blind</code>, <code>report_top_n</code>, <code>report_label_top_n</code>, <code>report_max_table_rows</code>, <code>html_self_contained</code>, <code>design_factors</code>, <code>skip_features</code></td>
+<td><code>false</code>, <code>""</code>, <code>results/deseq2</code>, <code>0.05</code>, <code>1.0</code>, <code>2</code>, <code>10</code>, <code>50</code>, <code>poscounts</code>, <code>parametric</code>, <code>apeglm</code>, <code>BH</code>, <code>true</code>, <code>true</code>, <code>true</code>, <code>50</code>, <code>15</code>, <code>50000</code>, <code>true</code>, <code>[group]</code>, <code>[tRNA]</code></td>
+<td>Full DESeq2 differential-accessibility configuration (<code>design_factors</code> is currently locked to <code>["group"]</code> — additional covariates are not yet implemented)</td>
+</tr>
+<tr class="odd">
+<td><code>containers</code></td>
+<td>one Docker URI per tool</td>
+<td><code>seqinfomics/*</code> / <code>staphb/*</code> images</td>
+<td>Container images for every rule (fastp, fastqc, multiqc, featurecounts, bowtie2, bedToBigBed, py311, pysam, macs2, genrich, deeptools, ataqv, deseq2_report, aws)</td>
+</tr>
+<tr class="even">
+<td>S3 (top-level)</td>
+<td><code>push_to_s3</code>, <code>s3_pipeline_name</code>, <code>s3_sample_set_name</code>, <code>s3_aws_credentials_file</code>, <code>s3_bucket</code>, <code>s3_output_prefix</code>, <code>s3_default_storage_class</code>, <code>s3_large_file_storage_class</code></td>
+<td><code>false</code>, <code>CHROMA</code>, <code>""</code>, …, <code>dremel-lab-bucket</code>, <code>_HTS</code>, <code>GLACIER_IR</code>, <code>GLACIER</code></td>
+<td>S3 archival toggle and destination settings — see <a href="../docs/s3_configuration.html">S3 Configuration</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<section id="required-inputs" class="level3">
+<h3 class="anchored" data-anchor-id="required-inputs">Required Inputs</h3>
+<ol type="1">
+<li>A <code>samples.tsv</code> manifest with valid <code>sampleName</code>/<code>groupName</code>/<code>role</code>/<code>target</code> values and readable FASTQ paths.</li>
+<li>A host genome and/or one or more viruses selected via <code>-g</code>/<code>-v</code> at <code>init</code>.</li>
+</ol>
+</section>
+<section id="optional-but-recommended-inputs" class="level3">
+<h3 class="anchored" data-anchor-id="optional-but-recommended-inputs">Optional but Recommended Inputs</h3>
+<ol type="1">
+<li><code>contrasts.tsv</code> + <code>deseq2.enabled: true</code> for automated differential-accessibility reporting — see <a href="../docs/outputs.html#deseq2-reports">Outputs — DESeq2 Reports</a>.</li>
+<li><code>host_input_pool</code>/<code>virus_input_pool</code> assignments on control samples for background-corrected peak calling.</li>
+<li>S3 configuration if you want final outputs archived automatically — see <a href="../docs/s3_configuration.html">S3 Configuration</a>.</li>
+</ol>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dremellab\.github\.io\/chroma2\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
