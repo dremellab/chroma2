@@ -51,8 +51,8 @@ as_bool <- function(value, name) {
 RESERVED_RESULT_COLUMNS <- c(
   "comparison", "group1", "group2",
   "baseMean", "log2FoldChange_raw", "log2FoldChange_shrunk", "shrinkage_applied",
-  "lfcSE", "stat", "pvalue", "padj", "mean_group1", "mean_group2",
-  "padj_recalc", "significant", "direction", "neg_log10_padj", "feature_label"
+  "lfcSE", "stat", "pvalue", "padj", "adjusted_pvalue", "mean_group1", "mean_group2",
+  "significant", "direction", "neg_log10_padj", "feature_label"
 )
 
 split_delimited <- function(value, delimiter = ";;;") {
@@ -144,17 +144,17 @@ safe_feature_labels <- function(df, preferred_column) {
 
 save_enhanced_volcano_png <- function(result_tbl, feature_labels, png_path, comparison,
                                       group1, group2, alpha, lfc_threshold, label_top_n) {
-  padj_safe <- ifelse(is.na(result_tbl$padj), 1, result_tbl$padj)
+  padj_safe <- ifelse(is.na(result_tbl$adjusted_pvalue), 1, result_tbl$adjusted_pvalue)
 
-  sig_mask <- !is.na(result_tbl$padj) &
-    result_tbl$padj < alpha &
+  sig_mask <- !is.na(result_tbl$adjusted_pvalue) &
+    result_tbl$adjusted_pvalue < alpha &
     !is.na(result_tbl$log2FoldChange_shrunk) &
     abs(result_tbl$log2FoldChange_shrunk) >= lfc_threshold
 
   select_lab <- rep("", nrow(result_tbl))
   if (sum(sig_mask) > 0) {
     sig_idx <- which(sig_mask)
-    ord <- order(result_tbl$padj[sig_idx], -abs(result_tbl$log2FoldChange_shrunk[sig_idx]))
+    ord <- order(result_tbl$adjusted_pvalue[sig_idx], -abs(result_tbl$log2FoldChange_shrunk[sig_idx]))
     top_idx <- sig_idx[ord][seq_len(min(label_top_n, length(sig_idx)))]
     select_lab[top_idx] <- feature_labels[top_idx]
   }
@@ -562,6 +562,12 @@ run_deseq2_matrix <- function(
       stat = res_raw$stat,
       pvalue = res_raw$pvalue,
       padj = res_raw$padj,
+      # DESeq2's padj can be NA (e.g. independent filtering or Cook's outlier
+      # removal) even when pvalue is present, silently dropping those features
+      # from any padj-based significance call. adjusted_pvalue is a BH
+      # correction recomputed directly from pvalue so significance can be
+      # determined without relying on padj's NAs.
+      adjusted_pvalue = p.adjust(res_raw$pvalue, method = "BH"),
       mean_group1 = rowMeans(normalized_counts[, group1_samples, drop = FALSE]),
       mean_group2 = rowMeans(normalized_counts[, group2_samples, drop = FALSE])
     ) %>%
@@ -577,8 +583,8 @@ run_deseq2_matrix <- function(
   feature_label_col <- pick_feature_label_column(result_tbl)
   feature_labels <- safe_feature_labels(result_tbl, feature_label_col)
 
-  significant_mask <- !is.na(result_tbl$padj) &
-    result_tbl$padj < cfg$alpha &
+  significant_mask <- !is.na(result_tbl$adjusted_pvalue) &
+    result_tbl$adjusted_pvalue < cfg$alpha &
     !is.na(result_tbl$log2FoldChange_shrunk) &
     abs(result_tbl$log2FoldChange_shrunk) >= cfg$lfc_threshold
 

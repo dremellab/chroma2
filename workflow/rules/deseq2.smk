@@ -3,7 +3,21 @@
 # Supports flexible analysis of any enabled count matrix type (gene, tRNA, Pol3, etc)
 ###################################################################################
 
+import hashlib
+import json
 import shlex
+
+# Digest of just the deseq2: config block, used as a params (not input) rerun
+# trigger below -- deseq2_contrast_report used to declare the whole
+# config.yaml as an `input:`, so ANY edit to the file (e.g. flipping
+# push_to_s3 on) invalidated every DESeq2 report even though only an
+# unrelated section changed. config.yaml is still passed to the R script at
+# runtime (it re-reads it directly), just via a plain param path instead of a
+# tracked input, so only a genuine change to the deseq2: block itself
+# triggers a rerun.
+DESEQ2_CONFIG_DIGEST = hashlib.sha256(
+    json.dumps(config.get("deseq2", {}), sort_keys=True, default=str).encode()
+).hexdigest()
 
 # Count matrices configuration
 COUNT_MATRICES_CONFIG = config.get("count_matrices", {})
@@ -72,7 +86,6 @@ if DESEQ2_ENABLED:
 
     rule deseq2_contrast_report:
         input:
-            config_yaml=configfilepath,
             manifest=MANIFEST_FILE,
             contrasts=DESEQ2_CONTRASTS_FILE,
             script=join(SCRIPTS_DIR, "run_deseq2_contrast_report.R"),
@@ -82,6 +95,12 @@ if DESEQ2_ENABLED:
         output:
             report=join(DESEQ2_OUTDIR, "{comparison}", "{comparison}.deseq2_report.html"),
         params:
+            config_yaml=shlex.quote(configfilepath),
+            # Not tracked as a Snakemake input -- see DESEQ2_CONFIG_DIGEST
+            # above for why -- but its value IS: a change to this digest
+            # (i.e. to config.yaml's deseq2: block specifically) still
+            # correctly triggers a rerun via the params rerun-trigger.
+            config_digest=DESEQ2_CONFIG_DIGEST,
             group1=lambda wc: shlex.quote(_deseq2_contrast_group(wc.comparison, "group1")),
             group2=lambda wc: shlex.quote(_deseq2_contrast_group(wc.comparison, "group2")),
             comparison=lambda wc: shlex.quote(wc.comparison),
@@ -131,7 +150,7 @@ if DESEQ2_ENABLED:
             mkdir -p $(dirname {log}) {params.outdir}
             exec > >(tee -a {log}) 2>&1
             Rscript "{input.script}" \
-              --config-yaml "{input.config_yaml}" \
+              --config-yaml {params.config_yaml} \
               --manifest "{input.manifest}" \
               --contrast-file "{input.contrasts}" \
               --comparison {params.comparison} \

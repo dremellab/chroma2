@@ -22,8 +22,8 @@ suppressPackageStartupMessages({
 context <- readRDS(params$context_path)
 
 sig_mask <- function(df, alpha, lfc_threshold) {
-  !is.na(df$padj) &
-    df$padj < alpha &
+  !is.na(df$adjusted_pvalue) &
+    df$adjusted_pvalue < alpha &
     !is.na(df$log2FoldChange_shrunk) &
     abs(df$log2FoldChange_shrunk) >= lfc_threshold
 }
@@ -32,7 +32,7 @@ ordered_hits <- function(df) {
   df %>%
     dplyr::mutate(
       abs_lfc = abs(.data$log2FoldChange_shrunk),
-      padj_sort = ifelse(is.na(.data$padj), Inf, .data$padj)
+      padj_sort = ifelse(is.na(.data$adjusted_pvalue), Inf, .data$adjusted_pvalue)
     ) %>%
     dplyr::arrange(.data$padj_sort, dplyr::desc(.data$abs_lfc))
 }
@@ -46,11 +46,12 @@ lfc_axis_label <- function(section) {
 }
 
 make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
-  # padj can underflow to exactly 0 for very small p-values, which would make
-  # -log10(padj) infinite; recompute BH-adjusted p-values from the raw pvalue
-  # column and clamp to the smallest representable positive double instead of
-  # dropping the point (the old NA_real_ fallback made the most significant
-  # hits invisible on the plot while still being counted as significant).
+  # adjusted_pvalue (BH-corrected from the raw pvalue column, computed once in
+  # run_deseq2_contrast_report.R) can underflow to exactly 0 for very small
+  # p-values, which would make -log10(adjusted_pvalue) infinite; clamp to the
+  # smallest representable positive double instead of dropping the point (an
+  # NA_real_ fallback would make the most significant hits invisible on the
+  # plot while still being counted as significant).
   df <- section$results %>%
     dplyr::mutate(
       significant = sig_mask(section$results, alpha, lfc_threshold),
@@ -59,10 +60,9 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
         .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", context$group2),
         TRUE ~ "Not significant"
       ),
-      padj_recalc = p.adjust(.data$pvalue, method = "BH"),
       neg_log10_padj = dplyr::if_else(
-        !is.na(.data$padj_recalc),
-        -log10(pmax(.data$padj_recalc, .Machine$double.xmin)),
+        !is.na(.data$adjusted_pvalue),
+        -log10(pmax(.data$adjusted_pvalue, .Machine$double.xmin)),
         NA_real_
       ),
       feature_label = section$feature_labels
@@ -76,8 +76,8 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
     y = .data$neg_log10_padj,
     color = .data$direction,
     text = paste0(
-      section$feature_labels,
-      "<br>padj: ", signif(.data$padj_recalc, 3),
+      .data$feature_label,
+      "<br>padj: ", signif(.data$adjusted_pvalue, 3),
       "<br>log2FC: ", signif(.data$log2FoldChange_shrunk, 3)
     )
   )) +
@@ -85,10 +85,9 @@ make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
     geom_vline(xintercept = c(-lfc_threshold, lfc_threshold), linetype = "dashed", color = "grey40") +
     geom_hline(yintercept = -log10(alpha), linetype = "dashed", color = "grey40") +
     scale_color_manual(
-      values = c(
-        paste("Up in", context$group1) = "#c0392b",
-        paste("Up in", context$group2) = "#1f618d",
-        "Not significant" = "#9e9e9e"
+      values = setNames(
+        c("#c0392b", "#1f618d", "#9e9e9e"),
+        c(paste("Up in", context$group1), paste("Up in", context$group2), "Not significant")
       )
     ) +
     labs(
@@ -127,10 +126,9 @@ make_ma <- function(section) {
     geom_point(alpha = 0.7, na.rm = TRUE) +
     scale_x_log10() +
     scale_color_manual(
-      values = c(
-        paste("Up in", context$group1) = "#c0392b",
-        paste("Up in", context$group2) = "#1f618d",
-        "Not significant" = "#9e9e9e"
+      values = setNames(
+        c("#c0392b", "#1f618d", "#9e9e9e"),
+        c(paste("Up in", context$group1), paste("Up in", context$group2), "Not significant")
       )
     ) +
     labs(x = "baseMean", y = lfc_axis_label(section), color = "Call") +

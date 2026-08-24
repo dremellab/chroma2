@@ -309,6 +309,126 @@ def format_digest_line(d: Dict[str, str]) -> str:
     )
 
 
+_RUNNING_RULE_RE = re.compile(r"^rule (\S+):$")
+_WILDCARDS_RE = re.compile(r"^\s{4}wildcards: (.*)$")
+_TOTAL_JOBS_RE = re.compile(r"^total\s+(\d+)\s*$", re.MULTILINE)
+
+
+def extract_running_jobs_digest(logfile: pathlib.Path) -> List[Dict[str, str]]:
+    """Best-effort scrape of Snakemake's own log for job-start ('rule <name>:')
+    blocks that are still in flight -- i.e. started but with no matching
+    'Finished jobid: <id>' line and not already reported by
+    extract_failed_rules_digest(). NOT authoritative (same caveats as that
+    function); a parse miss here must never block the rest of the progress
+    snapshot. Distinguishing from 'Error in rule <name>:' blocks is automatic:
+    the anchored _RUNNING_RULE_RE pattern doesn't match a line starting with
+    'Error in rule '."""
+    if not logfile.exists():
+        return []
+
+    text = logfile.read_text(errors="replace")
+    finished_jobids = set(_FINISHED_JOBID_RE.findall(text))
+    failed_jobids = {d["jobid"] for d in extract_failed_rules_digest(logfile)}
+
+    # Deliberately does NOT wait for a blank line to mark the end of a job's
+    # block (unlike extract_failed_rules_digest's error blocks, which are
+    # short): a verbose "rule <name>:" block is followed by a long shell
+    # command dump that can itself contain blank-looking lines, so instead
+    # just track jobid/wildcards until the next block header appears.
+    started: "Dict[str, Dict[str, str]]" = {}
+    current_rule: Optional[str] = None
+    current_jobid: Optional[str] = None
+    for line in text.splitlines():
+        if _RULE_RE.match(line):
+            # "Error in rule <name>:" -- handled separately by
+            # extract_failed_rules_digest; stop attributing jobid/wildcards
+            # lines inside it to whatever rule was open before.
+            current_rule = None
+            current_jobid = None
+            continue
+        rule_match = _RUNNING_RULE_RE.match(line)
+        if rule_match:
+            current_rule = rule_match.group(1)
+            current_jobid = None
+            continue
+        if current_rule is None:
+            continue
+        jobid_match = _JOBID_RE.match(line)
+        if jobid_match:
+            current_jobid = jobid_match.group(1)
+            started[current_jobid] = {
+                "rule": current_rule,
+                "jobid": current_jobid,
+                "wildcards": "",
+            }
+            continue
+        if current_jobid is not None:
+            wildcards_match = _WILDCARDS_RE.match(line)
+            if wildcards_match:
+                started[current_jobid]["wildcards"] = wildcards_match.group(1)
+                current_jobid = None  # done with this block's fields we care about
+
+    return [
+        d
+        for jid, d in started.items()
+        if jid not in finished_jobids and jid not in failed_jobids
+    ]
+
+
+def format_running_line(d: Dict[str, str]) -> str:
+    label = d["wildcards"] or f"jobid={d['jobid']}"
+    return f"  - {d['rule']} ({label})"
+
+
+def build_progress_marker(
+    logfile: pathlib.Path, started_at: Optional[dt.datetime] = None
+) -> Optional[str]:
+    """Build the full pipeline.running snapshot: overall progress (from
+    Snakemake's own 'N of M steps (P%) done' line, or the 'total' line from
+    its Job stats table if no job has completed yet), which job(s) are
+    currently running, a live failed-job count, elapsed time, and a
+    last-updated timestamp. Unlike progress_snapshot() (which only reflects
+    job *completions*), this has something to say even while every remaining
+    job is failing outright -- e.g. a resume run where nothing has *finished*
+    yet -- which used to leave pipeline.running empty for the whole run."""
+    if not logfile.exists():
+        return None
+    text = logfile.read_text(errors="replace")
+
+    progress_matches = _PROGRESS_RE.findall(text)
+    if progress_matches:
+        done_n, total_n, pct = progress_matches[-1]
+    else:
+        total_matches = _TOTAL_JOBS_RE.findall(text)
+        if not total_matches:
+            return None
+        done_n, total_n, pct = "0", total_matches[-1], "0"
+    remaining = max(int(total_n) - int(done_n), 0)
+
+    lines = [
+        f"Progress : {done_n} / {total_n} steps complete ({pct}%)",
+        f"Remaining: {remaining} steps",
+    ]
+
+    running = extract_running_jobs_digest(logfile)
+    if running:
+        lines.append(f"Running  : {len(running)} job(s)")
+        lines.extend(format_running_line(d) for d in running)
+
+    failed = extract_failed_rules_digest(logfile)
+    if failed:
+        lines.append(
+            f"Failed   : {len(failed)} job(s) so far (see pipeline.failed once the run ends)"
+        )
+
+    if started_at is not None:
+        elapsed = dt.datetime.now() - started_at
+        lines.append(f"Elapsed  : {str(elapsed).split('.')[0]}")
+
+    lines.append(f"Updated  : {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    return "\n".join(lines) + "\n"
+
+
 def derive_final_progress(logfile: pathlib.Path) -> str:
     """Re-derive the final step count from Snakemake's own last progress line
     and report it as N/N (100%, 0 remaining)."""
@@ -344,18 +464,24 @@ def progress_snapshot(logfile: pathlib.Path) -> Optional[str]:
 
 
 def run_progress_monitor(
-    marker: pathlib.Path, logfile: pathlib.Path, stop_event: threading.Event
+    marker: pathlib.Path,
+    logfile: pathlib.Path,
+    stop_event: threading.Event,
+    started_at: dt.datetime,
 ) -> None:
     """Background loop: every 60s, rereads `logfile` in full for Snakemake's
-    own progress line and writes a human-readable progress summary into
-    `marker` (pipeline.running), mirroring HAROLD's
-    _runlocal_progress_monitor. Not a true tail -- progress_snapshot()
+    own progress/running-job/failure state and writes a human-readable
+    summary into `marker` (pipeline.running), mirroring HAROLD's
+    _runlocal_progress_monitor. Not a true tail -- build_progress_marker()
     rescans the whole (monotonically growing) file on each poll rather than
-    reading only newly-appended content."""
+    reading only newly-appended content. Uses build_progress_marker() rather
+    than the plain progress_snapshot() so the file has something to say even
+    before any job has completed, or while every remaining job is failing
+    outright (see build_progress_marker's docstring)."""
     while not stop_event.is_set():
         if not marker.exists():
             break
-        snapshot = progress_snapshot(logfile)
+        snapshot = build_progress_marker(logfile, started_at)
         if snapshot:
             tmp_marker = marker.with_name(marker.name + f".tmp.{os.getpid()}")
             tmp_marker.write_text(snapshot)
@@ -857,9 +983,10 @@ def runlocal(
     # Background thread: tails runlocal_log for Snakemake's own progress line
     # and periodically writes a snapshot into pipeline.running.
     stop_event = threading.Event()
+    started_at = dt.datetime.now()
     monitor = threading.Thread(
         target=run_progress_monitor,
-        args=(marker, runlocal_log, stop_event),
+        args=(marker, runlocal_log, stop_event, started_at),
         daemon=True,
     )
     monitor.start()
@@ -1031,27 +1158,18 @@ def write_sbatch_script(
             "echo 'STEP  [head_job] Starting Snakemake head process'",
             "echo '" + "-" * 66 + "'",
             "",
-            "# Background loop: tails this job's own stdout for Snakemake's progress",
-            "# line and periodically snapshots it into pipeline.running.",
+            "# Background loop: every 60s, asks chroma2 to rescrape this job's own",
+            "# stdout log for Snakemake's progress/running-job/failure state and",
+            "# refresh pipeline.running -- shares the exact same parser as",
+            "# --internal-finalize (extract_failed_rules_digest/",
+            "# extract_running_jobs_digest) instead of a second hand-duplicated one.",
+            "_STARTED_EPOCH=$(date +%s)",
             "_progress_monitor() {",
             f"  local logfile={workdir_q}/logs/slurm-$SLURM_JOB_ID.out",
             f"  local marker={workdir_q}/pipeline.running",
             '  while [[ -f "$marker" ]]; do',
-            '    if [[ -f "$logfile" ]]; then',
-            "      raw=$(grep -oP '[0-9]+ of [0-9]+ steps \\([0-9]+%\\) done' \"$logfile\" 2>/dev/null | tail -1 || true)",
-            '      if [[ -n "$raw" ]]; then',
-            "        done_n=$(printf '%s' \"$raw\" | grep -oP '^[0-9]+' || true)",
-            "        total_n=$(printf '%s' \"$raw\" | grep -oP '(?<=of )[0-9]+' || true)",
-            "        pct=$(printf '%s' \"$raw\" | grep -oP '[0-9]+(?=%)' || true)",
-            '        if [[ -n "$done_n" && -n "$total_n" && -n "$pct" ]]; then',
-            "          remaining=$(( total_n - done_n )); (( remaining < 0 )) && remaining=0",
-            '          tmp_marker="$marker.tmp.$$"',
-            "          printf 'Progress : %s / %s steps complete (%s%%)\\nRemaining: %s steps\\nUpdated  : %s\\n' \\",
-            '            "$done_n" "$total_n" "$pct" "$remaining" "$(date \'+%Y-%m-%d %H:%M:%S\')" > "$tmp_marker"',
-            '          mv -f "$tmp_marker" "$marker"',
-            "        fi",
-            "      fi",
-            "    fi",
+            f"    {chroma2_bin} --internal-progress-snapshot --workdir {workdir_q} "
+            '--log-file "$logfile" --started-epoch "$_STARTED_EPOCH" || true',
             "    sleep 60",
             "  done",
             "}",
@@ -1113,6 +1231,16 @@ def main() -> None:
     parser.add_argument(
         "--internal-finalize", action="store_true", help=argparse.SUPPRESS
     )
+    # Hidden: invoked every 60s by the generated sbatch script's
+    # _progress_monitor loop to refresh pipeline.running with a live
+    # snapshot, reusing the exact same parser (extract_running_jobs_digest/
+    # extract_failed_rules_digest) as --internal-finalize and the runlocal
+    # Python thread (run_progress_monitor), instead of a fourth
+    # hand-duplicated implementation in bash.
+    parser.add_argument(
+        "--internal-progress-snapshot", action="store_true", help=argparse.SUPPRESS
+    )
+    parser.add_argument("--started-epoch", default=None, help=argparse.SUPPRESS)
     parser.add_argument(
         "--state", choices=["completed", "failed", "canceled"], help=argparse.SUPPRESS
     )
@@ -1120,6 +1248,23 @@ def main() -> None:
     parser.add_argument("--job-id", default="NA", help=argparse.SUPPRESS)
     parser.add_argument("--log-file", default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
+
+    if args.internal_progress_snapshot:
+        workdir = pathlib.Path(args.workdir).expanduser().resolve()
+        logfile = pathlib.Path(args.log_file) if args.log_file else None
+        marker = workdir / "pipeline.running"
+        if marker.exists() and logfile:
+            started_at = (
+                dt.datetime.fromtimestamp(float(args.started_epoch))
+                if args.started_epoch
+                else None
+            )
+            snapshot = build_progress_marker(logfile, started_at)
+            if snapshot:
+                tmp_marker = marker.with_name(marker.name + f".tmp.{os.getpid()}")
+                tmp_marker.write_text(snapshot)
+                tmp_marker.replace(marker)
+        sys.exit(0)
 
     if args.internal_finalize:
         workdir = pathlib.Path(args.workdir).expanduser().resolve()
