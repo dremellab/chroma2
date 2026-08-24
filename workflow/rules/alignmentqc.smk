@@ -5,27 +5,33 @@
 rule alignment_flagstat_summary:
     input:
         aligned=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.idxstats.txt"),
             sample=SAMPLES,
         ),
         clean=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.flagstat.txt"),
-            sample=SAMPLES,
-        ),
-        fixmate=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.fixmate.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.clean.idxstats.txt"),
             sample=SAMPLES,
         ),
         dedup=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.dedup.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.dedup.idxstats.txt"),
             sample=SAMPLES,
         ),
         final=expand(
-            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"),
+            join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.idxstats.txt"),
             sample=SAMPLES,
         ),
+        raw_fastqc_r1=expand(
+            join(RESULTSDIR, "{sample}", "fastqc", "{sample}.raw_R1_fastqc.zip"),
+            sample=SAMPLES,
+        ),
+        trimmed_fastqc_r1=expand(
+            join(RESULTSDIR, "{sample}", "fastqc", "{sample}.trimmed_R1_fastqc.zip"),
+            sample=SAMPLES,
+        ),
+        regions_host=join(REF_DIR, "ref.fa.regions.host"),
+        regions_viruses=join(REF_DIR, "ref.fa.regions.viruses"),
     output:
-        tsv=join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
+        tsv=join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
     params:
         outdir=join(RESULTSDIR, "alignmentqc"),
     threads:
@@ -40,8 +46,10 @@ rule alignment_flagstat_summary:
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
-        python {SCRIPTS_DIR}/summarize_flagstat.py \
+        python {SCRIPTS_DIR}/summarize_idxstats.py \
           --results-dir {RESULTSDIR} \
+          --regions-host {input.regions_host} \
+          --regions-viruses {input.regions_viruses} \
           --output {output.tsv}
         """
 
@@ -54,7 +62,7 @@ rule ataqv_host:
     input:
         bam=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"),
         bai=join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam.bai"),
-        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"),
+        peaks=join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"),
         tss=join(REF_DIR, "ref.tss.host.bed"),
         chromsizes=join(REF_DIR, "ref.chrom.sizes.host.txt"),
     output:
@@ -65,6 +73,10 @@ rule ataqv_host:
         extra_args=config.get("ataqv", {}).get("extra_args", ""),
     threads:
         _get_threads("ataqv_host", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "ataqv_host", profile_config, attempt
+        ),
     container:
         config["containers"]["ataqv"]
     log:
@@ -93,7 +105,7 @@ rule ataqv_host:
         echo "[ataqv_host] species=custom tss={input.tss} peaks={input.peaks} chromsizes={input.chromsizes}"
         cd {params.outdir}
         echo "[ataqv_host] running ataqv"
-        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file {input.peaks} \
+        ataqv {params.extra_args} --threads {threads} --tss-file {input.tss} --peak-file <(zcat {input.peaks}) \
           --autosomal-reference-file {input.chromsizes} \
           --mitochondrial-reference-name none \
           --name {wildcards.sample} \
@@ -119,6 +131,10 @@ rule ataqv_virus:
         tss_extension=str(config.get("ataqv", {}).get("virus_tss_extension", 200)),
     threads:
         _get_threads("ataqv_virus", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "ataqv_virus", profile_config, attempt
+        ),
     container:
         config["containers"]["ataqv"]
     log:
@@ -164,7 +180,7 @@ rule ataqv_virus:
 
 rule ataqv_report_host:
     input:
-        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"), sample=SAMPLES),
+        jsons=expand(join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"), sample=CASE_SAMPLES),
     output:
         report=directory(join(RESULTSDIR, "alignmentqc", "ataqv", "final_report.host")),
     params:
@@ -192,7 +208,7 @@ rule ataqv_report_virus:
     input:
         jsons=lambda wc: expand(
             join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
-            sample=SAMPLES,
+            sample=CASE_SAMPLES,
             virus=wc.virus,
         ),
     output:

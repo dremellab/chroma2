@@ -35,6 +35,9 @@ def parse_flagstat(path: Path) -> dict[str, int]:
                 continue
             count = int(m.group(1))
             label = m.group(2)
+            # Normalize labels that include extra context, e.g.
+            # "in total (QC-passed reads + QC-failed reads)" -> "in total"
+            label = label.split(" (", 1)[0]
             metrics[label] = count
     return metrics
 

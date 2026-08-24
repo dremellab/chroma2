@@ -8,7 +8,7 @@ workdir: "WORKDIR"
 tempdir: "TEMP_DIR"
 
 # tab delimited samples file ... should have the following columns:
-# sampleName\tgroupName\tpath_to_R1_fastq\tpath_to_R2_fastq
+# sampleName\tgroupName\tbatch\tpath_to_R1_fastq\tpath_to_R2_fastq\trole\ttarget\thost_input_pool\tvirus_input_pool
 samples: "WORKDIR/samples.tsv"
 
 # select references .... host + viruses(comma-separated):
@@ -21,6 +21,104 @@ scriptsdir: "PIPELINE_HOME/workflow/scripts"
 resourcesdir: "PIPELINE_HOME/resources"
 fastas_gtfs_dir: "REFS_DIR"
 
+# reference GTF files by host genome (relative to fastas_gtfs_dir unless absolute path)
+reference_gtf:
+  mm39: "mm39.no_tRNA.gtf"
+  hg38: "hg38-rDNA_v1.0_enriched.canonical_chromosomes_plus_chrR.gtf"
+  hg38_basic: "hg38_basic.canonical_chromosomes.gtf"
+  hs1: "hs1-rDNA_v1.0_enriched.canonical_plus_chrR.gtf"
+
+# optional host annotations by host genome (relative to fastas_gtfs_dir unless absolute path)
+trnas_gtf:
+  mm39: "mm39.tRNAs.mm39chroms.gtf"
+  hg38: "hg38.tRNAs.gtf"
+  hg38_basic: "hg38.tRNAs.gtf"
+  hs1: "hs1.tRNAs.gtf"
+chrr_gtf:
+  mm39: "mm39.chrR.gtf"
+  hg38: "hg38-rDNA_v1.0_enriched.chrR_only.gtf"
+  hg38_basic: "hg38_basic.rRNA_only.gtf"
+  hs1: "hs1-rDNA_v1.0_enriched.chrR_only.gtf"
+pol3_gtf:
+  Pol3_T1:
+    hg38: "T1_Genes.hg38.gtf"
+    hg38_basic: "T1_Genes.hg38.gtf"
+    hs1: "T1_Genes.hs1.gtf"
+  Pol3_T2:
+    hg38: "T2_noAlu.hg38.gtf"
+    hg38_basic: "T2_noAlu.hg38.gtf"
+    hs1: "T2_noAlu.hs1.gtf"
+  Pol3_T3:
+    hg38: "T3_Genes.hg38.gtf"
+    hg38_basic: "T3_Genes.hg38.gtf"
+    hs1: "T3_Genes.hs1.gtf"
+repeat_elements_gtf:
+  SINE_Alu:
+    hg38: "hg38.repeatMasker.SINE_Alu.gtf"
+    hg38_basic: "hg38.repeatMasker.SINE_Alu.gtf"
+    mm39: "mm39.repeatMasker.SINE_Alu.gtf"
+    hs1: "hs1.repeatMasker.SINE_Alu.gtf"
+  SINE_MIR:
+    hg38: "hg38.repeatMasker.SINE_MIR.gtf"
+    hg38_basic: "hg38.repeatMasker.SINE_MIR.gtf"
+    mm39: "mm39.repeatMasker.SINE_MIR.gtf"
+    hs1: "hs1.repeatMasker.SINE_MIR.gtf"
+  LINE_L1:
+    hg38: "hg38.repeatMasker.LINE_L1.gtf"
+    hg38_basic: "hg38.repeatMasker.LINE_L1.gtf"
+    mm39: "mm39.repeatMasker.LINE_L1.gtf"
+    hs1: "hs1.repeatMasker.LINE_L1.gtf"
+  LINE_L2:
+    hg38: "hg38.repeatMasker.LINE_L2.gtf"
+    hg38_basic: "hg38.repeatMasker.LINE_L2.gtf"
+    mm39: "mm39.repeatMasker.LINE_L2.gtf"
+    hs1: "hs1.repeatMasker.LINE_L2.gtf"
+  LTR:
+    hg38: "hg38.repeatMasker.LTR.gtf"
+    hg38_basic: "hg38.repeatMasker.LTR.gtf"
+    mm39: "mm39.repeatMasker.LTR.gtf"
+    hs1: "hs1.repeatMasker.LTR.gtf"
+  other_repeat_elements:
+    hg38: "hg38.repeatMasker.other_repeat_elements.gtf"
+    hg38_basic: "hg38.repeatMasker.other_repeat_elements.gtf"
+    mm39: "mm39.repeatMasker.other_repeat_elements.gtf"
+    hs1: "hs1.repeatMasker.other_repeat_elements.gtf"
+
+# Tn5 count matrices configuration
+count_matrices:
+  # Gene count matrix: Tn5 insertions around TSS of protein-coding genes (±250bp)
+  gene_counts:
+    enabled: true
+    flank_size: 250
+    # Exclude specific gene biotypes from protein-coding gene matrix
+    exclude_features: [rRNA, tRNA, Mt_tRNA]
+  # tRNA count matrix: Tn5 insertions within tRNA gene bodies (±100bp around midpoint)
+  trna_counts:
+    enabled: true
+    flank_size: 100
+    max_size: 1000
+  # POL3 count matrices (3 separate: T1, T2, T3)
+  # Tn5 insertions within Pol III genes (full feature span, max 1000bp)
+  pol3_counts:
+    enabled: true
+    flank_size: -1 # -1 = full feature span (no flanking)
+    max_size: 1000
+  # Repeat element count matrices (6 separate per repeat type)
+  # Tn5 insertions within repeat elements (full feature span, max 1000bp)
+  repeat_element_counts:
+    enabled: true
+    flank_size: -1 # -1 = full feature span
+    max_size: 1000
+  # Viral genome bin count matrix (per virus)
+  # Tn5 insertions in fixed-size non-overlapping bins across viral genomes
+  viral_genome_counts:
+    enabled: true
+    bin_size: 200
+  # rRNA count matrix: Tn5 insertions around TSS of rRNA genes (±250bp)
+  rrna_counts:
+    enabled: true
+    flank_size: 250
+
 # kraken2 db
 kraken2_db: "KRAKEN2_DB"
 
@@ -32,7 +130,7 @@ fastp:
 # bowtie2 alignment + filtering parameters
 bowtie2_align:
   preset: "--very-sensitive"
-  k: 10
+  k: 20
   max_insert: 2000
   no_mixed: true
   no_discordant: true
@@ -52,6 +150,11 @@ macs2:
   extsize: 200
   keep_dup: "all"
   extra_args: ""
+
+# pooled input usage for peak calling
+peakcalling:
+  use_host_input: false
+  use_virus_input: true
 
 # Genrich parameters (ATAC-seq)
 genrich:
@@ -78,18 +181,82 @@ postprocessing:
   host_bw_extra_args: ""
   virus_bw_extra_args: ""
 
+# Tn5 motif extraction
+tn5_motif:
+  flank_size: 10
+  virus_bin_size: 100
+  host_gene_flank_size: 250
+  trna_gene_flank_size: 100
+  trna_gene_max_size: 1000
+  mapq_min: 0
+  dedup: false
+  exclude_secondary: false
+  exclude_supplementary: true
+  fractional_counting: true
+  logo_format: "png"
+  generate_logo: false
+
 # ataqv parameters
 ataqv:
   extra_args: ""
   virus_tss_extension: 200
 
+# DESeq2 contrast reporting
+deseq2:
+  enabled: false
+  contrasts_tsv: ""
+  outdir: "results/deseq2"
+  alpha: 0.05
+  lfc_threshold: 1.0
+  min_replicates_per_group: 2
+  min_total_count: 10
+  min_features_per_matrix: 50
+  size_factor_type: "poscounts"
+  fit_type: "parametric"
+  shrink_type: "apeglm"
+  p_adjust_method: "BH"
+  cooks_cutoff: true
+  independent_filtering: true
+  vst_blind: true
+  report_top_n: 50
+  report_label_top_n: 15
+  report_max_table_rows: 50000
+  html_self_contained: true
+  design_factors: ["group"]
+  # Feature types to skip analysis for, matched case-insensitively against the
+  # literal internal category key for each enabled count matrix -- not a
+  # grouping/alias (e.g. "virus" or "ALU" match nothing and skip nothing).
+  # Valid keys: host, trna, rrna, pol3_t1, pol3_t2, pol3_t3,
+  # repeat_sine_alu, repeat_sine_mir, repeat_line_l1, repeat_line_l2,
+  # repeat_ltr, repeat_other_repeat_elements, viral_<accession> (one per
+  # configured virus, e.g. viral_KT899744.1)
+  # tRNA is skipped by default (insufficient signal in ATAC-seq)
+  skip_features:
+    - tRNA
+
 # containers
 containers:
   fastp: "docker://staphb/fastp:0.24.1"
   fastqc: "docker://seqinfomics/fastqc:0.12.1"
+  multiqc: "docker://multiqc/multiqc:v1.25"
+  featurecounts: "docker://seqinfomics/featurecounts:2.0.6"
   bowtie2: "docker://seqinfomics/bowtie2:2.5.0"
+  bedToBigBed: "docker://seqinfomics/bedtobigbed:2.7"
   py311: "docker://seqinfomics/py311:latest"
+  pysam: "docker://seqinfomics/pysam:0.22.1"
   macs2: "docker://seqinfomics/macs2:2.2.9.1"
   genrich: "docker://seqinfomics/genrich:0.6.1"
   deeptools: "docker://seqinfomics/deeptools:3.5.6"
   ataqv: "docker://seqinfomics/ataqv:1.3.1"
+  deseq2_report: "docker://seqinfomics/deseq2:1.48.2"
+  aws: "docker://seqinfomics/aws:1.44.86"
+
+# S3 transfer settings
+push_to_s3: false
+s3_pipeline_name: "CHROMA"
+s3_sample_set_name: ""
+s3_aws_credentials_file: "/project/dremel_lab/scripts/aws/credentials"
+s3_bucket: "dremel-lab-bucket"
+s3_output_prefix: "_HTS"
+s3_default_storage_class: "GLACIER_IR"
+s3_large_file_storage_class: "GLACIER"

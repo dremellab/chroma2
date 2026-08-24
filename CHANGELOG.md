@@ -1,1 +1,295 @@
-## dev version
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+## [2.0.0]
+
+### ⚠️ Breaking Changes
+
+- **Marker files renamed:** `status.running`/`status.completed`/`status.failed` replaced with `pipeline.running`/`pipeline.completed`/`pipeline.failed`/`pipeline.canceled` plus a `pipeline.status.json` sidecar. Anything polling the old `status.*` filenames needs to switch to `pipeline.*`.
+
+- fix(runlocal): fix self-deadlock in the SIGTERM/SIGINT handler (regression from the #65 fix, closes #65)
+  - the #65 fix moved `_handle_signal` to `os.killpg(...)` + `proc.wait(timeout=30)` (escalating to `SIGKILL` + another `proc.wait()`) directly inside the signal handler -- this deadlocks, because the outer `rc = proc.wait()` blocks inside the `os.waitpid()` syscall while holding Popen's internal `_waitpid_lock`, and Python delivers a pending signal by running the handler _nested on that same thread/frame_, so the handler's own `proc.wait()` calls try to acquire a lock its own caller already holds and can never succeed
+  - reproduced directly under Python 3.12.11: `os.killpg` did kill the child process group, but the parent `chroma2` process itself hung indefinitely -- never reached `sys.exit(130)`, never wrote `pipeline.canceled` -- strictly worse than the pre-#65 behavior, which at least exited promptly
+  - `_handle_signal` now only records the signal and fires `os.killpg()`; a separate daemon watchdog thread owns the timeout/escalate-to-`SIGKILL` logic (calling `proc.wait(timeout=30)` from a different thread doesn't hit the same-thread reentrancy problem). Once the child actually dies, the outer `proc.wait()` unblocks on its own, and the `pipeline.canceled` marker write + `sys.exit(130)` now happen after the try/finally, in normal control flow instead of inside the handler
+- fix(deseq2): fix invalid R syntax in volcano/MA color-scale construction that failed every `deseq2_contrast_report` job
+  - `scale_color_manual(values = c(paste("Up in", context$group1) = "#c0392b", ...))` tried to use a function call (`paste(...)`) as a literal argument name to the left of `=` inside `c(...)`, which R cannot parse (`unexpected '='`) -- this is not data-dependent, so it failed identically for every contrast that reached the plotting step, not just specific samples
+  - replaced with `setNames(c("#c0392b", ...), c(paste(...), ...))`, which builds the same named color vector dynamically; fixed in both the volcano (`make_volcano()`) and MA (`make_ma()`) plot color scales
+- fix(deseq2): fix aes() length-mismatch crash in the volcano plotly tooltip (`Aesthetics must be either length 1 or the same as the data`)
+  - `make_volcano()`'s `text = paste0(section$feature_labels, ...)` mixed a raw external vector (`section$feature_labels`, referenced via closure) with `.data$`-referenced columns from the plotted `df` inside one `aes()` call -- `plotly::ggplotly()`'s internal per-group aesthetic evaluation subsets/reorders `df` by color group, and the external vector doesn't get subsetted along with it, so the lengths mismatch as soon as more than one significance group is present
+  - `df` already carries the same values as `feature_label` (added via `mutate()` earlier in the same function); reference `.data$feature_label` instead
+- fix(deseq2): recover DESeq2 significance calls dropped by `padj` NAs (extends #85's underflow fix to the whole significance path, not just the volcano plot)
+  - DESeq2's `padj` can be `NA` even when `pvalue` is present (independent filtering, Cook's-distance outlier flagging), silently excluding those features from every `padj`-based significance check -- the summary up/down counts, the volcano highlighting/labeling, and the report's `sig_mask()` all keyed off `padj` directly
+  - added a new `adjusted_pvalue` column (`p.adjust(pvalue, method = "BH")`, computed once in `run_deseq2_contrast_report.R` and written to the output TSV) and switched every significance decision in both the R script and the Rmd report to use it instead of `padj`; removed the Rmd's now-redundant `padj_recalc` (previously recomputing the same BH correction independently, just for the volcano plot)
+- fix(deseq2): stop invalidating `deseq2_contrast_report` on unrelated `config.yaml` edits
+  - the rule declared the entire `config.yaml` as an `input:`, so Snakemake's rerun-triggers treated _any_ edit to the file -- including unrelated sections like `push_to_s3`/S3 settings -- as reason to rerun every DESeq2 report (`reason: Updated input files: config.yaml`)
+  - `config.yaml` is still passed to the R script at runtime (via `--config-yaml`), just as a plain `params:` path instead of a tracked `input:`; added a `params: config_digest=` hash of only `config.get("deseq2", {})` (sorted-key JSON, sha256) so a genuine change to the `deseq2:` block still correctly triggers a rerun, while edits elsewhere in the file no longer do
+- feat(wrapper): `pipeline.running` now shows live currently-running job(s) and a live failed-job count, not just a completion percentage
+  - the periodic marker refresh only had something to write when Snakemake logged an "N of M steps (P%) done" line -- which only appears on job _completion_ -- so a run whose only remaining jobs were failing (e.g. a resume with nothing left to do but 3 already-broken jobs) left `pipeline.running` empty for the entire run, indistinguishable from a run that hadn't started
+  - new `extract_running_jobs_digest()` (scrapes in-flight `rule <name>:` blocks, excluding ones already finished or failed) and `build_progress_marker()`/`build_progress_marker_content()` combine overall progress (falling back to the DAG's initial `total` job count before any job has finished), the currently-running rule(s)/wildcards, a live failed-job count (reusing the existing `extract_failed_rules_digest()`), and elapsed time; wired into both the `runlocal` monitor and a new `--internal-progress-snapshot` CLI mode that the generated sbatch script's background loop now shells out to (replacing its standalone grep/awk math) -- mirrored in HAROLD's `harold` wrapper via the same shared `.harold_failure_helpers.sh` library
+- fix(slurm-runtime): scale `runtime` on retry for data-size-variable per-sample rules
+  - `bowtie2_align` retries (`restart-times: 3` in the Rivanna profile) reused the same fixed runtime budget on every attempt, so a job that timed out once was guaranteed to time out identically on every retry -- observed in production where two `PCIDNA` samples (repetitive vector content driving heavy bowtie2 multi-mapping search under `--very-sensitive -k 20`) exhausted all retries and failed the run at 86% complete
+  - added `resources: runtime=lambda wildcards, attempt: _get_runtime_with_retries(rule_name, profile_config, attempt)` (existing helper in `init.smk`, already used by `genome_coverage_mqc`; doubles the profile's configured base runtime on each retry) to every other per-sample rule whose cost scales with input BAM/FASTQ size and had no runtime scaling: `bowtie2_filter`, `fastp`, `split_host_qname_bam`, `split_virus_qname_bam`, `split_host_bam`, `split_virus_bam`, `bamcoverage_host`, `bamcoverage_virus`, `genrich_atac_callpeak_host`, `genrich_atac_callpeak_virus`, `ataqv_host`, `ataqv_virus`, `extract_tn5_motifs_host`, `extract_tn5_motifs_virus`
+  - bumped `bowtie2_align`'s base `runtime` in `config/rivanna/config.yaml` from 480 to 960 minutes, since the two failing samples' attempts were still timing out at the old value
+- fix(deseq2): guard against metadata/result column name collisions (closes #89)
+  - `metadata_cols` was every non-sample column in the count-matrix TSV, flowing unchecked into `metadata_df` and then into `result_tbl` via `dplyr::mutate(comparison=..., group1=..., baseMean=..., stat=..., ...)` -- `mutate()` doesn't error on an existing column name, it silently overwrites it, so a matrix metadata column sharing a name with one of the synthetic/computed columns would vanish with no warning in the TSV or HTML report
+  - added a `RESERVED_RESULT_COLUMNS` list covering every synthetic column name used downstream (this script + the Rmd, including the `padj_recalc` column added for #85), checked against `metadata_cols` in `prepare_counts()`; a collision now fails loudly with the offending column name(s) instead of being silently clobbered
+- fix(idxstats): escape sample name before use as a glob pattern (closes #88)
+  - `find_fastqc_zip()` spliced the sample name directly into a pattern passed to `Path.rglob()`, which treats `*`, `?`, and `[...]` as glob syntax rather than literal characters; a sample named e.g. `Input[1]` (a plausible `samples.tsv` typo, not otherwise rejected) turned `[1]` into a character class matching a single `1`, silently matching nothing (NA in the summary, no warning) or an unintended file
+  - wrapped the sample name in `glob.escape()` so metacharacters are matched literally; verified with a synthetic directory containing both a literal `Input[1].host_R1_fastqc.zip` and a decoy `Input1.host_R1_fastqc.zip` that the correct file is now matched
+- fix(wrapper): make `pipeline.*` marker rewrites atomic (closes #87)
+  - `write_pipeline_state_marker()`, `run_progress_monitor()`, and the sbatch-generated bash `_progress_monitor()` loop all rewrote a `pipeline.*` marker's content with a plain truncating write/redirect, unlike the temp-file + atomic replace pattern already used for `pipeline.status.json` -- a poller could observe a truncated/empty marker mid-write during any of these periodic (60s) rewrites, contradicting the stated design goal that a poller never sees zero `pipeline.*` files
+  - routed all three through the same write-tmp-then-atomically-replace pattern: `Path.replace()` in the two Python call sites, `mv -f` in the generated bash script
+- fix(genrich): capture post-Genrich gzip errors in `{log}` (closes #86)
+  - the Genrich rules only piped the `Genrich` command's own stderr into `{log}` via a trailing `2>&1 | tee -a {log}`; the subsequent `gzip -f` step fell outside that pipe, so its stderr on failure went only to Slurm stdout/stderr, inconsistent with the macs2 rules, which wrap the whole rule body in `exec > >(tee -a {log}) 2>&1`
+  - applied the same `exec` wrapper to both `genrich_atac_callpeak_host` and `genrich_atac_callpeak_virus`, dropping the now-redundant per-command pipe
+- fix(deseq2): stop dropping underflowed-padj hits from the volcano plot (closes #85)
+  - `padj` underflowing to exactly 0 (routine for very small p-values) made `neg_log10_padj` `NA`, and `geom_point(na.rm=TRUE)` silently dropped those points, while `summary_table()`'s "Significant" count has no such guard -- so the count and the rendered plot disagreed on the most significant hits
+  - recompute BH-adjusted p-values from the raw `pvalue` column and clamp to `.Machine$double.xmin` before `-log10()` instead of falling back to `NA_real_`, so an exact-0 underflow yields a large finite y-value instead of vanishing from the plot; tooltip text updated to match
+- fix(deseq2): surface LFC shrinkage failures in TSV and HTML report (closes #84)
+  - when `lfcShrink()` errors (common for apeglm on the sparse viral/repeat/tRNA bin matrices this pipeline routinely analyzes), the fallback wrote raw LFCs into the `log2FoldChange_shrunk` column with only a `cat()` line in the Snakemake log noting it -- nothing in the TSV or HTML report signaled that shrinkage didn't actually happen, while the report still labeled axes "Shrunken log2 fold change"
+  - capture the shrinkage error explicitly and derive a `shrinkage_applied` flag; added as a TSV column and propagated into the per-section list consumed by the Rmd, which now shows a visible warning when shrinkage failed for a comparison and reflects shrunk vs. unshrunk LFCs in the volcano/MA plot axis labels via a shared `lfc_axis_label()` helper
+- fix(s3): schedule `s3_transfer_if_enabled` whenever `push_to_s3=true` (closes #83)
+  - the `all` rule's S3 sentinel target required both `push_to_s3=true` AND a non-empty `s3_sample_set_name`, so `push_to_s3=true` with a missing/empty sample set name expanded the target to `[]` -- the rule was never pulled into the DAG, its own "s3_sample_set_name is required" shell check never ran, and the pipeline succeeded having silently never attempted the S3 transfer
+  - gated the target on `push_to_s3` alone; the rule's existing shell-level validation now runs and fails loudly when `s3_sample_set_name` is missing
+- fix(macs2): resolve `genome_size` for `_basic`-suffixed host names (closes #82)
+  - `HOST.lower() == "hg38"/"mm39"` never matched `hg38_basic`/`mm39_basic`, so `mm39_basic` silently fell through to the config default genome size, skewing MACS2 q-values; `hg38_basic` happened to still resolve to `"hs"` by coincidence, masking the bug for the human case
+  - added `_macs2_genome_size()`, reusing `_host_annotation_aliases()` (the same base-alias resolution already used for GTF lookups) so `mm39_basic` -> `mm39` -> `"mm"`
+- fix(tn5-motif): correct mate labeling on coordinate-sorted BAMs; clamp flank-BED coordinates (closes #80, #81)
+  - mate read1/read2 labeling relied on grouping adjacent same-query_name BAM records, which only works on name-sorted input; the actual `--bam` inputs are coordinate-sorted, so every bucket ended up size 1 and both mates of every pair got labeled `"{query_name}|read1"` in the exact-BED, flank-BED, and FASTA-header outputs -- cut-site coordinates and counts were unaffected, only the site name was wrong
+  - removed the qname-bucketing entirely; `cut_sites_from_record()` now derives ordinal from `rec.is_read2` (a SAM flag, independent of sort order) instead of hardcoding 1
+  - `write_flank_bed()` wrote `site.start - flank_size` / `site.end + flank_size` unclamped, producing negative BED coordinates near a chromosome's start even when the paired FASTA/PFM entry was already correctly skipped; now clamps to `[0, chrom_len]`, same convention as the bin-building scripts
+- fix(tn5-bins): `--max-size` feature filter is off by one bp (closes #79)
+  - `write_bins()` computed `feature_size` as `end - start`, but `meta["start"]`/`meta["end"]` are 0-based inclusive coordinates, so true length is `end - start + 1` -- every feature's computed size was 1bp short, so a feature exactly `max_size+1` bp long was incorrectly retained instead of filtered out
+- fix(tn5-motif): `single_cut_site()` enforces upper chromosome boundary (closes #78)
+  - checked `cut < 0` but never the corresponding upper bound, so a forward-strand read whose Tn5-offset math pushed the computed cut site past the chromosome's end was allowed through, crashing the `--bin-counts-only` viral path with `IndexError` -- viral genomes are typically only a few kb, so reads landing near a contig's end are routine, not an edge case
+  - drops a site past the chromosome boundary, same policy as the existing negative-cut case
+- fix(tn5-bins): correct schema mismatch between per-line bin BEDs and `count_tn5_sites_in_bins.py` (closes #77)
+  - `count_tn5_sites_in_bins.py`'s `write_counts()` hardcoded the 9-column grouped-mode bin-BED layout unconditionally, but `build_tn5_midpoint_bins.py`'s per-line/repeatMasker mode (the default for `build_repeat_bins`) emits a different layout -- every default-config run's repeat-element count matrix shipped with mislabeled, truncated metadata
+  - named both bin-BED schemas once in `gtf_common.py`, shared by the writer and reader; the reader now detects which schema a bins-BED uses from its field count and raises a clear error on any other field count instead of silently misinterpreting
+- fix(target-scoping): honor the `target` column for host/virus outputs (closes #76)
+
+  - a case sample's `target` (host/virus/both) was only consulted by control-pool validation/lookup -- every downstream host- and virus-specific output (peaks, ataqv, bigwig, BigBed tracks, count matrices) was built for every case sample regardless of `target`, wasting compute and producing output nobody asked for
+  - added `HOST_TARGET_SAMPLES`/`VIRUS_TARGET_SAMPLES` (case samples only) and `ALL_HOST_TARGET_SAMPLES`/`ALL_VIRUS_TARGET_SAMPLES` (all roles, preserving `count_matrices.smk`'s deliberate inclusion of control samples) in `init.smk`, and swapped every host/virus-specific `expand()` call site (22 total across `Snakefile`, `bigbed.smk`, `count_matrices.smk`) to use the matching list
+
+- fix(tn5-motif): `--mapq-min` now rejects negative values via a clean argparse error (closes #70)
+  - `extract_tn5_motifs.py` and `count_tn5_sites_in_bins.py` both validated `--mapq-min` with a post-parse `if args.mapq_min < 0: raise ValueError(...)`, which surfaced as a raw Python traceback instead of a standard `usage: ...` / `error: argument --mapq-min: ...` message; no test exercised the negative case in either script
+  - added a shared `_non_negative_int()` argparse `type=` callable to both scripts (raises `argparse.ArgumentTypeError`, which argparse itself catches and formats), switched `--mapq-min` to use it, and removed the now-redundant post-parse checks; `parse_args()` in both scripts gained an optional `argv=None` parameter so tests can call it directly with a synthetic argument list
+  - added a regression test to each script's test file asserting a negative `--mapq-min` raises `SystemExit(2)`; verified via the cached `pysam_0.22.1.sif` apptainer image that all 20 tests pass, including both new ones
+- chore: untrack personal `.claude/settings.json` (closes #69)
+  - every permission entry in the tracked `.claude/settings.json` referenced one contributor's home directory, personal memory dirs, or a single one-off scratch debugging run -- none of it generic/project-wide, and every other contributor cloning the repo would have inherited these auto-approvals
+  - removed it from git; a much larger, actively-growing `.claude/settings.local.json` (Claude Code's own convention for personal/machine-specific settings) already exists on disk and supersedes it
+  - added `/.claude/settings.local.json` to `.gitignore` -- the only reason it wasn't already showing up as untracked was one contributor's own global `~/.config/git/ignore`, which isn't something the shared repo can rely on for anyone else
+- fix(s3-transfer): sanitize S3 pipeline-name/sample-set config values (closes #68)
+  - `s3_transfer.smk`'s shell block interpolated `{params.sample_set}`/`{params.pipeline_name}`/etc. into a double-quoted bash string with no escaping; confirmed directly that a value containing `$(...)` executes command substitution even inside the existing double quotes (only single quotes fully suppress that in bash) -- `shlex.quote()`d every config-derived string param (mirroring `deseq2.smk`'s existing pattern) and spliced them into the shell command bare, per the same "never re-wrap an already-quoted value" rule from the `chroma2` `PROFILE` fix (#64); verified the adversarial value now renders as an inert literal argument
+  - `s3_path = f"s3://{bucket}/{s3_prefix}/{pipeline_name}/{sample_set}/{s3_dest_path}"` in `s3_transfer_chroma2.py` concatenated `pipeline_name`/`sample_set` with no validation, even though `docs/s3_configuration.md` documents both as exactly one path segment each; `main()` now rejects either containing `/` up front with a clear error, before any transfer is attempted -- `s3_output_prefix`/`bucket` are left unrestricted since the former is documented as an allowed multi-segment prefix and bucket names can't contain `/` anyway
+- fix(s3-transfer): make the `.bb` `ref/` exclusion match a real path segment, not a raw substring (closes #67)
+  - the general `.bb` exclusion rule's `exclude_substrings: ["ref/"]` was a bare `"ref/" in relpath` check with no path-segment boundary -- any directory/sample name ending in `...ref` (e.g. `results/somepref/output.bb`) would falsely match and get silently dropped from the S3 transfer, even though it has nothing to do with the real `ref/` reference-scaffolding directory `bigbed.smk` writes into
+  - added `_has_dir_component()` (reusing the same slash-bounded technique the `dir`-kind rules already use correctly) and a new `exclude_dir_components` rule key, and switched the `.bb` rule to `exclude_dir_components: ["ref"]`; every other rule's `exclude_substrings`/`include_substrings` is untouched, since those are legitimate filename-fragment matches (`fastp_report`, `.snakemake/`, `alignmentqc/ataqv/`) not prone to this class of false positive
+  - verified directly: `ref/other_scaffolding.bb` is still excluded, `ref/ref.tss.{host,virus}.bb` are still included via the existing carve-out, and `results/somepref/output.bb` is now correctly included instead of falsely dropped
+- fix(peakcalling): stop building pooled control BAMs when the corresponding input toggle is off (closes #66)
+  - `peakcalling.smk`'s `use_host_input`/`use_virus_input` toggles were only checked in `params.control_arg` (resolved when assembling the shell command), not in the `control` `input:` function (resolved when Snakemake builds the DAG) -- so a case sample with a valid `host_input_pool` still triggered `pool_host_qname_bam`/`pool_host_filtered_bam` (`samtools merge` + `samtools index`) even with the default `use_host_input: false`, and the result was then silently discarded because `control_arg` came out empty
+  - gated the four getter functions in `init.smk` (`get_host_control_qname_bam`, `get_host_control_filtered_bam`, `get_virus_control_qname_bam`, `get_virus_control_filtered_bam`) on the same toggle, returning `""` before even resolving the pool -- Snakemake never sees the pooled-BAM dependency at all when a toggle is off, so `pool_host_*`/`pool_virus_*` simply aren't scheduled; confirmed via grep these getters are used only by the four peak-calling rules' `control` input, so gating at the source is safe
+- fix(wrapper): `runlocal()`'s signal handler now kills the whole snakemake process tree, not just the bash wrapper (closes #65)
+  - `runlocal()` launches its run via `subprocess.run(["bash", "-lc", "snakemake ... | tee log"], ...)`, so `snakemake`/`tee` are grandchildren spawned by an intermediate bash, not direct children; the SIGTERM/SIGINT handler only wrote the `canceled` marker and called `sys.exit(130)`, never signaling or waiting on that child -- unlike the sbatch script's bash trap, which explicitly kills and waits on its snakemake PID
+  - a Ctrl-C happened to work today only because the whole foreground process group receives SIGINT together; a targeted `kill <chroma2 pid>` left the bash/snakemake/tee subtree orphaned while the marker already said `canceled`
+  - switched to `subprocess.Popen(..., start_new_session=True)` so bash and everything it spawns form their own process group, and the handler now forwards the signal to the whole group via `os.killpg(proc.pid, signum)` (escalating to `SIGKILL` after a 30s timeout) and waits for it before finalizing -- verified directly that a plain signal to just the bash PID leaves a grandchild process running, while `os.killpg` on the new session correctly reaps it
+  - this removes the previous implicit dependence on "Ctrl-C happens to hit the whole foreground group" -- cleanup no longer depends on how the signal was originally delivered
+- fix(wrapper): quote the workdir in the generated `export PROFILE=...` line (closes #64)
+  - `write_sbatch_script()` quotes the workdir consistently everywhere it's spliced into the generated sbatch script via `workdir_q = shlex.quote(str(workdir))`, except one line: `export PROFILE="{workdir}/config/{profile}"` used the raw `workdir` inside a double-quoted string, so a workdir containing `$`, backticks, or `"` could break the script or trigger command substitution at job runtime
+  - fixed by quoting the whole composed path as one unit and splicing it in bare (`profile_dir_q = shlex.quote(f"{workdir}/config/{profile}")`, then `export PROFILE={profile_dir_q}`) rather than reusing `workdir_q` inside another quote layer, which doesn't work -- single quotes have no special meaning inside double quotes, so nesting them would put literal quote characters into the `PROFILE` value
+- fix(s3-transfer): make the destination-collision guard actually block a transfer, not just warn (closes #63)
+  - `gather_files()` detected two source files resolving to the same S3 destination but only `print()`ed a stderr warning -- both files were still uploaded and the second silently overwrote the first, with `run_transfer`'s pass/fail counting driven only by `aws cp` exit codes, so a same-run collision never failed the pipeline
+  - `gather_files()` now accumulates every collision found during the walk and raises `ValueError` listing all of them if any exist; `run_transfer()` catches this before attempting any upload and returns 1 -- a collision now blocks the whole transfer instead of uploading N-1 files and silently dropping one
+- fix(peakcalling): validate a case sample's input-pool reference regardless of its `target` (closes #62)
+  - `HOST_PEAKS`/`VIRUS_PEAKS` (`Snakefile`) and the control-lookup functions run host + virus peak calling for every case sample unconditionally -- `target` was never actually consulted there -- but the pool-typo fail-fast validation added for #48 only checked `host_input_pool`/`virus_input_pool` when `target` included the matching organism, so a case row with e.g. `target=virus` and a typo'd `host_input_pool` skipped validation entirely while host peak calling still ran and silently fell back to no control
+  - dropped the `target`-scoping from `bad_host`/`bad_virus` in `init.smk`: any non-blank pool reference on a case row is now validated against the known pools regardless of `target`, matching what the control-lookup functions actually do
+- fix(tn5-motif): actually gzip the exact-BED output to match its declared `.gz` rule output (closes #61)
+  - `tn5motif.smk` declares `exact_bed` as `...tn5_sites.1bp.bed.gz`, but `GroupWriter.__init__` in `extract_tn5_motifs.py` still built the path without a `.gz` suffix and opened it with plain-text `.open("w")` -- `390f1a3` ("compress exact BED...") only updated the rule's declared output, never the script
+  - `exact_bed_path` now ends in `.gz` and is opened via `gzip.open(path, "wt", encoding="utf-8")`, matching the pattern already used for `pfm_path`; dormant until now since `tn5_motif.generate_logo` defaults to `false`, but would hard-fail with a missing-output error for anyone who enabled it
+- fix(deseq2): warn on `skip_features` entries that match no available category, and fix the misleading config comment (closes #60)
+  - `config/config.yaml`'s comment suggested values like `virus`, `ALU`, `transposable elements`, but `run_deseq2_matrix()` matches `skip_features` against the literal, lowercased internal category key per matrix (`trna`, `rrna`, `pol3_t1`, `repeat_sine_alu`, `viral_<accession>`, ...) -- so those suggested values silently skipped nothing, with no feedback
+  - rewrote the config comment to list the actual valid keys
+  - added `warn_unmatched_skip_features()` in `run_deseq2_contrast_report.R`, called once the full set of category keys for a comparison is known (`host` + `--virus-labels`); prints a clear warning naming any unmatched `skip_features` entries and the valid keys for that run, instead of staying silent
+- fix(deseq2): stop mislabeling tRNA/Pol III/repeat-element/rRNA report sections as "Virus" (closes #59)
+  - `deseq2_contrast_report.Rmd` rendered every non-host section's heading as `paste("Virus", virus_name)`, but `virus_name` is really the internal `DESEQ2_AVAILABLE_MATRICES` key from `deseq2.smk` (`trna`, `pol3_t1`, `repeat_sine_alu`, `rrna`, or `viral_<accession>` for an actual virus) -- so reports showed headers like "## Virus trna" and "## Virus repeat_sine_alu" for categories that have nothing to do with viruses; the underlying per-category data wiring was already correct, only the label was wrong
+  - add `category_display_name()` in `run_deseq2_contrast_report.R`, mapping each key to a proper title (`tRNA`, `rRNA`, `Pol III (T1)`, `Repeat Element: SINE Alu`, `Virus: <accession>`), stamped onto every section as `display_name` (skip-list, insufficient-features, and success return paths); the Rmd now renders `section$display_name` instead of deriving a title from the loop variable name
+- fix(s3-transfer): fix `tn5_counts` S3 destination to transfer `count_matrices` instead of an unreachable `tn5_motif` dir
+  - the `results/tn5_motif` dir rule never matched any real path: `tn5_motif.smk` writes to `results/{sample}/tn5_motif/{caller}/{group}/...`, nested per-sample, not a flat `results/tn5_motif/` prefix, so `match_rule()`'s substring check on `/results/tn5_motif/` never fired — confirmed via direct test against a real per-sample path, independent of whether `tn5_motif.generate_logo` is enabled
+  - the actual Tn5 cut-site count data lives in `results/count_matrices/{category}/` (per-sample counts + per-category `*_count_matrix.tsv`, plus `final_matrices/`), a flat dir directly under `results/` that matches the dir rule correctly
+  - changed the `dir_name` for the `tn5_counts` S3 destination from `results/tn5_motif` to `results/count_matrices` in `s3_transfer_chroma2.py`
+- fix(multiqc): stop `genome_coverage_mqc` from timing out on every case sample (closes #37)
+  - `compute_coverage_mqc.py` called `bam.pileup()` once per MAPQ threshold (4 thresholds), each a full whole-genome per-base pileup traversal with a per-read inner loop -- 4x redundant full-genome scans; rewritten to do a single pileup pass, sorting each column's read MAPQs once and deriving all 4 threshold counts via `bisect_left`
+  - add `_get_runtime`/`_get_runtime_with_retries` helpers in `rules/init.smk` and wire the latter into `genome_coverage_mqc`'s `resources.runtime`, doubling the SLURM runtime on each Snakemake retry (`restart-times`) so a stubborn TIMEOUT gets more walltime automatically instead of repeating with the same limit
+- fix(ci): let `docs-dev` GitHub Actions workflow build from an arbitrary branch
+  - `docs-dev.yml` was copied from HAROLD, which has a real `dev` branch; chroma2's repo has no `dev` branch, so the `push: branches: [dev]` trigger could never fire
+  - add a `workflow_dispatch` `branch` input (default `main`) and check out that ref explicitly, so dev docs can be built on demand from any branch (e.g. an active feature branch) while still publishing to the same `/dev/` gh-pages path
+  - the dormant `push: branches: [dev]` trigger is left in place in case a `dev` branch is introduced later
+- docs: add Quarto-based documentation site (inspired by HAROLD's docs)
+  - add `_quarto.yml`, `styles.css`, and `.github/workflows/docs-dev.yml`/`docs-release.yml` (dev + versioned-release builds published to GitHub Pages, mirroring HAROLD's deploy/version-patch mechanism); gitignore the Quarto output dir (`/_site/`) alongside the already-ignored `/.quarto/` cache
+  - add `docs/index.md`, `prereq.md`, `usage.md`, `pipeline.qmd` (mermaid architecture diagram), `inputs.md`, `outputs.md`, `s3_configuration.md`, `help.md`
+  - `s3_configuration.md` content verified directly against `workflow/scripts/s3_transfer_chroma2.py`'s transfer rules rather than the older `S3_HIERARCHY.md` design doc, which had drifted from the implementation (at the time of writing, `results/count_matrices/` was not transferred to S3 — since fixed, see the `tn5_counts` entry above)
+  - replace the one-line `README.md` stub with a short pipeline overview + link to the docs site
+- feat(wrapper): replicate HAROLD's INFO/STEP/OK/WARN/ERROR/NEXT logging and pipeline.\* state markers (closes #35)
+  - add `log_info`/`log_step`/`log_ok`/`log_warn`/`log_error`/`log_next`/`log_divider` helpers, used consistently across all runmodes (init, reconfig, recluster, dryrun, touch, unlock, runlocal, run, reset), ending in a `NEXT` line telling you the literal next command to run
+  - replace `status.running`/`status.completed`/`status.failed` with `pipeline.running`/`completed`/`failed`/`canceled` + a `pipeline.status.json` sidecar (pipeline/version/git commit-tag/state/reason/runmode/slurm_job_id/num_failed_rules/failed_rules/timestamp_utc) — **breaking**: anything polling the old `status.*` filenames needs to switch to `pipeline.*`
+  - `run`/`runlocal`/`unlock` now refuse to proceed while `pipeline.running` exists (`check_not_already_running`); `dryrun` warns instead of refusing (`warn_if_already_running`)
+  - live progress snapshots written into `pipeline.running` while a run is in flight — a Python thread for `runlocal`, an embedded bash loop in the generated sbatch head job — both scraping Snakemake's own "N of M steps (P%) done" progress line
+  - failed-rule digest (`rule`/`jobid`/`slurm_job`/`state`/`sample`/`log`, deduped against jobs that succeeded on retry) parsed from the run's own log and written into `pipeline.failed` + `pipeline.status.json`
+  - the generated sbatch head job finalizes state via a hidden `chroma2 --internal-finalize` callback (including SIGTERM/SIGINT -> `pipeline.canceled` via bash traps) instead of duplicating the marker/digest logic in bash
+  - `onsuccess`/`onerror` in the Snakefile no longer touch state-marker files (that's now the wrapper/sbatch-script's sole responsibility, avoiding two writers racing on `pipeline.*`); `logs/events.log`/`events.jsonl` and `logs/summary.txt`/`summary.json` are unchanged
+- fix(multiqc): render Tn5 Cut Site Counts as a table with integer values instead of a heatmap
+  - switch `tn5_counts_mqc` plot from `heatmap` to `table` — MultiQC's heatmap renderer forces 2-decimal display regardless of the underlying data, showing e.g. `13832.00` for what is actually a plain int
+  - `table` still defaults to 1-decimal display for numeric columns, so `make_tn5_counts_mqc.py` now emits an explicit `headers:` block with `format: '{:,.0f}'` per category column to force integer display
+- fix(multiqc): correct broken custom-content plots for Tn5 counts, peak size, and fragment size
+  - `tn5_counts_mqc` rule input (`COUNT_MATRIX_ALL_OUTPUTS`) mixed three incompatible file kinds — reference bin BEDs, per-sample intermediate TSVs, and aggregated per-category matrices — causing the heatmap to show bogus rows (`ref`, `gene_count_matrix`, ...) all under meaningless `unknown_host`/`unknown_trna`/`unknown_virus` columns, with totals that summed bin start/end/tss coordinates in with the real count
+  - narrowed the rule input to just the six aggregated `*_count_matrix.tsv` outputs (`GENE_MATRIX_OUTPUTS` + `TRNA_MATRIX_OUTPUTS` + `POL3_MATRIX_OUTPUTS` + `REPEAT_MATRIX_OUTPUTS` + `VIRAL_MATRIX_OUTPUTS` + `RRNA_MATRIX_OUTPUTS`) and rewrote `make_tn5_counts_mqc.py` to derive each category from its file's parent directory name and sum only real sample columns
+  - sample columns are now identified against the pipeline's known `SAMPLES` list (passed in via `params`), not a hardcoded metadata-column blacklist — some matrices (e.g. viral) carry different/extra metadata columns (`feature_type`, `repeat_name`, `repeat_family`, `sw_score`) than the base 9-column schema, which a blacklist approach initially misclassified as bogus "samples"
+  - switch `peak_size_dist` plot from `linegraph` to `bargraph`: MultiQC's linegraph requires numeric x-axis column headers, but peak-size bins are labeled as string ranges (`"0-50"`, `"50-100"`, ...), so MultiQC silently fell back to a positional 1..40 index, rendering the wrong x-axis; `bargraph` accepts categorical column headers, so the existing bin-range labels now render correctly with no data changes
+  - flip axes in the Fragment Size Distribution bargraph: `aggregate_fragment_sizes_mqc.py` previously pivoted with bin ranges as rows and real sample names as columns, so MultiQC treated the bins as "samples" (visible in the "N samples" caption and y-axis) and real samples as the legend, with bins additionally scrambled into alphabetical order; rows are now real samples (sorted), columns are bin ranges in fixed size order
+- fix(s3-transfer): correct broken transfer rules for MultiQC outputs, add multiqc_extra_data
+  - `multiqc_report.html`/`multiqc_data` transfer rules referenced `results/multiqc_report.html` and `results/multiqc_data/`, but the actual paths are `results/multiqc/multiqc_report.html` and `results/multiqc/multiqc_data/` (nested under `multiqc/`) — the report and its data directory were silently never uploaded to S3, verified via `match_rule()` against real output paths
+  - add a `results/multiqc_extra_data/custom` → `qc/custom/` dir rule so the custom QC TSVs feeding MultiQC also reach S3 (they had no matching rule at all)
+  - `multiqc_extra_data/ataqv/*.json` already reaches S3 via the existing generic `.json` suffix rule, so no change needed there
+- fix(multiqc): exclude `logs/` from the MultiQC search path (closes #34, for real this time)
+  - root cause, confirmed against the actual v1.25 container log: the `peak_size_mqc`, `alignment_stats_mqc`, `tn5_counts_mqc`, `genome_coverage_aggregate_mqc`, and `fragment_size_aggregate_mqc` rules use `script:`, so Snakemake creates their `results/logs/<rule>/<rule>.log` files but nothing ever writes to them — they stay 0 bytes
+  - those log paths sit under `RESULTSDIR` (MultiQC's search dir) and their filenames coincidentally end in `_mqc.log`, matching MultiQC's custom-content auto-detect pattern — MultiQC tries to sniff the column format of the empty file and crashes (`ValueError: max() iterable argument is empty` in `_guess_file_format()`), which is an unhandled exception inside `custom_module_classes()` that takes out the _entire_ `custom_content` module for the run, discarding all 6 already-parsed custom sections, not just the file that triggered it
+  - reproduced locally (multiqc v1.25 and v1.27.1, pip-installed) with a zero-byte `logs/peak_size_mqc/peak_size_mqc.log` alongside the real custom TSVs — confirmed the exact same crash, and confirmed `--ignore logs` on the `multiqc` CLI call avoids it and restores all 6 sections in the rendered HTML
+  - add `--ignore logs` to the `multiqc` shell command in `multiqc.smk`
+  - the `multiqc_extra_data/` relocation below was not the fix (MultiQC has no such "skip my own outdir" behavior — see the entry after this one) but is harmless and stays, since it's a reasonable directory layout regardless
+  - correction to the note below: MultiQC v1.25 has no mechanism that skips scanning its own `--outdir`; verified against upstream source (`fn_ignore_dirs` only excludes exact-name matches like `multiqc_data`, `.git`, etc.) — the real cause of #34 was the `logs/` crash above, not directory nesting
+- fix(multiqc): move custom QC data out of MultiQC output directory (closes #34)
+  - MultiQC skips scanning its own `--outdir`, so custom TSVs and ataqv JSONs nested under `{RESULTSDIR}/multiqc` were silently excluded from the final report
+  - relocate `MULTIQC_CUSTOM`/`MULTIQC_ATAQV` to a sibling `multiqc_extra_data/` directory outside the excluded output subtree
+  - add the missing `fragment_size_mqc.tsv` to the S3 transfer inputs in `s3_transfer.smk`
+- feat: implement status file lifecycle and workdir cleanup (implements #33)
+  - add `cleanup_workdir()` function to remove `tmp/` and stale `status.failed`
+  - create `status.running` marker at pipeline start (skipped on dry-run)
+  - call cleanup on successful completion before marking `status.completed`
+  - three-state system: running → (success/failure) → completed/failed, enabling programmatic monitoring and preventing stale state markers
+- fix(count-matrices): add --gene-types gene to build_trna_bins and build_pol3_bins rules
+  - tRNA and Pol3 GTF files are standard GTF format with gene_id attributes, requiring grouped mode processing
+  - without --gene-types, script incorrectly ran in per-line mode (designed for RepeatMasker files)
+  - per-line mode prevented transcript consolidation and added unwanted repeat metadata columns
+  - fix ensures transcript variants are properly merged
+  - affected rules: build_trna_bins, build_pol3_bins (build_repeat_bins remains unchanged as correct for RepeatMasker)
+- fix(build-tn5-midpoint-bins): add gene_id and gene_name columns to grouped mode output for count script compatibility
+  - grouped mode now outputs 9 columns: chrom, start, end, bin_id, gene_id, gene_name, gene_type, strand, reference_pos
+  - matches TSS script output format, fixing IndexError in count_tn5_sites_in_bins.py when accessing fields[7] and fields[8]
+  - per-line mode unaffected (still outputs 11 columns with repeat metadata)
+- fix(build-tn5-midpoint-bins): remove trailing underscore in per-line mode bin_id when repeat_name is empty
+  - per-line mode bin*id format: `{feature_clean}*{chrom}_{start_1based}_{end*1based}*{repeat_name}`
+  - previously produced trailing underscore (e.g., `SINE_Alu_chr1_100_200_`) when repeat_name was empty
+  - now produces clean ID without trailing underscore (e.g., `SINE_Alu_chr1_100_200`)
+- fix(tn5-count): fix bin_id duplicates when genes overlap after hg38→hs1 liftover
+  - updated bin*id format to include both gene_id and gene_name: `{gene_id}*{gene_name}`
+  - prevents duplicate identifiers when different genes end up at same genomic coordinates post-liftover
+  - resolves count_tn5_sites_in_bins.py row count mismatches (expected 514 bins, wrote 515 rows)
+  - affected scripts: build_tn5_tss_bins.py, build_tn5_midpoint_bins.py (grouped mode)
+- fix(tn5-count): add --exclude-gene-types parameter to build_tn5_tss_bins.py
+  - previous implementation treated --gene-types as INCLUDE filter, causing inverted behavior
+  - added --exclude-gene-types parameter for proper exclusion of rRNA, tRNA, Mt_tRNA
+  - script now correctly outputs all genes EXCEPT excluded types
+- fix(build-gene-bins): fix Snakemake shell syntax for conditional exclude arguments
+  - moved Python logic from shell template to params section using lambda function
+  - simplifies conditional handling for --exclude-gene-types flag in build_gene_bins rule
+- feat(tn5-count): implement NH-weighted fractional counting for multi-mapping reads (closes #25)
+  - add `--fractional-counting` flag to count_tn5_sites_in_bins.py for NH-weighted read handling
+  - implement `get_nh_value()` helper to safely extract NH tag from BAM records (returns 1 if missing)
+  - calculate per-alignment weight as 1/NH when fractional counting enabled, else 1.0 for integer counting
+  - accumulate fractional weights into bin counts (Dict[str, float])
+  - round fractional sums to nearest integer before output for DESeq2 compatibility
+  - update all 4 bin counting rules to conditionally pass --fractional-counting based on config
+  - add `fractional_counting` config key under `tn5_motif` block (default true -- NH-weighted counting is correct for multi-mapping reads and should be on unless a run specifically needs raw integer counts)
+- fix(s3-transfer): add MultiQC outputs as explicit dependencies (closes #21)
+  - add multiqc_report.html and multiqc_data as inputs to s3_transfer_if_enabled rule
+  - ensures S3 transfer waits for MultiQC report completion before attempting output deposition
+- feat(multiqc): implement interactive Fragment/Insert Size Distribution visualization (closes #27)
+  - add per-sample fragment size extraction from BAM files with 7 size range bins
+  - aggregate fragment size data across samples into interactive MultiQC linegraph
+  - new scripts: `extract_fragment_sizes.py`, `aggregate_fragment_sizes_mqc.py`
+  - new rules: `extract_fragment_size_data`, `fragment_size_aggregate_mqc`
+  - replaces static per-sample PNG images with interactive cross-sample visualization
+- fix(multiqc): switch pandas-dependent rules from py311 to pysam container
+  - pysam container includes pandas, numpy, scipy as core dependencies
+  - fixes CalledProcessError in Singularity environment when running alignment_stats_mqc, peak_size_mqc, tn5_counts_mqc, genome_coverage_aggregate_mqc
+  - affected rules now execute successfully in HPC Singularity runtime
+- fix(multiqc): mark genome coverage intermediates as temporary files
+  - per-sample coverage_q\*.txt files (624M each) now marked as temp()
+  - automatically deleted after genome_coverage_aggregate_mqc completes
+  - saves ~2.5GB per sample after successful pipeline completion
+- fix: add params to rerun-triggers for Tn5 config changes (closes #26)
+  - changes to Tn5 motif config parameters now trigger automatic rule re-execution
+  - supports exclude_supplementary, exclude_secondary, fractional_counting, mapq_min config changes
+- feat(multiqc): ensure MultiQC report always generated as top-level output
+  - added multiqc_report.html and multiqc_data to rule all
+  - guarantees all MultiQC components generated regardless of S3 configuration
+- feat(deseq2): add global feature filtering with configurable skip list for DESeq2 analysis
+  - add `min_total_count: 10` (was 1) to filter features with insufficient signal before DESeq2 analysis
+  - add `min_features_per_matrix: 50` threshold to require minimum number of features for reliable dispersion estimation
+  - add `skip_features: [tRNA]` configurable list to exclude specific feature types (host, virus, tRNA, ALU, transposable elements, etc.) from analysis
+  - tRNA analyses now skipped by default (insufficient ATAC-seq signal in condensed chromatin regions)
+  - implement detailed logging of feature filtering: total features before/after, count distributions, and filtered feature details
+  - distinguish between two skip types: user-configured skip vs. insufficient features after filtering
+  - modify `prepare_counts()` to return feature count for downstream minimum threshold checking
+  - add early skip check in `run_deseq2_matrix()` before matrix loading (skip_features list)
+  - create placeholder output files with skip reason explanations for skipped analyses
+- feat(deseq2-report): display skipped analyses in HTML report with skip reason and type
+  - add `extract_skip_info()` function to detect and parse skip information from TSV file headers
+  - modify report script to detect and handle skipped analyses (empty result files) separately from successful analyses
+  - add `render_skipped_section()` function to display skipped analyses with clear formatting and icons
+  - use `⏭️` icon for user-configured skips and `⚠️` icon for insufficient feature skips
+  - include skip reason in report for transparency and documentation
+- feat(s3): add S3 output deposition for pipeline results (closes #17)
+- implement conditional S3 transfer of final outputs to AWS S3 bucket with configurable namespace hierarchy (`_HTS/CHROMA/sample_set/...`)
+- add `s3_transfer_chroma2.py` script with 14 transfer rules covering config, QC reports, BAMs (GLACIER storage), BigWigs, peaks, Tn5 counts, and DESeq2 reports
+- add `s3_transfer.smk` rule with guarded execution (requires both `push_to_s3: true` AND non-empty `s3_sample_set_name` in config)
+- configure Rivanna resources (4 GB mem, 1 thread, 480 min runtime) in profile `set-resources`
+- add 8 S3 config keys to `config.yaml`: `push_to_s3`, `s3_pipeline_name`, `s3_sample_set_name`, `s3_aws_credentials_file`, `s3_bucket`, `s3_output_prefix`, `s3_default_storage_class`, `s3_large_file_storage_class`
+- apply consistent S3 integration to HAROLD pipeline with matching namespace hierarchy and resource settings
+- fix(tn5-motif): fix `extract_tn5_motifs` output declarations to match `--skip-flank-output` behavior
+- removed undeclared `flank_bed` and `fasta` outputs from rules when `TN5_GENERATE_LOGO=false` to prevent job failures
+- feat(init): auto-copy `contrasts.tsv` to workflow output directory during initialization
+- `chroma2 init` now copies `config/contrasts.tsv` to the output workdir (matching `samples.tsv` behavior) for self-contained workflow runs
+- feat(deseq2): add volcano plot generation for DESeq2 contrast reporting
+- generate caller-agnostic volcano plots for host gene bins, viral bins, and tRNA gene bins in DESeq2 output
+- add `save_enhanced_volcano_png()` function to `run_deseq2_contrast_report.R` with LFC and significance thresholds
+- extend deseq2 rule outputs to include `.volcano.png` files for all three bin types
+- feat(tn5-count): add input/output validation to count matrix builder
+- validate input Tn5 count TSVs exist, are regular files, and are non-empty before matrix construction
+- validate output matrix TSV exists, is non-empty, and has expected row/line counts after build
+- feat(tn5-count): add progress logging with timestamps to Tn5 site counting
+- add configurable `--progress-every` argument (default 1M BAM records) to report batch counting progress
+- add timestamped logging of bin loading, sample metrics, and final output summary
+- fix(tn5-motif): add `generate_logo` config toggle to optionally disable Tn5 logo generation (closes #18)
+- add `generate_logo: false` config key under `tn5_motif` block; logos now only generated when explicitly enabled (default false to reduce output size)
+- feat(compression): compress PFM outputs to .pfm.tsv.gz reducing file sizes by 60-70% (closes #20)
+- updated `extract_tn5_motifs.py` to gzip-compress PFM files at write time
+- updated `_tn5_pfm()` helper in `tn5motif.smk` to declare outputs as `.pfm.tsv.gz`
+- feat(compression): compress peak call outputs reducing file sizes by 40-50% (closes #19)
+- MACS2 and Genrich peak outputs (.narrowPeak, .summits.bed) now compressed with gzip
+- MACS2/Genrich .xls files marked as temp() (not retained in final output)
+- updated 4 bigbed conversion rules to decompress peak inputs via zcat pipe before processing
+- updated ataqv rule to accept compressed peak input via bash process substitution <(zcat {input.peaks})
+- feat(deseq2): add DESeq2 contrast reporting module
+- add `deseq2_contrast_report` rule driven by a user-supplied contrasts TSV; generates per-comparison HTML reports and differential accessibility TSVs for host gene bins and per-virus bins
+- add full config schema (`deseq2` block) with validated parameters and init-time contrast validation
+- add `deseq2_report` container and Rivanna resource settings
+- feat(trna): refactor tRNA analysis into a dedicated count matrix pipeline (closes #11)
+- separate tRNA genes from protein-coding genes into their own bin reference (`ref.tn5.host_trna_gene_bins.{flank}bp.bed`) using gene body center ± configurable flank (default 100 bp) instead of TSS
+- add per-sample tRNA count rules for genrich and macs2 callers and aggregate tRNA count matrices
+- remove tRNA genes from the protein-coding host gene bin pipeline (no regression)
+- add `trna_gene_flank_size` config key (default 100 bp) under `tn5_motif`
+- GTF filtering for tRNA gene_type is case-insensitive (tRNA/trna/TRNA all match)
+- add Rivanna SLURM resource settings for all 5 new tRNA rules
+- chore(ci): remove `style-files` pre-commit hook (Rscript unavailable in this environment)
+
+- feat(bigbed): add UCSC BigBed outputs for browser-facing BED tracks
+- convert host/virus TSS BEDs, MACS2 summit BEDs, and MACS2/Genrich narrowPeak outputs to `.bb`
+- add `bedToBigBed` container support and Rivanna resource settings for the new conversion rules
+- feat(tn5-motif): add Tn5 motif extraction outputs to the workflow
+- generate caller-specific host and viral Tn5 BED/FASTA/PFM/logo outputs from the Genrich and MACS2 input BAMs
+- add viral 100 bp bin counts, host TSS-centered gene bins, per-sample Tn5 count TSVs, and aggregate count matrices across samples
+- add Tn5 motif config defaults, helper scripts, `pysam`/`py311` container support, and Rivanna resources for motif extraction and counting jobs

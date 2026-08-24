@@ -15,15 +15,18 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import shlex
+import signal
 import socket
 import subprocess
 import sys
 import textwrap
+import threading
 import uuid
 import yaml
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 PIPELINE_HOME = pathlib.Path(__file__).resolve().parent
@@ -45,6 +48,445 @@ def err(message: str) -> None:
     print(border, file=sys.stderr)
     print("Run `./chroma2 --help` for usage.", file=sys.stderr)
     sys.exit(1)
+
+
+##########################################################################################
+# clean block logging helpers (mirrors HAROLD's log_info/log_step/log_ok/log_warn/log_error/log_next)
+##########################################################################################
+
+
+def log_info(message: str) -> None:
+    print(f"INFO  {message}")
+
+
+def log_step(message: str) -> None:
+    print(f"STEP  {message}")
+
+
+def log_ok(message: str) -> None:
+    print(f"OK    {message}")
+
+
+def log_warn(message: str) -> None:
+    print(f"WARN  {message}")
+
+
+def log_error(message: str) -> None:
+    print(f"ERROR {message}")
+
+
+def log_next(message: str) -> None:
+    print(f"NEXT  {message}")
+
+
+def log_divider() -> None:
+    print("-" * 66)
+
+
+def ensure_logs_folder(workdir: pathlib.Path) -> pathlib.Path:
+    """Create logs folder if it doesn't exist."""
+    logs_dir = workdir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir
+
+
+def log_event(workdir: pathlib.Path, level: str, event_type: str, message: str) -> None:
+    """Log event to both events.log and events.jsonl."""
+    logs_dir = ensure_logs_folder(workdir)
+    timestamp = dt.datetime.now().isoformat()
+
+    # Write to events.log (human-readable)
+    with open(logs_dir / "events.log", "a") as f:
+        f.write(f"[{timestamp}] {level}: {event_type} - {message}\n")
+
+    # Write to events.jsonl (machine-readable)
+    with open(logs_dir / "events.jsonl", "a") as f:
+        json.dump(
+            {
+                "timestamp": timestamp,
+                "level": level,
+                "event": event_type,
+                "message": message,
+            },
+            f,
+        )
+        f.write("\n")
+
+
+##########################################################################################
+# pipeline.* run-state markers + status sidecar (mirrors HAROLD's write_pipeline_state_marker)
+##########################################################################################
+
+PIPELINE_STATES = ("running", "completed", "failed", "canceled")
+
+
+def write_pipeline_state_marker(
+    workdir: pathlib.Path,
+    state: str,
+    reason: str = "",
+    job_id: str = "NA",
+    content: str = "",
+    num_failed_rules: int = 0,
+    failed_rules: Optional[List[str]] = None,
+    runmode: str = "",
+) -> None:
+    """Write a single state marker file (pipeline.<state>) and a JSON status
+    sidecar (pipeline.status.json) in workdir. The new marker is written
+    before sibling states are removed, so a poller never sees zero
+    pipeline.* files."""
+    failed_rules = failed_rules or []
+
+    marker_path = workdir / f"pipeline.{state}"
+    if content:
+        tmp_marker_path = marker_path.with_name(
+            marker_path.name + f".tmp.{os.getpid()}"
+        )
+        tmp_marker_path.write_text(content)
+        tmp_marker_path.replace(marker_path)
+    else:
+        marker_path.touch()
+    for other_state in PIPELINE_STATES:
+        if other_state == state:
+            continue
+        (workdir / f"pipeline.{other_state}").unlink(missing_ok=True)
+
+    version_path = PIPELINE_HOME / "VERSION"
+    version = (
+        version_path.read_text().strip().split()[0]
+        if version_path.exists()
+        else "unknown"
+    )
+    git_meta = get_git_metadata(PIPELINE_HOME)
+    sidecar = {
+        "pipeline": "chroma2",
+        "version": version,
+        "git_commit_tag": f"{git_meta['commit']}\t{git_meta['tag']}",
+        "state": state,
+        "reason": reason,
+        "runmode": runmode,
+        "workdir": str(workdir),
+        "slurm_job_id": job_id,
+        "host": socket.gethostname(),
+        "num_failed_rules": num_failed_rules,
+        "failed_rules": failed_rules,
+        "timestamp_utc": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    sidecar_path = workdir / "pipeline.status.json"
+    tmp_path = sidecar_path.with_name(sidecar_path.name + f".tmp.{os.getpid()}")
+    tmp_path.write_text(json.dumps(sidecar, indent=2))
+    tmp_path.replace(sidecar_path)
+    log_info(
+        f"State marker updated: pipeline.{state} (reason={reason}, slurm_job_id={job_id})"
+    )
+
+
+def _stale_running_marker(workdir: pathlib.Path) -> Optional[str]:
+    """Return the terminal state name if pipeline.running coexists with a
+    terminal pipeline.<state> marker. write_pipeline_state_marker() touches
+    the new marker before unlinking siblings, so a kill in that gap leaves
+    both a terminal marker and the old pipeline.running behind -- this can
+    only happen for a run that already reached a terminal state, since a
+    genuinely active run's own pipeline.running write already cleared any
+    prior terminal marker (in the same call, before this check ever runs).
+    Returns None if pipeline.running doesn't exist, or exists with no
+    terminal marker alongside it (a genuinely active run)."""
+    if not (workdir / "pipeline.running").exists():
+        return None
+    for state in ("completed", "failed", "canceled"):
+        if (workdir / f"pipeline.{state}").exists():
+            return state
+    return None
+
+
+def check_not_already_running(workdir: pathlib.Path) -> None:
+    """Refuse to proceed while a prior run still looks active (or crashed
+    without cleaning up) in this workdir. Called from run/runlocal/unlock
+    before submitting/starting/unlocking."""
+    stale_state = _stale_running_marker(workdir)
+    if stale_state is not None:
+        log_warn(
+            f"Found stale {workdir}/pipeline.running alongside pipeline.{stale_state} -- "
+            "a previous run finished but was killed before removing pipeline.running. "
+            "Removing the stale marker and proceeding."
+        )
+        (workdir / "pipeline.running").unlink(missing_ok=True)
+        return
+    if (workdir / "pipeline.running").exists():
+        err(
+            f"Found {workdir}/pipeline.running -- a run already appears to be in progress "
+            "(or a previous run crashed without cleaning up). Confirm no run is active, "
+            "then remove this file before retrying."
+        )
+
+
+def warn_if_already_running(workdir: pathlib.Path) -> None:
+    """Unlike check_not_already_running, this does not abort -- dryrun is
+    read-only/inspection and legitimately useful while a run is in progress."""
+    if _stale_running_marker(workdir) is not None:
+        return
+    if (workdir / "pipeline.running").exists():
+        log_warn(
+            f"Found {workdir}/pipeline.running -- a pipeline run may already be in progress "
+            "(or a previous run crashed without cleaning up) in this workdir. "
+            "'chroma2 -m run'/'runlocal'/'unlock' will refuse to proceed while this file exists."
+        )
+
+
+##########################################################################################
+# failed-rule digest ... scrape Snakemake's own "Error in rule" blocks from a log
+##########################################################################################
+
+_RULE_RE = re.compile(r"^Error in rule (.+):$")
+_JOBID_RE = re.compile(r"^\s{4}jobid: (\d+)$")
+_MESSAGE_RE = re.compile(r"^\s{4}message: (.*)$")
+_LOG_RE = re.compile(r"^\s{4}log: (.*) \(check log file\(s\) for error details\)$")
+_SLURM_FAIL_RE = re.compile(
+    r"SLURM-job '(\d+)' failed, SLURM status is: '([A-Za-z_]+)'"
+)
+_FINISHED_JOBID_RE = re.compile(r"Finished jobid: (\d+)")
+_PROGRESS_RE = re.compile(r"(\d+) of (\d+) steps \((\d+)%\) done")
+
+
+def extract_failed_rules_digest(logfile: pathlib.Path) -> List[Dict[str, str]]:
+    """Best-effort scrape of Snakemake's own log for "Error in rule" blocks.
+    A jobid whose block is later followed by a matching "Finished jobid: <id>"
+    line succeeded on retry (restart-times) and is dropped."""
+    if not logfile.exists():
+        return []
+
+    text = logfile.read_text(errors="replace")
+    finished_jobids = set(_FINISHED_JOBID_RE.findall(text))
+
+    digests: "Dict[str, Dict[str, str]]" = {}
+    in_block = False
+    rule = jobid = message = logline = ""
+    for line in text.splitlines():
+        rule_match = _RULE_RE.match(line)
+        if rule_match:
+            in_block = True
+            rule = rule_match.group(1)
+            jobid = message = logline = ""
+            continue
+        if not in_block:
+            continue
+        if line.strip() == "":
+            if jobid:
+                slurm_job, state = "NA", "NA"
+                slurm_match = _SLURM_FAIL_RE.search(message)
+                if slurm_match:
+                    slurm_job, state = slurm_match.group(1), slurm_match.group(2)
+                log_path, sample = "NA", "NA"
+                if logline:
+                    log_path = logline.split(",", 1)[0].strip()
+                    sample = pathlib.Path(log_path).parent.name or "NA"
+                digests[jobid] = {
+                    "rule": rule,
+                    "jobid": jobid,
+                    "slurm_job": slurm_job,
+                    "state": state,
+                    "sample": sample,
+                    "log": log_path,
+                }
+            in_block = False
+            continue
+        jobid_match = _JOBID_RE.match(line)
+        message_match = _MESSAGE_RE.match(line)
+        log_match = _LOG_RE.match(line)
+        if jobid_match:
+            jobid = jobid_match.group(1)
+        elif not message and message_match:
+            message = message_match.group(1)
+        elif not logline and log_match:
+            logline = log_match.group(1)
+
+    return [d for jid, d in digests.items() if jid not in finished_jobids]
+
+
+def format_digest_line(d: Dict[str, str]) -> str:
+    return (
+        f"FAILED: rule={d['rule']} jobid={d['jobid']} slurm_job={d['slurm_job']} "
+        f"state={d['state']} sample={d['sample']} log={d['log']}"
+    )
+
+
+_RUNNING_RULE_RE = re.compile(r"^rule (\S+):$")
+_WILDCARDS_RE = re.compile(r"^\s{4}wildcards: (.*)$")
+_TOTAL_JOBS_RE = re.compile(r"^total\s+(\d+)\s*$", re.MULTILINE)
+
+
+def extract_running_jobs_digest(logfile: pathlib.Path) -> List[Dict[str, str]]:
+    """Best-effort scrape of Snakemake's own log for job-start ('rule <name>:')
+    blocks that are still in flight -- i.e. started but with no matching
+    'Finished jobid: <id>' line and not already reported by
+    extract_failed_rules_digest(). NOT authoritative (same caveats as that
+    function); a parse miss here must never block the rest of the progress
+    snapshot. Distinguishing from 'Error in rule <name>:' blocks is automatic:
+    the anchored _RUNNING_RULE_RE pattern doesn't match a line starting with
+    'Error in rule '."""
+    if not logfile.exists():
+        return []
+
+    text = logfile.read_text(errors="replace")
+    finished_jobids = set(_FINISHED_JOBID_RE.findall(text))
+    failed_jobids = {d["jobid"] for d in extract_failed_rules_digest(logfile)}
+
+    # Deliberately does NOT wait for a blank line to mark the end of a job's
+    # block (unlike extract_failed_rules_digest's error blocks, which are
+    # short): a verbose "rule <name>:" block is followed by a long shell
+    # command dump that can itself contain blank-looking lines, so instead
+    # just track jobid/wildcards until the next block header appears.
+    started: "Dict[str, Dict[str, str]]" = {}
+    current_rule: Optional[str] = None
+    current_jobid: Optional[str] = None
+    for line in text.splitlines():
+        if _RULE_RE.match(line):
+            # "Error in rule <name>:" -- handled separately by
+            # extract_failed_rules_digest; stop attributing jobid/wildcards
+            # lines inside it to whatever rule was open before.
+            current_rule = None
+            current_jobid = None
+            continue
+        rule_match = _RUNNING_RULE_RE.match(line)
+        if rule_match:
+            current_rule = rule_match.group(1)
+            current_jobid = None
+            continue
+        if current_rule is None:
+            continue
+        jobid_match = _JOBID_RE.match(line)
+        if jobid_match:
+            current_jobid = jobid_match.group(1)
+            started[current_jobid] = {
+                "rule": current_rule,
+                "jobid": current_jobid,
+                "wildcards": "",
+            }
+            continue
+        if current_jobid is not None:
+            wildcards_match = _WILDCARDS_RE.match(line)
+            if wildcards_match:
+                started[current_jobid]["wildcards"] = wildcards_match.group(1)
+                current_jobid = None  # done with this block's fields we care about
+
+    return [
+        d
+        for jid, d in started.items()
+        if jid not in finished_jobids and jid not in failed_jobids
+    ]
+
+
+def format_running_line(d: Dict[str, str]) -> str:
+    label = d["wildcards"] or f"jobid={d['jobid']}"
+    return f"  - {d['rule']} ({label})"
+
+
+def build_progress_marker(
+    logfile: pathlib.Path, started_at: Optional[dt.datetime] = None
+) -> Optional[str]:
+    """Build the full pipeline.running snapshot: overall progress (from
+    Snakemake's own 'N of M steps (P%) done' line, or the 'total' line from
+    its Job stats table if no job has completed yet), which job(s) are
+    currently running, a live failed-job count, elapsed time, and a
+    last-updated timestamp. Unlike progress_snapshot() (which only reflects
+    job *completions*), this has something to say even while every remaining
+    job is failing outright -- e.g. a resume run where nothing has *finished*
+    yet -- which used to leave pipeline.running empty for the whole run."""
+    if not logfile.exists():
+        return None
+    text = logfile.read_text(errors="replace")
+
+    progress_matches = _PROGRESS_RE.findall(text)
+    if progress_matches:
+        done_n, total_n, pct = progress_matches[-1]
+    else:
+        total_matches = _TOTAL_JOBS_RE.findall(text)
+        if not total_matches:
+            return None
+        done_n, total_n, pct = "0", total_matches[-1], "0"
+    remaining = max(int(total_n) - int(done_n), 0)
+
+    lines = [
+        f"Progress : {done_n} / {total_n} steps complete ({pct}%)",
+        f"Remaining: {remaining} steps",
+    ]
+
+    running = extract_running_jobs_digest(logfile)
+    if running:
+        lines.append(f"Running  : {len(running)} job(s)")
+        lines.extend(format_running_line(d) for d in running)
+
+    failed = extract_failed_rules_digest(logfile)
+    if failed:
+        lines.append(
+            f"Failed   : {len(failed)} job(s) so far (see pipeline.failed once the run ends)"
+        )
+
+    if started_at is not None:
+        elapsed = dt.datetime.now() - started_at
+        lines.append(f"Elapsed  : {str(elapsed).split('.')[0]}")
+
+    lines.append(f"Updated  : {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    return "\n".join(lines) + "\n"
+
+
+def derive_final_progress(logfile: pathlib.Path) -> str:
+    """Re-derive the final step count from Snakemake's own last progress line
+    and report it as N/N (100%, 0 remaining)."""
+    if not logfile.exists():
+        return ""
+    matches = _PROGRESS_RE.findall(logfile.read_text(errors="replace"))
+    if not matches:
+        return ""
+    _, total, _ = matches[-1]
+    updated = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"Progress : {total} / {total} steps complete (100%)\n"
+        f"Remaining: 0 steps\n"
+        f"Updated  : {updated}\n"
+    )
+
+
+def progress_snapshot(logfile: pathlib.Path) -> Optional[str]:
+    """Scrape the latest 'N of M steps (P%) done' line for a live snapshot."""
+    if not logfile.exists():
+        return None
+    matches = _PROGRESS_RE.findall(logfile.read_text(errors="replace"))
+    if not matches:
+        return None
+    done_n, total_n, pct = matches[-1]
+    remaining = max(int(total_n) - int(done_n), 0)
+    updated = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"Progress : {done_n} / {total_n} steps complete ({pct}%)\n"
+        f"Remaining: {remaining} steps\n"
+        f"Updated  : {updated}\n"
+    )
+
+
+def run_progress_monitor(
+    marker: pathlib.Path,
+    logfile: pathlib.Path,
+    stop_event: threading.Event,
+    started_at: dt.datetime,
+) -> None:
+    """Background loop: every 60s, rereads `logfile` in full for Snakemake's
+    own progress/running-job/failure state and writes a human-readable
+    summary into `marker` (pipeline.running), mirroring HAROLD's
+    _runlocal_progress_monitor. Not a true tail -- build_progress_marker()
+    rescans the whole (monotonically growing) file on each poll rather than
+    reading only newly-appended content. Uses build_progress_marker() rather
+    than the plain progress_snapshot() so the file has something to say even
+    before any job has completed, or while every remaining job is failing
+    outright (see build_progress_marker's docstring)."""
+    while not stop_event.is_set():
+        if not marker.exists():
+            break
+        snapshot = build_progress_marker(logfile, started_at)
+        if snapshot:
+            tmp_marker = marker.with_name(marker.name + f".tmp.{os.getpid()}")
+            tmp_marker.write_text(snapshot)
+            tmp_marker.replace(marker)
+        stop_event.wait(60)
 
 
 def usage() -> str:
@@ -76,8 +518,8 @@ def usage() -> str:
             * dry       : same as dryrun
 
         Optional Arguments:
-        --host|-g       : host genome (e.g. hg38 or mm39)                       (--runmode=init only)
-        --additives|-a  : comma-separated list of additives (e.g. ERCC,BAC16)   (--runmode=init only)
+        --host|-g       : host genome (e.g. hg38_basic or mm39_basic)                 (--runmode=init only)
+        --additives|-a  : comma-separated list of additives (e.g. ERCC,BAC16Insert)   (--runmode=init only)
         --viruses|-v    : comma-separated list of viruses                       (--runmode=init only)
         --manifest|-s   : absolute path to samples.tsv (copied to WORKDIR)      (--runmode=init only)
         --sifdir|-i     : path for pre-downloaded SIF images (default: DEFAULT_SHARED_SIF_DIR)
@@ -266,6 +708,31 @@ def read_config_template() -> str:
 
         # kraken2 db
         kraken2_db: "KRAKEN2_DB"
+
+        # DESeq2 contrast reporting
+        deseq2:
+          enabled: false
+          contrasts_tsv: ""
+          outdir: "results/deseq2"
+          alpha: 0.05
+          lfc_threshold: 1.0
+          min_replicates_per_group: 2
+          min_total_count: 1
+          size_factor_type: "poscounts"
+          fit_type: "parametric"
+          shrink_type: "apeglm"
+          p_adjust_method: "BH"
+          cooks_cutoff: true
+          independent_filtering: true
+          vst_blind: true
+          report_top_n: 50
+          report_label_top_n: 15
+          report_max_table_rows: 50000
+          html_self_contained: true
+          design_factors: ["group"]
+
+        containers:
+          deseq2_report: "docker://yourdockerhubuser/chroma2-deseq2-report:latest"
         """
         ).strip()
         + "\n"
@@ -365,6 +832,22 @@ def build_env(
     return env
 
 
+def build_shell_cmd(
+    cmd_list,
+    module_load: str,
+    conda_activate: str,
+    path_prepend: str,
+) -> str:
+    """Quote-join cmd_list into a single command string, `&&`-prefixed with
+    any non-empty path_prepend/conda_activate/module_load env-activation
+    commands (in that order). Returns a string suitable for `bash -lc`."""
+    cmd = " ".join(shlex.quote(str(c)) for c in cmd_list)
+    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
+    if parts:
+        cmd = " && ".join(parts + [cmd])
+    return cmd
+
+
 def shell_run(
     cmd_list,
     env: Dict[str, str],
@@ -372,13 +855,11 @@ def shell_run(
     conda_activate: str,
     path_prepend: str,
 ) -> None:
-    cmd = " ".join(shlex.quote(str(c)) for c in cmd_list)
-    parts = [p for p in [path_prepend, conda_activate, module_load] if p]
-    if parts:
-        cmd = " && ".join(parts + [cmd])
-        subprocess.run(["bash", "-lc", cmd], check=True, env=env)
-    else:
+    if not (path_prepend or conda_activate or module_load):
         subprocess.run(cmd_list, check=True, env=env)
+        return
+    cmd = build_shell_cmd(cmd_list, module_load, conda_activate, path_prepend)
+    subprocess.run(["bash", "-lc", cmd], check=True, env=env)
 
 
 def create_runinfo(workdir: pathlib.Path) -> None:
@@ -471,6 +952,10 @@ def runlocal(
 ) -> None:
     if not os.environ.get("SLURM_JOB_ID"):
         err("runlocal can only be done on an interactive node")
+
+    log_step("[runlocal] Starting local interactive execution")
+    check_not_already_running(workdir)
+
     cmd = [
         "snakemake",
         "-s",
@@ -483,7 +968,128 @@ def runlocal(
     ]
     if env.get("APPTAINER_PREFIX_ARG"):
         cmd.append(env["APPTAINER_PREFIX_ARG"])
-    shell_run(cmd, env, module_load, conda_activate, path_prepend)
+    cmd_str = build_shell_cmd(cmd, module_load, conda_activate, path_prepend)
+
+    timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
+    logs_dir = ensure_logs_folder(workdir)
+    runlocal_log = logs_dir / f"runlocal.{timestamp}.log"
+    marker = workdir / "pipeline.running"
+
+    log_divider()
+    write_pipeline_state_marker(
+        workdir, "running", reason="runlocal_started", runmode="runlocal"
+    )
+
+    # Background thread: tails runlocal_log for Snakemake's own progress line
+    # and periodically writes a snapshot into pipeline.running.
+    stop_event = threading.Event()
+    started_at = dt.datetime.now()
+    monitor = threading.Thread(
+        target=run_progress_monitor,
+        args=(marker, runlocal_log, stop_event, started_at),
+        daemon=True,
+    )
+    monitor.start()
+
+    # snakemake/tee are grandchildren (spawned by the intermediate `bash -lc`
+    # process), not direct children of this process, so a plain signal-forward
+    # to the bash PID isn't enough: a non-interactive bash that receives a
+    # signal directly (not via terminal job control) typically dies without
+    # forwarding it to its own children, orphaning snakemake and denying it
+    # the chance to run its own graceful shutdown (which is what actually
+    # cancels any per-rule SLURM sub-jobs it already submitted). Launching in
+    # a new session makes bash the leader of its own process group, so the
+    # whole subtree can be signaled at once via os.killpg().
+    cmd_with_tee = cmd_str + f" 2>&1 | tee {shlex.quote(str(runlocal_log))}"
+    proc = subprocess.Popen(
+        ["bash", "-lc", cmd_with_tee], env=env, start_new_session=True
+    )
+
+    # `_handle_signal` must never call proc.wait(): the outer `rc = proc.wait()`
+    # below blocks inside the os.waitpid() syscall while holding Popen's
+    # internal _waitpid_lock, and Python delivers a pending signal by
+    # interrupting that syscall and running the handler nested on the *same*
+    # thread/frame -- so a wait() call from inside the handler tries to
+    # acquire a lock its own caller already holds and can never succeed,
+    # hanging the process indefinitely instead of exiting. The handler only
+    # records the signal and fires the kill; a separate watchdog thread
+    # (which calls proc.wait() from a different thread, where the lock is a
+    # normal cross-thread mutex) owns the timeout/escalate-to-SIGKILL logic.
+    # Once the child actually dies, the outer proc.wait() unblocks on its own.
+    cancel_signum = None
+
+    def _escalation_watchdog():
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            if proc.poll() is None:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        except ValueError:
+            pass  # proc.wait() already reaped the child on the main thread
+
+    def _handle_signal(signum, _frame):
+        nonlocal cancel_signum
+        already_cancelling = cancel_signum is not None
+        cancel_signum = signum
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signum)
+            except ProcessLookupError:
+                pass
+            if not already_cancelling:
+                threading.Thread(target=_escalation_watchdog, daemon=True).start()
+
+    old_sigterm = signal.signal(signal.SIGTERM, _handle_signal)
+    old_sigint = signal.signal(signal.SIGINT, _handle_signal)
+    try:
+        rc = proc.wait()
+    finally:
+        signal.signal(signal.SIGTERM, old_sigterm)
+        signal.signal(signal.SIGINT, old_sigint)
+        stop_event.set()
+        monitor.join(timeout=5)
+
+    if cancel_signum is not None:
+        write_pipeline_state_marker(
+            workdir,
+            "canceled",
+            reason=f"signal_{signal.Signals(cancel_signum).name}",
+            runmode="runlocal",
+        )
+        sys.exit(130)
+
+    if rc == 0:
+        content = derive_final_progress(runlocal_log)
+        write_pipeline_state_marker(
+            workdir,
+            "completed",
+            reason="runlocal_succeeded",
+            runmode="runlocal",
+            content=content,
+        )
+        log_ok("Local run completed successfully")
+        return
+
+    last_progress = marker.read_text() if marker.exists() else ""
+    digest = extract_failed_rules_digest(runlocal_log)
+    failed_rules = [format_digest_line(d) for d in digest]
+    content = last_progress
+    if failed_rules:
+        content += f"\n{len(failed_rules)} job(s) failed:\n" + "\n".join(failed_rules)
+    write_pipeline_state_marker(
+        workdir,
+        "failed",
+        reason="runlocal_failed",
+        runmode="runlocal",
+        content=content,
+        num_failed_rules=len(failed_rules),
+        failed_rules=failed_rules,
+    )
+    log_error(f"Local run failed (exit code {rc})")
+    sys.exit(rc)
 
 
 def write_sbatch_script(
@@ -515,6 +1121,13 @@ def write_sbatch_script(
     if apptainer_vars.get("APPTAINER_SIF_DIR"):
         apptainer_prefix = f'--apptainer-prefix={apptainer_vars["APPTAINER_SIF_DIR"]}'
 
+    chroma2_bin = shlex.quote(str(PIPELINE_HOME / "chroma2"))
+    workdir_q = shlex.quote(str(workdir))
+    finalize = (
+        f"{chroma2_bin} --internal-finalize --workdir {workdir_q} "
+        f'--job-id "$SLURM_JOB_ID" --log-file {workdir_q}/logs/slurm-$SLURM_JOB_ID.out'
+    )
+
     lines = [
         "#!/bin/bash",
         "# Auto-generated by chroma2 wrapper",
@@ -523,25 +1136,90 @@ def write_sbatch_script(
         "#SBATCH --time=3-00:00:00",
         acct_line,
         "#SBATCH --job-name=chroma2_head_job",
-        f"#SBATCH --output={workdir}/slurm-%j.out",
+        f"#SBATCH --output={workdir_q}/logs/slurm-%j.out",
         part_line,
         "",
         "set -euo pipefail",
         "",
-        f"cd {workdir}",
+        f"cd {workdir_q}",
+        "",
+        # Slurm can terminate this job directly (scancel, walltime) before the
+        # snakemake exit-code branch below ever runs, so a trap is the only
+        # reliable way to record pipeline.canceled in that case. The handler
+        # explicitly kills the background progress monitor and signals/waits
+        # on the snakemake child (backgrounded below) before finalizing --
+        # snakemake's own signal handling is what actually cancels any
+        # per-rule SLURM sub-jobs it already submitted, so it needs a chance
+        # to run before this script records pipeline.canceled and exits.
+        "_handle_signal() {",
+        '  local sig="$1"',
+        '  kill "${_monitor_pid:-}" 2>/dev/null || true',
+        '  if [ -n "${SNAKEMAKE_PID:-}" ]; then',
+        '    kill -TERM "$SNAKEMAKE_PID" 2>/dev/null || true',
+        '    wait "$SNAKEMAKE_PID" 2>/dev/null || true',
+        "  fi",
+        f'  {finalize} --state canceled --reason "signal_${{sig}}"',
+        "  exit 130",
+        "}",
+        "trap '_handle_signal SIGTERM' SIGTERM",
+        "trap '_handle_signal SIGINT' SIGINT",
         "",
     ]
     if apptainer_exports:
         lines.append(apptainer_exports)
-    lines.append(f'export PROFILE="{workdir}/config/{profile}"')
+    profile_dir_q = shlex.quote(f"{workdir}/config/{profile}")
+    lines.append(f"export PROFILE={profile_dir_q}")
     if path_prepend:
         lines.append(path_prepend)
     if conda_activate:
         lines.append(conda_activate)
     if module_load:
         lines.append(module_load)
-    lines.append(
-        f"snakemake -s {SNAKEFILE} --directory {workdir} -j 100 --verbose {apptainer_prefix} --profile config/{profile}"
+    lines.extend(
+        [
+            "",
+            "echo '" + "-" * 66 + "'",
+            "echo 'STEP  [head_job] Starting Snakemake head process'",
+            "echo '" + "-" * 66 + "'",
+            "",
+            "# Background loop: every 60s, asks chroma2 to rescrape this job's own",
+            "# stdout log for Snakemake's progress/running-job/failure state and",
+            "# refresh pipeline.running -- shares the exact same parser as",
+            "# --internal-finalize (extract_failed_rules_digest/",
+            "# extract_running_jobs_digest) instead of a second hand-duplicated one.",
+            "_STARTED_EPOCH=$(date +%s)",
+            "_progress_monitor() {",
+            f"  local logfile={workdir_q}/logs/slurm-$SLURM_JOB_ID.out",
+            f"  local marker={workdir_q}/pipeline.running",
+            '  while [[ -f "$marker" ]]; do',
+            f"    {chroma2_bin} --internal-progress-snapshot --workdir {workdir_q} "
+            '--log-file "$logfile" --started-epoch "$_STARTED_EPOCH" || true',
+            "    sleep 60",
+            "  done",
+            "}",
+            "_progress_monitor &",
+            "_monitor_pid=$!",
+            "",
+            "set +e",
+            f"snakemake -s {SNAKEFILE} --directory {workdir_q} -j 100 --verbose {apptainer_prefix} --profile config/{profile} &",
+            "SNAKEMAKE_PID=$!",
+            'wait "$SNAKEMAKE_PID"',
+            "SNAKEMAKE_EXIT_CODE=$?",
+            "set -e",
+            "",
+            'kill "$_monitor_pid" 2>/dev/null || true',
+            'wait "$_monitor_pid" 2>/dev/null || true',
+            "",
+            "if [ $SNAKEMAKE_EXIT_CODE -eq 0 ]; then",
+            f"    {finalize} --state completed --reason snakemake_succeeded",
+            "    echo 'OK    [head_job] Snakemake completed successfully'",
+            "else",
+            f"    {finalize} --state failed --reason snakemake_failed",
+            "    echo 'ERROR [head_job] Snakemake failed (exit code '$SNAKEMAKE_EXIT_CODE')'",
+            "fi",
+            "",
+            "exit $SNAKEMAKE_EXIT_CODE",
+        ]
     )
     script = "\n".join(line for line in lines if line is not None) + "\n"
     sbatch_path.write_text(script)
@@ -571,7 +1249,81 @@ def main() -> None:
     parser.add_argument("-i", "--sifdir")
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-V", "--version", action="store_true")
+    # Hidden: only ever invoked by the generated sbatch script (write_sbatch_script)
+    # to finalize pipeline.* state from a detached process, instead of
+    # duplicating write_pipeline_state_marker/extract_failed_rules_digest in bash.
+    parser.add_argument(
+        "--internal-finalize", action="store_true", help=argparse.SUPPRESS
+    )
+    # Hidden: invoked every 60s by the generated sbatch script's
+    # _progress_monitor loop to refresh pipeline.running with a live
+    # snapshot, reusing the exact same parser (extract_running_jobs_digest/
+    # extract_failed_rules_digest) as --internal-finalize and the runlocal
+    # Python thread (run_progress_monitor), instead of a fourth
+    # hand-duplicated implementation in bash.
+    parser.add_argument(
+        "--internal-progress-snapshot", action="store_true", help=argparse.SUPPRESS
+    )
+    parser.add_argument("--started-epoch", default=None, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--state", choices=["completed", "failed", "canceled"], help=argparse.SUPPRESS
+    )
+    parser.add_argument("--reason", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--job-id", default="NA", help=argparse.SUPPRESS)
+    parser.add_argument("--log-file", default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
+
+    if args.internal_progress_snapshot:
+        workdir = pathlib.Path(args.workdir).expanduser().resolve()
+        logfile = pathlib.Path(args.log_file) if args.log_file else None
+        marker = workdir / "pipeline.running"
+        if marker.exists() and logfile:
+            started_at = (
+                dt.datetime.fromtimestamp(float(args.started_epoch))
+                if args.started_epoch
+                else None
+            )
+            snapshot = build_progress_marker(logfile, started_at)
+            if snapshot:
+                tmp_marker = marker.with_name(marker.name + f".tmp.{os.getpid()}")
+                tmp_marker.write_text(snapshot)
+                tmp_marker.replace(marker)
+        sys.exit(0)
+
+    if args.internal_finalize:
+        workdir = pathlib.Path(args.workdir).expanduser().resolve()
+        logfile = pathlib.Path(args.log_file) if args.log_file else None
+        marker = workdir / "pipeline.running"
+        content, num_failed, failed_rules = "", 0, []
+        if args.state == "completed":
+            content = derive_final_progress(logfile) if logfile else ""
+        elif args.state == "failed":
+            last_progress = marker.read_text() if marker.exists() else ""
+            if logfile:
+                digest = extract_failed_rules_digest(logfile)
+                failed_rules = [format_digest_line(d) for d in digest]
+                num_failed = len(failed_rules)
+            content = last_progress
+            if failed_rules:
+                content += f"\n{num_failed} job(s) failed:\n" + "\n".join(failed_rules)
+            elif logfile:
+                content += (
+                    f"\nNo per-rule failure details could be parsed from {logfile} -- "
+                    "either no Snakemake rule failed directly (e.g. a config/setup "
+                    "error before any rule ran) or the log format has changed since "
+                    "this parser was written. Check the log directly for the real error."
+                )
+        write_pipeline_state_marker(
+            workdir,
+            args.state,
+            reason=args.reason,
+            job_id=args.job_id,
+            content=content,
+            num_failed_rules=num_failed,
+            failed_rules=failed_rules,
+            runmode="run",
+        )
+        sys.exit(0)
 
     if args.version:
         version_path = PIPELINE_HOME / "VERSION"
@@ -594,15 +1346,15 @@ def main() -> None:
     module_load = ""
     conda_activate = ""
     path_prepend = ""
-    temp_dir = f"/scratch/{getpass.getuser()}/"
-    refs_dir = "/standard/dremel_lab/workflows/reference_data/fasta_gtf/"
-    kraken2_db = "/standard/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
+    temp_dir = f"/scratch/{getpass.getuser()}/tmpdir"
+    refs_dir = "/project/dremel_lab/workflows/reference_data/fasta_gtf/"
+    kraken2_db = "/project/dremel_lab/workflows/reference_data/kraken2/kraken2_db"
 
     if platform == "shen":
         cluster_profile = "rivanna"
         partition = "standard"
         py_bin = "/sfs/gpfs/tardis/project/dremel_lab/miniforge3/envs/pipelines/bin"
-        path_prepend = f'export PATH="{py_bin}:/standard/dremel_lab/scripts/bin:$PATH"'
+        path_prepend = f'export PATH="{py_bin}:/project/dremel_lab/scripts/bin:$PATH"'
         module_load = "module load apptainer"
     else:
         print(
@@ -610,7 +1362,7 @@ def main() -> None:
             "Please edit config/ and config.yaml for compatibility with your environment."
         )
 
-    host = args.host or "hg38"
+    host = args.host or "hg38_basic"
     additives = args.additives or ""
     viruses = args.viruses or "KT899744.1"
 
@@ -619,9 +1371,20 @@ def main() -> None:
     def do_init() -> None:
         if workdir.exists():
             err(f"Folder {workdir} already exists!")
+        log_step("[init] Preparing workdir")
         workdir.mkdir(parents=True)
         copy_config_profiles(workdir)
+
+        log_info("Editing config.yaml with the following parameters:")
+        log_info(f"Pipeline Dir: {PIPELINE_HOME}")
+        log_info(f"Host: {host}")
+        log_info(f"Additives: {additives}")
+        log_info(f"Viruses: {viruses}")
+        log_info(f"Temp Dir: {temp_dir}")
+        log_info(f"Refs Dir: {refs_dir}")
+        log_info(f"Cluster Profile: {cluster_profile}")
         write_config(workdir, host, additives, viruses, temp_dir, refs_dir, kraken2_db)
+        log_ok(f"Completed writing {workdir}/config.yaml")
 
         manifest = args.manifest
         if manifest:
@@ -636,34 +1399,43 @@ def main() -> None:
             else:
                 write_samples_template(workdir / "samples.tsv")
 
+        default_contrasts = PIPELINE_HOME / "config" / "contrasts.tsv"
+        if default_contrasts.exists():
+            shutil.copy2(default_contrasts, workdir / "contrasts.tsv")
+            log_ok(f"Copied contrasts file to {workdir}/contrasts.tsv")
+
         (workdir / "logs").mkdir(exist_ok=True)
         (workdir / "stats").mkdir(exist_ok=True)
-        print(f"Done initializing {workdir}")
-        print("You can now edit:")
-        print(f"  {workdir}/config.yaml")
-        print(f"  {workdir}/samples.tsv")
+        log_ok(f"Initialization completed for {workdir}")
+        log_next(
+            f"Edit {workdir}/config.yaml and {workdir}/samples.tsv, then run: chroma2 -w {workdir} -m dryrun"
+        )
 
     if runmode == "init":
         do_init()
         return
 
     if runmode in {"reconfig"}:
+        log_step("[reconfig] Rebuilding config.yaml")
         check_essential_files(workdir)
         write_config(workdir, host, additives, viruses, temp_dir, refs_dir, kraken2_db)
-        print(f"{workdir}/config.yaml has been updated!")
+        log_ok(f"{workdir}/config.yaml has been updated!")
         return
 
     if runmode in {"recluster"}:
+        log_step("[recluster] Syncing cluster config into workdir")
         check_essential_files(workdir)
         copy_config_profiles(workdir)
-        print("Done reclustering!")
+        log_ok("Done reclustering!")
         return
 
     if runmode in {"reset"}:
         if not workdir.exists():
             err(f"Folder {workdir} does not exist!")
-        print(f"Deleting {workdir}")
+        log_info(f"Working Dir: {workdir}")
+        log_warn(f"Deleting {workdir}")
         shutil.rmtree(workdir)
+        log_step(f"Re-Initializing {workdir}")
         do_init()
         return
 
@@ -679,13 +1451,7 @@ def main() -> None:
     env = build_env(profile_dir, apptainer_vars)
 
     if runmode in {"dryrun", "dry"}:
-        write_run_metadata(
-            workdir,
-            runmode,
-            cluster_profile,
-            platform,
-            " ".join(shlex.quote(str(c)) for c in sys.argv),
-        )
+        log_step("[dryrun] Running preflight checks")
         create_runinfo(workdir)
         if is_workdir_locked(workdir):
             print(
@@ -693,7 +1459,8 @@ def main() -> None:
                 "If this is stale, run `chroma2 -w <WORKDIR> -m unlock` before proceeding."
             )
         timestamp = dt.datetime.now().strftime("%y%m%d%H%M%S")
-        log_path = workdir / f"dryrun.{timestamp}.log"
+        logs_dir = ensure_logs_folder(workdir)
+        log_path = logs_dir / f"dryrun.{timestamp}.log"
         cmd = [
             "snakemake",
             "-s",
@@ -707,17 +1474,29 @@ def main() -> None:
         if env.get("APPTAINER_PREFIX_ARG"):
             cmd.append(env["APPTAINER_PREFIX_ARG"])
         cmd.extend(["--profile", f"config/{cluster_profile}", "--dry-run"])
-        cmd_str = (
-            " ".join(shlex.quote(str(c)) for c in cmd)
-            + f" | tee {shlex.quote(str(log_path))}"
+        cmd_str = build_shell_cmd(cmd, module_load, conda_activate, path_prepend)
+        cmd_str += f" | tee {shlex.quote(str(log_path))}"
+        log_divider()
+        result = subprocess.run(["bash", "-lc", cmd_str], env=env)
+        log_divider()
+        if result.returncode != 0:
+            log_error(
+                f"Dry-run failed (exit code {result.returncode}). See log: {log_path}"
+            )
+            warn_if_already_running(workdir)
+            sys.exit(result.returncode)
+        log_ok(f"Dry-run completed. Log: {log_path}")
+        dryrun_output = (
+            log_path.read_text(errors="replace") if log_path.exists() else ""
         )
-        parts = [p for p in [path_prepend, conda_activate, module_load] if p]
-        if parts:
-            cmd_str = " && ".join(parts + [cmd_str])
-        subprocess.run(["bash", "-lc", cmd_str], check=True, env=env)
+        if (workdir / "pipeline.running").exists():
+            warn_if_already_running(workdir)
+        elif "Nothing to be done" not in dryrun_output:
+            log_next(f"Submit run with: chroma2 -w {workdir} -m run")
         return
 
     if runmode in {"touch"}:
+        log_step("[touch] Touching output files")
         cmd = [
             "snakemake",
             "--touch",
@@ -730,19 +1509,31 @@ def main() -> None:
         ]
         if env.get("APPTAINER_PREFIX_ARG"):
             cmd.append(env["APPTAINER_PREFIX_ARG"])
-        shell_run(cmd, env, module_load, conda_activate, path_prepend)
+        try:
+            shell_run(cmd, env, module_load, conda_activate, path_prepend)
+        except subprocess.CalledProcessError as e:
+            log_error(f"Touch failed (exit code {e.returncode}).")
+            sys.exit(e.returncode)
+        log_ok("Touch completed.")
         return
 
     if runmode in {"unlock"}:
-        run_snakemake(
-            workdir,
-            f"config/{cluster_profile}",
-            ["--unlock"],
-            env,
-            module_load,
-            conda_activate,
-            path_prepend,
-        )
+        log_step("[unlock] Unlocking workdir")
+        check_not_already_running(workdir)
+        try:
+            run_snakemake(
+                workdir,
+                f"config/{cluster_profile}",
+                ["--unlock"],
+                env,
+                module_load,
+                conda_activate,
+                path_prepend,
+            )
+        except subprocess.CalledProcessError as e:
+            log_error(f"Unlock failed (exit code {e.returncode})")
+            sys.exit(e.returncode)
+        log_ok("Workdir unlocked")
         return
 
     if runmode in {"runlocal", "local"}:
@@ -759,6 +1550,8 @@ def main() -> None:
         return
 
     if runmode in {"run"}:
+        log_step("[run] Preparing SLURM submission")
+        check_not_already_running(workdir)
         write_run_metadata(
             workdir,
             runmode,
@@ -767,6 +1560,9 @@ def main() -> None:
             " ".join(shlex.quote(str(c)) for c in sys.argv),
         )
         create_runinfo(workdir)
+        ensure_logs_folder(workdir)
+        log_event(workdir, "INFO", "RUN_STARTED", "Workflow execution started")
+
         if shutil.which("sbatch") is None:
             err("sbatch not found in PATH; cannot submit head job to Slurm")
         sbatch_script = write_sbatch_script(
@@ -778,12 +1574,37 @@ def main() -> None:
             path_prepend,
             partition,
         )
-        jobid = subprocess.check_output(
-            ["sbatch", "--parsable", str(sbatch_script)], text=True
-        ).strip()
-        print(
-            f"Submitted head job as sbatch job {jobid}. Output: {workdir}/slurm-{jobid}.out"
+
+        log_divider()
+        write_pipeline_state_marker(
+            workdir, "running", reason="submission_started", runmode="run"
         )
+
+        try:
+            jobid = subprocess.check_output(
+                ["sbatch", "--parsable", str(sbatch_script)], text=True
+            ).strip()
+        except subprocess.CalledProcessError:
+            write_pipeline_state_marker(
+                workdir, "failed", reason="sbatch_submission_failed", runmode="run"
+            )
+            log_error(f"Failed to submit {sbatch_script}")
+            sys.exit(1)
+
+        write_pipeline_state_marker(
+            workdir, "running", reason="sbatch_submitted", job_id=jobid, runmode="run"
+        )
+        log_event(workdir, "INFO", "SLURM_SUBMITTED", f"Job ID: {jobid}")
+
+        log_divider()
+        log_ok(
+            f"Submitted head job as sbatch job {jobid}. Output: {workdir}/logs/slurm-{jobid}.out"
+        )
+        log_next("Monitor:  squeue -u $USER")
+        log_next(f"Progress: tail -f {workdir}/logs/slurm-{jobid}.out")
+        log_next(f"Status:   ls -1 {workdir}/pipeline.*")
+        log_next(f"Sidecar:  cat {workdir}/pipeline.status.json")
+        log_divider()
         return
 
     err(f'Unknown RUNMODE "{runmode}"')

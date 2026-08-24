@@ -9,7 +9,7 @@
 source ~/.bashrc
 export PROFILE={profile}
 
-SCRATCH_ROOT="${SCRATCH:-/scratch/$USER}"
+SCRATCH_ROOT="${SCRATCH:-/scratch/$USER/tmpdir}"
 if [[ ! -d "$SCRATCH_ROOT" ]]; then
   mkdir -p "$SCRATCH_ROOT" 2>/dev/null || SCRATCH_ROOT="$PWD/.harold_runtime"
 fi

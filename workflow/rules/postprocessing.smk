@@ -14,6 +14,10 @@ rule split_host_bam:
         outdir=join(RESULTSDIR, "{sample}", "postprocess"),
     threads:
         _get_threads("split_host_bam", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "split_host_bam", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:
@@ -47,6 +51,10 @@ rule split_virus_bam:
         outdir=join(RESULTSDIR, "{sample}", "postprocess"),
     threads:
         _get_threads("split_virus_bam", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "split_virus_bam", profile_config, attempt
+        ),
     container:
         config["containers"]["bowtie2"]
     log:
@@ -80,6 +88,10 @@ rule bamcoverage_host:
         extra_args=config.get("postprocessing", {}).get("host_bw_extra_args", ""),
     threads:
         _get_threads("bamcoverage_host", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "bamcoverage_host", profile_config, attempt
+        ),
     container:
         config["containers"]["deeptools"]
     log:
@@ -110,6 +122,10 @@ rule bamcoverage_virus:
         extra_args=config.get("postprocessing", {}).get("virus_bw_extra_args", ""),
     threads:
         _get_threads("bamcoverage_virus", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "bamcoverage_virus", profile_config, attempt
+        ),
     container:
         config["containers"]["deeptools"]
     log:

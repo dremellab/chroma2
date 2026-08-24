@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from snakemake.utils import min_version
 from collections import defaultdict
+from functools import partial
 from pprint import pprint
 import shutil
 
@@ -19,100 +20,270 @@ pd.set_option("display.max_colwidth", None)
 
 min_version("5.24")
 
+def cleanup_workdir():
+    """Clean up temporary files."""
+    import shutil
+
+    # Remove tmp folder
+    tmpdir = Path("tmp")
+    if tmpdir.exists():
+        print(f"🗑️  Removing tmp folder...")
+        shutil.rmtree(tmpdir)
+
 def oncomplete():
-    from datetime import datetime
     import subprocess
     import shutil
 
-    # Get timestamp
-    now = datetime.now().isoformat(timespec="seconds").replace(":", "-")
-    log_copy = f"snakemake.{now}.log"
-    # jobby_output = f"{log_copy}.jobby.tsv"
-
     try:
-        # Step 1: Copy the log file
-        shutil.copyfile("snakemake.log", log_copy)
-        print(f"📁 Copied snakemake.log to {log_copy}")
-
-        # Step 2: Run jobby on the copied log
-        jobby_bin = shutil.which("jobby")
+        jobby_bin = shutil.which("jobbyplus")
         if not jobby_bin:
-            raise FileNotFoundError("jobby not found in PATH")
+            raise FileNotFoundError("jobbyplus not found in PATH")
 
         log_dir = Path(".snakemake/log")
+        if not log_dir.exists():
+            raise FileNotFoundError(log_dir)
+
         latest = max(log_dir.glob("*.snakemake.log"), key=lambda p: p.stat().st_mtime)
         print(f"Using log file: {latest}")
-        jobby_output = f"{latest}.jobby.tsv"
-        print(f"Running jobby command: {jobby_bin} {latest} --tsv > {jobby_output}")
+        jobby_output = f"{latest}.jobbyplus"
+        print(f"Running jobbyplus command: {jobby_bin} {latest} > {jobby_output}")
         with open(jobby_output, "w") as f:
-            result = subprocess.run(
-                [jobby_bin, latest, "--tsv"],
+            subprocess.run(
+                [jobby_bin, str(latest)],
                 stdout=f,
-                stderr=subprocess.PIPE,  # still capture errors
+                stderr=subprocess.PIPE,
                 text=True,
                 check=True
             )
 
-        print(f"✅ jobby output saved to {jobby_output}")
+        print(f"✅ jobbyplus output saved to {jobby_output}")
 
     except subprocess.CalledProcessError as e:
-        print("❌ jobby command failed!")
+        print("❌ jobbyplus command failed!")
         print(f"Return code: {e.returncode}")
         print("stderr:", e.stderr.strip())
 
     except FileNotFoundError as e:
         print("❌ File not found:", e)
 
+
+def log_event(level: str, event_type: str, message: str) -> None:
+    """Log to events.log and events.jsonl."""
+    import json
+    from datetime import datetime
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().isoformat()
+
+    # events.log (human)
+    with open(logs_dir / "events.log", "a") as f:
+        f.write(f"[{timestamp}] {level}: {event_type} - {message}\n")
+
+    # events.jsonl (machine)
+    with open(logs_dir / "events.jsonl", "a") as f:
+        json.dump(
+            {
+                "timestamp": timestamp,
+                "level": level,
+                "event": event_type,
+                "message": message,
+            },
+            f,
+        )
+        f.write("\n")
+
+
+def generate_summary(status: str) -> None:
+    """Generate summary.txt and summary.json."""
+    import json
+    from datetime import datetime
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Read metadata if available
+    runinfo_path = Path("runinfo.yaml")
+    start_time = None
+    if runinfo_path.exists():
+        try:
+            runinfo = yaml.safe_load(runinfo_path.read_text())
+            start_time = runinfo.get("start_time")
+        except:
+            pass
+
+    # Calculate runtime
+    runtime = "Unknown"
+    if start_time:
+        try:
+            from dateutil import parser
+
+            start = parser.parse(start_time)
+            duration = datetime.now() - start
+            hours, remainder = divmod(int(duration.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if hours > 0:
+                runtime = f"{hours}h {minutes}m"
+            else:
+                runtime = f"{minutes}m {seconds}s"
+        except:
+            pass
+
+    # Generate summary.txt
+    summary_txt = f"""
+========================================
+CHROMA2 Snakemake Run Summary
+========================================
+Status:        {status.upper()}
+Start Time:    {start_time or 'Unknown'}
+Duration:      {runtime}
+Working Dir:   {Path.cwd()}
+
+Check logs/ folder for:
+  - events.log              (Timeline of events)
+  - events.jsonl            (Structured events)
+  - snakemake.log.jobbyplus (Snakemake job accounting)
+  - slurm-*.out.jobbyplus   (SLURM resource accounting)
+  - slurm-*.out             (Full SLURM output)
+
+Run Details:
+See .snakemake/log/*.snakemake.log for detailed Snakemake logs
+========================================
+""".strip()
+
+    with open(logs_dir / "summary.txt", "w") as f:
+        f.write(summary_txt + "\n")
+
+    # Generate summary.json
+    summary_json = {
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
+        "workdir": str(Path.cwd()),
+        "start_time": start_time,
+        "duration": runtime,
+    }
+
+    with open(logs_dir / "summary.json", "w") as f:
+        json.dump(summary_json, f, indent=2)
+
+
+def parse_slurm_jobbyplus() -> None:
+    """Extract job accounting from slurm-*.out and create jobbyplus file."""
+    import subprocess
+
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Find slurm-*.out file
+    slurm_files = list(logs_dir.glob("slurm-*.out"))
+    if not slurm_files:
+        print("No SLURM output file found")
+        return
+
+    slurm_file = max(slurm_files, key=lambda p: p.stat().st_mtime)  # Use latest by modification time
+    slurm_jobbyplus = slurm_file.with_suffix(".out.jobbyplus")
+
+    try:
+        jobby_bin = "jobbyplus"  # Should be in PATH
+        with open(slurm_jobbyplus, "w") as f:
+            subprocess.run(
+                [jobby_bin, str(slurm_file)],
+                stdout=f,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,  # Don't fail if jobbyplus fails
+            )
+        print(f"✅ SLURM jobbyplus output saved to {slurm_jobbyplus}")
+    except FileNotFoundError:
+        print("❌ jobbyplus not found in PATH")
+    except Exception as e:
+        print(f"❌ Error parsing SLURM jobbyplus: {e}")
+
+
+onsuccess:
+    print("\n" + "=" * 80)
+    print("✅ Workflow completed successfully!")
+    print("=" * 80)
+
+    # Cleanup temporary files
+    cleanup_workdir()
+
+    # Log event
+    log_event("INFO", "WORKFLOW_SUCCESS", "All jobs completed")
+
+    # Generate summary
+    generate_summary("completed")
+
+    # Run jobbyplus
+    oncomplete()
+
+
+onerror:
+    print("\n" + "=" * 80)
+    print("❌ Workflow encountered errors!")
+    print("=" * 80)
+
+    # Log event
+    log_event("ERROR", "WORKFLOW_FAILED", "Workflow terminated with errors")
+
+    # Generate summary
+    generate_summary("failed")
+
+    # Parse SLURM output to jobbyplus
+    parse_slurm_jobbyplus()
+
+    # Run jobbyplus on snakemake log
+    oncomplete()
+
+
 include: "rules/init.smk"
+include: "rules/inputs.smk"
 include: "rules/preprocess.smk"
 include: "rules/initqc.smk"
 include: "rules/align.smk"
 include: "rules/alignmentqc.smk"
 include: "rules/peakcalling.smk"
 include: "rules/postprocessing.smk"
+include: "rules/bigbed.smk"
+include: "rules/tn5motif.smk"
+include: "rules/count_matrices.smk"
+include: "rules/multiqc.smk"
+include: "rules/deseq2.smk"
+include: "rules/s3_transfer.smk"
 
 HOST_PEAKS = []
 if HOST != "":
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.narrowPeak.gz"), sample=HOST_TARGET_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_summits.bed.gz"), sample=HOST_TARGET_SAMPLES)
     )
     HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.macs2_peaks.xls"), sample=SAMPLES)
-    )
-    HOST_PEAKS.extend(
-        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak"), sample=SAMPLES)
+        expand(join(RESULTSDIR, "{sample}", "peaks", "{sample}.host.genrich.narrowPeak.gz"), sample=HOST_TARGET_SAMPLES)
     )
 
 VIRUS_PEAKS = []
 if len(VIRUS_LIST) > 0:
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak"),
-            sample=SAMPLES,
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.narrowPeak.gz"),
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed"),
-            sample=SAMPLES,
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_summits.bed.gz"),
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
     VIRUS_PEAKS.extend(
         expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.macs2_peaks.xls"),
-            sample=SAMPLES,
-            virus=VIRUS_LIST,
-        )
-    )
-    VIRUS_PEAKS.extend(
-        expand(
-            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak"),
-            sample=SAMPLES,
+            join(RESULTSDIR, "{sample}", "peaks", "{sample}.virus.{virus}.genrich.narrowPeak.gz"),
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         )
     )
@@ -163,16 +334,37 @@ rule all:
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.bam"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.idxstats.txt"), sample=SAMPLES),
         expand(join(RESULTSDIR, "{sample}", "align", "{sample}.aligned.final.flagstat.txt"), sample=SAMPLES),
+        # BigBed browser tracks
+        BIGBED_OUTPUTS,
+        # Tn5 motif outputs
+        TN5_MOTIF_OUTPUTS,
+        # Tn5 count matrices (6 types: gene, tRNA, Pol3, repeat elements, viral, rRNA)
+        COUNT_MATRIX_ALL_OUTPUTS,
+        # DESeq2 contrast reports
+        DESEQ2_OUTPUTS,
         # reference TSS + chrom sizes
         HOST_TSS,
         VIRUS_TSS,
         # alignment qc summary
-        join(RESULTSDIR, "alignmentqc", "flagstat_summary.tsv"),
+        join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
+        # pooled input controls (host + per-virus)
+        expand(join(RESULTSDIR, "inputs", "host", "{pool}.qname.bam"), pool=HOST_INPUT_POOLS),
+        expand(join(RESULTSDIR, "inputs", "host", "{pool}.filtered.bam"), pool=HOST_INPUT_POOLS),
+        expand(
+            join(RESULTSDIR, "inputs", "virus", "{pool}", "{virus}.qname.bam"),
+            pool=VIRUS_INPUT_POOLS,
+            virus=VIRUS_LIST,
+        ),
+        expand(
+            join(RESULTSDIR, "inputs", "virus", "{pool}", "{virus}.filtered.bam"),
+            pool=VIRUS_INPUT_POOLS,
+            virus=VIRUS_LIST,
+        ),
         # ataqv sample-level qc
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.host.json"),
-                sample=SAMPLES,
+                sample=HOST_TARGET_SAMPLES,
             )
             if HOST != ""
             else []
@@ -180,7 +372,7 @@ rule all:
         (
             expand(
                 join(RESULTSDIR, "{sample}", "alignmentqc", "ataqv", "{sample}.virus.{virus}.json"),
-                sample=SAMPLES,
+                sample=VIRUS_TARGET_SAMPLES,
                 virus=VIRUS_LIST,
             )
             if len(VIRUS_LIST) > 0
@@ -199,10 +391,16 @@ rule all:
         HOST_PEAKS,
         VIRUS_PEAKS,
         # bigWig outputs (host + viruses)
-        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=SAMPLES),
-        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "postprocess", "{sample}.host.bam"), sample=HOST_TARGET_SAMPLES),
+        expand(join(RESULTSDIR, "{sample}", "bigwig", "{sample}.host.bw"), sample=HOST_TARGET_SAMPLES),
         expand(
             join(RESULTSDIR, "{sample}", "bigwig", "{sample}.virus.{virus}.bw"),
-            sample=SAMPLES,
+            sample=VIRUS_TARGET_SAMPLES,
             virus=VIRUS_LIST,
         ),
+        # MultiQC report
+        join(RESULTSDIR, "multiqc", "multiqc_report.html"),
+        join(RESULTSDIR, "multiqc", "multiqc_data"),
+        # S3 transfer sentinel (only if push_to_s3=true; the rule itself validates
+        # s3_sample_set_name and fails loudly if it's missing -- see s3_transfer.smk)
+        ".s3_transfer.done" if config.get("push_to_s3", False) else [],

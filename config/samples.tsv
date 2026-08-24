@@ -1,13 +1,15 @@
-sampleName	groupName	path_to_R1_fastq	path_to_R2_fastq
-KOS_1h_1	KOS_1h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP1.R2.fastq.gz
-KOS_1h_2	KOS_1h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP2.R2.fastq.gz
-KOS_1h_3	KOS_1h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP3.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP3.R2.fastq.gz
-KOS_1h_4	KOS_1h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP4.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP4.R2.fastq.gz
-KOS_2h_1	KOS_2h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP1.R2.fastq.gz
-KOS_2h_2	KOS_2h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP2.R2.fastq.gz
-KOS_2h_3	KOS_2h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP3.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP3.R2.fastq.gz
-KOS_2h_4	KOS_2h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP4.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP4.R2.fastq.gz
-KOS_4h_1	KOS_4h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP1.R2.fastq.gz
-KOS_4h_2	KOS_4h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP2.R2.fastq.gz
-KOS_6h_1	KOS_6h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP1.R2.fastq.gz
-KOS_6h_2	KOS_6h	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP2.R2.fastq.gz
+sampleName	groupName	batch	path_to_R1_fastq	path_to_R2_fastq	role	target	host_input_pool	virus_input_pool
+KOS_1h_1	KOS_1h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP1.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_1h_2	KOS_1h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP2.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_1h_3	KOS_1h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP3.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP3.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_1h_4	KOS_1h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP4.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_1h_REP4.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_2h_1	KOS_2h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP1.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_2h_2	KOS_2h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP2.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_2h_3	KOS_2h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP3.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP3.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_2h_4	KOS_2h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP4.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_2h_REP4.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_4h_1	KOS_4h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP1.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_4h_2	KOS_4h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_4h_REP2.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_6h_1	KOS_6h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP1.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP1.R2.fastq.gz	case	both		VPOOL_ALL
+KOS_6h_2	KOS_6h	B1	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP2.R1.fastq.gz	/scratch/cud2td/rawdata/20251010_ATACseq/_Inputs/subset/KOS_6h_REP2.R2.fastq.gz	case	both		VPOOL_ALL
+CsClKOS_v1_S9	VINPUT_ALL	B2	/scratch/cud2td/rawdata/20260130_ATACseq-HSV1controls/CsClKOS_v1_S9_R1_001.fastq.gz	/scratch/cud2td/rawdata/20260130_ATACseq-HSV1controls/CsClKOS_v1_S9_R2_001.fastq.gz	control	virus		VPOOL_ALL
+CsClKOS-v2_S10	VINPUT_ALL	B2	/scratch/cud2td/rawdata/20260130_ATACseq-HSV1controls/CsClKOS-v2_S10_R1_001.fastq.gz	/scratch/cud2td/rawdata/20260130_ATACseq-HSV1controls/CsClKOS-v2_S10_R2_001.fastq.gz	control	virus		VPOOL_ALL

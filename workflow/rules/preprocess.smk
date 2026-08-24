@@ -17,6 +17,10 @@ rule fastp:
         qualified_quality_phred=str(config["fastp"]["qualified_quality_phred"]),
     threads:
         _get_threads("fastp", profile_config)
+    resources:
+        runtime=lambda wildcards, attempt: _get_runtime_with_retries(
+            "fastp", profile_config, attempt
+        ),
     container:
         config["containers"]["fastp"]
     log:

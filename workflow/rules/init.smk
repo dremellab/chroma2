@@ -94,6 +94,30 @@ def getmemG(rule_name):
     return int(_get_mem_mb(rule_name, profile_config))
 
 ###################################################################################
+
+def _get_runtime(rule_name, profile_config):
+    """
+    Return runtime (minutes) for a rule from profile_config.
+    Falls back to default if not defined.
+    """
+    if (
+        "set-resources" in profile_config
+        and rule_name in profile_config["set-resources"]
+        and "runtime" in profile_config["set-resources"][rule_name]
+    ):
+        return profile_config["set-resources"][rule_name]["runtime"]
+    return profile_config["default-resources"].get("runtime", 240)
+
+
+def _get_runtime_with_retries(rule_name, profile_config, attempt):
+    """
+    Return runtime (minutes) for a rule, doubling on each retry attempt.
+    attempt=1 (first try) returns the base runtime; each subsequent
+    Snakemake retry (see profile `restart-times`) doubles it.
+    """
+    return _get_runtime(rule_name, profile_config) * (2 ** (attempt - 1))
+
+###################################################################################
 ###################################################################################
 
 # import yaml
@@ -177,7 +201,78 @@ else:
     else:
         raise ValueError("Both host and viruses are not set. Please set at least one of them.")
 
-REPEATS_GTF = join(FASTAS_GTFS_DIR, HOST + ".repeats.gtf")
+REFERENCE_GTF_BY_HOST = config.get("reference_gtf", {})
+TRNAS_GTF_BY_HOST = config.get("trnas_gtf", {})
+CHRR_GTF_BY_HOST = config.get("chrr_gtf", {})
+
+
+def _host_annotation_aliases(host_name):
+    aliases = []
+    if host_name:
+        aliases.append(host_name)
+        if "_" in host_name:
+            aliases.append(host_name.split("_", 1)[0])
+    return aliases
+
+
+def _resolve_optional_host_annotation(mapping, host_name, fallback_templates):
+    if host_name == "":
+        return ""
+
+    for alias in _host_annotation_aliases(host_name):
+        mapped_name = mapping.get(alias)
+        if mapped_name:
+            mapped_path = (
+                mapped_name if os.path.isabs(mapped_name) else join(FASTAS_GTFS_DIR, mapped_name)
+            )
+            if os.path.exists(mapped_path):
+                return mapped_path
+
+    for alias in _host_annotation_aliases(host_name):
+        for template in fallback_templates:
+            candidate_name = template.format(host=alias)
+            candidate_path = (
+                candidate_name
+                if os.path.isabs(candidate_name)
+                else join(FASTAS_GTFS_DIR, candidate_name)
+            )
+            if os.path.exists(candidate_path):
+                return candidate_path
+
+    return ""
+
+
+_MACS2_GENOME_SIZE_BY_HOST = {
+    "hg38": "hs",
+    "mm39": "mm",
+}
+
+
+def _macs2_genome_size(host_name, default):
+    for alias in _host_annotation_aliases(host_name):
+        genome_size = _MACS2_GENOME_SIZE_BY_HOST.get(alias.lower())
+        if genome_size:
+            return genome_size
+    return default
+
+
+if HOST != "":
+    TRNAS_GTF = _resolve_optional_host_annotation(
+        TRNAS_GTF_BY_HOST,
+        HOST,
+        ["{host}.tRNAs.{host}chroms.gtf"],
+    )
+    CHRR_GTF = _resolve_optional_host_annotation(
+        CHRR_GTF_BY_HOST,
+        HOST,
+        ["{host}.chrR.gtf"],
+    )
+else:
+    TRNAS_GTF = ""
+    CHRR_GTF = ""
+
+# print (f"Using TRNAS_GTF: {TRNAS_GTF}")
+# exit()
 
 HOST_ADDITIVES_VIRUSES = HOST_ADDITIVES_VIRUSES.split(",")
 HOST_VIRUSES = HOST_VIRUSES.split(",")
@@ -194,7 +289,101 @@ if VIRUSES != "":
     REGIONS_VIRUSES = [join(FASTAS_GTFS_DIR, f + ".fa.regions") for f in VIRUSES.split(",")]
 else:
     REGIONS_VIRUSES = []
-GTFS = [join(FASTAS_GTFS_DIR, f + ".gtf") for f in HOST_ADDITIVES_VIRUSES]
+def _get_genome_gtf(genome_name):
+    # First check if explicitly defined in reference_gtf config
+    if genome_name in REFERENCE_GTF_BY_HOST:
+        gtf_file = REFERENCE_GTF_BY_HOST[genome_name]
+        return gtf_file if os.path.isabs(gtf_file) else join(FASTAS_GTFS_DIR, gtf_file)
+    # Fall back to default {genome}.gtf
+    return join(FASTAS_GTFS_DIR, genome_name + ".gtf")
+
+GTFS = [_get_genome_gtf(f) for f in HOST_ADDITIVES_VIRUSES]
+
+###################################################################################################
+# validate GTF files exist for all selected genomes and hosts
+
+if not _is_unlock:
+    print("\n" + "=" * 100)
+    print("VALIDATING GTF FILES FOR SELECTED GENOMES")
+    print("=" * 100)
+
+    all_gtfs_to_check = []
+
+    # 1. Collect main reference GTFs for all selected genomes
+    print(f"\n📋 Main Reference GTFs ({len(GTFS)}):")
+    for genome_name, gtf_file in zip(HOST_ADDITIVES_VIRUSES, GTFS):
+        exists = os.path.exists(gtf_file)
+        readable = os.access(gtf_file, os.R_OK) if exists else False
+        status = "✅" if (exists and readable) else "❌"
+        print(f"  {status} {genome_name:20s}: {gtf_file}")
+        all_gtfs_to_check.append((f"Main GTF ({genome_name})", gtf_file, exists, readable))
+
+    # 2. Collect host-specific annotations if host is selected
+    if HOST != "":
+        print(f"\n📋 Host Annotations for {HOST}:")
+
+        # tRNA GTF
+        if TRNAS_GTF:
+            exists = os.path.exists(TRNAS_GTF)
+            readable = os.access(TRNAS_GTF, os.R_OK) if exists else False
+            status = "✅" if (exists and readable) else "❌"
+            print(f"  {status} tRNA GTF                : {TRNAS_GTF}")
+            all_gtfs_to_check.append(("tRNA GTF", TRNAS_GTF, exists, readable))
+
+        # rRNA GTF
+        if CHRR_GTF:
+            exists = os.path.exists(CHRR_GTF)
+            readable = os.access(CHRR_GTF, os.R_OK) if exists else False
+            status = "✅" if (exists and readable) else "❌"
+            print(f"  {status} rRNA GTF                : {CHRR_GTF}")
+            all_gtfs_to_check.append(("rRNA GTF", CHRR_GTF, exists, readable))
+
+        # Per-host annotation categories (Pol3 GTFs, Repeat element GTFs, ...):
+        # each category maps annotation-type -> {host: gtf_file}, and is checked
+        # the same way -- resolve the path for the current HOST, verify it
+        # exists and is readable, and record it in all_gtfs_to_check.
+        def _check_annotation_category(config_key, label_prefix):
+            category_config = config.get(config_key, {})
+            if not category_config:
+                return
+            print(f"\n📋 {label_prefix} GTFs for {HOST}:")
+            for ann_type in sorted(category_config.keys()):
+                gtf_by_host = category_config[ann_type]
+                if HOST not in gtf_by_host:
+                    continue
+                gtf_name = gtf_by_host[HOST]
+                gtf_path = gtf_name if os.path.isabs(gtf_name) else join(FASTAS_GTFS_DIR, gtf_name)
+                exists = os.path.exists(gtf_path)
+                readable = os.access(gtf_path, os.R_OK) if exists else False
+                status = "✅" if (exists and readable) else "❌"
+                print(f"  {status} {ann_type:30s} : {gtf_path}")
+                all_gtfs_to_check.append((f"{label_prefix} {ann_type}", gtf_path, exists, readable))
+
+        _check_annotation_category("pol3_gtf", "Pol3")
+        _check_annotation_category("repeat_elements_gtf", "Repeat")
+
+    # Check for failures
+    print("\n" + "=" * 100)
+    failures = [(name, path) for name, path, exists, readable in all_gtfs_to_check if not (exists and readable)]
+
+    if failures:
+        print("❌ VALIDATION FAILED - The following GTF files are missing or not readable:\n")
+        for name, path in failures:
+            exists = os.path.exists(path)
+            readable = os.access(path, os.R_OK) if exists else False
+            if not exists:
+                print(f"   ❌ {name:40s} MISSING: {path}")
+            elif not readable:
+                print(f"   ❌ {name:40s} NO READ PERMISSION: {path}")
+        print()
+        sys.exit(1)
+    else:
+        total_gtfs = len(all_gtfs_to_check)
+        print(f"✅ VALIDATION PASSED - All {total_gtfs} GTF files found and readable")
+    print("=" * 100 + "\n")
+
+###################################################################################################
+
 FASTAS_REGIONS_GTFS = FASTAS.copy()
 FASTAS_REGIONS_GTFS.extend(REGIONS)
 FASTAS_REGIONS_GTFS.extend(GTFS)
@@ -328,8 +517,13 @@ SAMPLESDF = pd.read_csv(MANIFEST_FILE, sep="\t", dtype=str).fillna("")
 required_columns = [
     "sampleName",
     "groupName",
+    "batch",
     "path_to_R1_fastq",
-    "path_to_R2_fastq"
+    "path_to_R2_fastq",
+    "role",
+    "target",
+    "host_input_pool",
+    "virus_input_pool",
 ]
 # Check if all required columns are present
 missing_columns = [col for col in required_columns if col not in SAMPLESDF.columns]
@@ -349,6 +543,26 @@ SAMPLES = list(SAMPLESDF["sampleName"])
 # Step 3: Ensure each sampleName has a non-empty groupName
 if (SAMPLESDF['groupName'].str.strip() == "").any():
     raise ValueError("Some sampleNames have empty groupName!")
+
+# Step 3b: Normalize batch column (empty -> single batch)
+if (SAMPLESDF['batch'].str.strip() == "").any():
+    SAMPLESDF['batch'] = SAMPLESDF['batch'].replace("", "batch1")
+
+# Step 3c: Validate role and target columns
+valid_roles = {"case", "control"}
+valid_targets = {"host", "virus", "both"}
+if not SAMPLESDF['role'].isin(valid_roles).all():
+    bad = sorted(SAMPLESDF.loc[~SAMPLESDF['role'].isin(valid_roles), 'role'].unique())
+    raise ValueError(f"Invalid role values found: {bad}. Allowed: {sorted(valid_roles)}")
+if not SAMPLESDF['target'].isin(valid_targets).all():
+    bad = sorted(SAMPLESDF.loc[~SAMPLESDF['target'].isin(valid_targets), 'target'].unique())
+    raise ValueError(f"Invalid target values found: {bad}. Allowed: {sorted(valid_targets)}")
+
+# Step 3d: Normalize pool columns so pool names match consistently regardless of
+# incidental whitespace (a control declaring "POOL " and a case referencing "POOL"
+# would otherwise silently mismatch, the same as a genuine typo).
+SAMPLESDF['host_input_pool'] = SAMPLESDF['host_input_pool'].str.strip()
+SAMPLESDF['virus_input_pool'] = SAMPLESDF['virus_input_pool'].str.strip()
 
 # Step 4: Check if files in R1 and R2 paths exist and are readable
 def check_file(path):
@@ -378,6 +592,127 @@ for sample, group in zip(SAMPLESDF['sampleName'], SAMPLESDF['groupName']):
 # Step 8: Create SAMPLENAMEISPE
 SAMPLENAMEISPE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['PEorSE']))
 
+# Step 9: Case/control splits and input pools
+CASE_SAMPLES = SAMPLESDF.loc[SAMPLESDF['role'] == "case", 'sampleName'].tolist()
+CONTROL_SAMPLES = SAMPLESDF.loc[SAMPLESDF['role'] == "control", 'sampleName'].tolist()
+
+HOST_INPUT_POOL_BY_SAMPLE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['host_input_pool']))
+VIRUS_INPUT_POOL_BY_SAMPLE = dict(zip(SAMPLESDF['sampleName'], SAMPLESDF['virus_input_pool']))
+
+HOST_POOL_CONTROLS = defaultdict(list)
+VIRUS_POOL_CONTROLS = defaultdict(list)
+for _, row in SAMPLESDF.iterrows():
+    if row['role'] != "control":
+        continue
+    if row['target'] in ["host", "both"] and row['host_input_pool'].strip() != "":
+        HOST_POOL_CONTROLS[row['host_input_pool']].append(row['sampleName'])
+    if row['target'] in ["virus", "both"] and row['virus_input_pool'].strip() != "":
+        VIRUS_POOL_CONTROLS[row['virus_input_pool']].append(row['sampleName'])
+
+HOST_INPUT_POOLS = sorted(HOST_POOL_CONTROLS.keys())
+VIRUS_INPUT_POOLS = sorted(VIRUS_POOL_CONTROLS.keys())
+
+case_df = SAMPLESDF.loc[SAMPLESDF['role'] == "case"]
+
+# Single gating point for every host/virus-specific output (peaks, bigwig,
+# count matrices, BigBed tracks, etc.): a case sample only gets an organism's
+# downstream outputs built if its `target` includes that organism. Rule files
+# should filter their per-sample `expand(...)` lists through these instead of
+# using CASE_SAMPLES directly for anything host- or virus-specific.
+HOST_TARGET_SAMPLES = case_df.loc[
+    case_df['target'].isin(["host", "both"]), 'sampleName'
+].tolist()
+VIRUS_TARGET_SAMPLES = case_df.loc[
+    case_df['target'].isin(["virus", "both"]), 'sampleName'
+].tolist()
+
+# count_matrices.smk deliberately builds counts for every sample (case AND
+# control), not just CASE_SAMPLES -- these mirror HOST_TARGET_SAMPLES/
+# VIRUS_TARGET_SAMPLES but span all roles so that scoping stays a target-only
+# filter and doesn't also silently drop control samples from count matrices.
+ALL_HOST_TARGET_SAMPLES = SAMPLESDF.loc[
+    SAMPLESDF['target'].isin(["host", "both"]), 'sampleName'
+].tolist()
+ALL_VIRUS_TARGET_SAMPLES = SAMPLESDF.loc[
+    SAMPLESDF['target'].isin(["virus", "both"]), 'sampleName'
+].tolist()
+
+# Step 9b: Fail fast if a case sample references a pool no control sample declares --
+# a typo'd/nonexistent pool must not be silently treated the same as "no control".
+# Deliberately NOT scoped by `target`: even for a sample whose target excludes an
+# organism (so that organism's outputs won't be built for it, per
+# HOST_TARGET_SAMPLES/VIRUS_TARGET_SAMPLES above), a stray pool reference in that
+# column is almost certainly a leftover config mistake worth surfacing, not
+# something to silently ignore just because it's currently unused.
+def _validate_pool_references(case_df, pool_col, pool_controls, known_pools, label):
+    bad = case_df.loc[
+        (case_df[pool_col] != "") & (~case_df[pool_col].isin(pool_controls.keys())),
+        ["sampleName", pool_col],
+    ]
+    if not bad.empty:
+        bad_pairs = sorted(set(zip(bad["sampleName"], bad[pool_col])))
+        raise ValueError(
+            f"{pool_col} references a pool with no matching control sample: {bad_pairs}. "
+            f"Known {label} input pools: {known_pools}"
+        )
+
+
+_validate_pool_references(case_df, "host_input_pool", HOST_POOL_CONTROLS, HOST_INPUT_POOLS, "host")
+_validate_pool_references(case_df, "virus_input_pool", VIRUS_POOL_CONTROLS, VIRUS_INPUT_POOLS, "virus")
+
+
+def _opt_input(path):
+    return [] if path == "" else path
+
+
+# Each getter below is gated on the same peakcalling.use_*_input toggle that
+# peakcalling.smk's control_arg checks -- returning "" here, before resolving
+# the pool, keeps the pooled-BAM merge/index rules (inputs.smk) out of the DAG
+# entirely when a toggle is off, instead of building them and then discarding
+# the result in control_arg.
+#
+# host and virus differ only in: the toggle config key (and its default --
+# use_host_input defaults False, use_virus_input defaults True), which
+# pool-lookup dicts to use, and whether the output path has a per-virus
+# subdirectory/wildcard segment. That's captured once per organism below
+# instead of once per (organism, bam_kind) function body.
+_CONTROL_ORGANISM_CONFIG = {
+    "host": dict(
+        toggle_key="use_host_input",
+        toggle_default=False,
+        pool_by_sample=HOST_INPUT_POOL_BY_SAMPLE,
+        pool_controls=HOST_POOL_CONTROLS,
+        path=lambda pool, bam_kind, wildcards: join(
+            RESULTSDIR, "inputs", "host", f"{pool}.{bam_kind}.bam"
+        ),
+    ),
+    "virus": dict(
+        toggle_key="use_virus_input",
+        toggle_default=True,
+        pool_by_sample=VIRUS_INPUT_POOL_BY_SAMPLE,
+        pool_controls=VIRUS_POOL_CONTROLS,
+        path=lambda pool, bam_kind, wildcards: join(
+            RESULTSDIR, "inputs", "virus", pool, f"{wildcards.virus}.{bam_kind}.bam"
+        ),
+    ),
+}
+
+
+def _get_control_bam(wildcards, organism, bam_kind):
+    cfg = _CONTROL_ORGANISM_CONFIG[organism]
+    if not config.get("peakcalling", {}).get(cfg["toggle_key"], cfg["toggle_default"]):
+        return ""
+    pool = cfg["pool_by_sample"].get(wildcards.sample, "")
+    if pool == "" or pool not in cfg["pool_controls"]:
+        return ""
+    return cfg["path"](pool, bam_kind, wildcards)
+
+
+get_host_control_qname_bam = partial(_get_control_bam, organism="host", bam_kind="qname")
+get_host_control_filtered_bam = partial(_get_control_bam, organism="host", bam_kind="filtered")
+get_virus_control_qname_bam = partial(_get_control_bam, organism="virus", bam_kind="qname")
+get_virus_control_filtered_bam = partial(_get_control_bam, organism="virus", bam_kind="filtered")
+
 DUMMYFILE = join(RESOURCES_DIR, "dummy")
 RESULTSDIR = join(WORKDIR, "results")
 if not os.path.exists(RESULTSDIR):
@@ -388,6 +723,227 @@ if not os.path.exists(LOGSDIR):
 TMPDIR = join(WORKDIR, "tmp")
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
+
+def _resolve_workdir_path(path_value):
+    path_str = str(path_value or "").strip()
+    if path_str == "":
+        return ""
+    if os.path.isabs(path_str):
+        return path_str
+    return join(WORKDIR, path_str)
+
+
+def _slugify_label(value):
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value).strip())
+    slug = re.sub(r"_+", "_", slug).strip("._-")
+    return slug or "group"
+
+
+def _parse_bool_config(section_name, key, default):
+    if key not in section_name:
+        return default
+    value = section_name.get(key)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    raise ValueError(f"deseq2.{key} must be a boolean. Found: {value!r}")
+
+
+def _parse_int_config(section_name, key, default, minimum=None):
+    try:
+        parsed = int(section_name.get(key, default))
+    except (TypeError, ValueError):
+        raise ValueError(f"deseq2.{key} must be an integer. Found: {section_name.get(key)!r}")
+    if minimum is not None and parsed < minimum:
+        raise ValueError(f"deseq2.{key} must be >= {minimum}. Found: {parsed}")
+    return parsed
+
+
+def _parse_float_config(section_name, key, default, minimum=None, maximum=None, inclusive_max=True):
+    try:
+        parsed = float(section_name.get(key, default))
+    except (TypeError, ValueError):
+        raise ValueError(f"deseq2.{key} must be numeric. Found: {section_name.get(key)!r}")
+    if minimum is not None and parsed < minimum:
+        raise ValueError(f"deseq2.{key} must be >= {minimum}. Found: {parsed}")
+    if maximum is not None:
+        if inclusive_max and parsed > maximum:
+            raise ValueError(f"deseq2.{key} must be <= {maximum}. Found: {parsed}")
+        if not inclusive_max and parsed >= maximum:
+            raise ValueError(f"deseq2.{key} must be < {maximum}. Found: {parsed}")
+    return parsed
+
+
+DESEQ2_CONFIG = config.get("deseq2", {}) or {}
+if not isinstance(DESEQ2_CONFIG, dict):
+    raise ValueError("config['deseq2'] must be a mapping if provided.")
+
+DESEQ2_ENABLED = _parse_bool_config(DESEQ2_CONFIG, "enabled", False)
+DESEQ2_CONTRASTS_FILE = _resolve_workdir_path(DESEQ2_CONFIG.get("contrasts_tsv", ""))
+DESEQ2_OUTDIR = _resolve_workdir_path(
+    DESEQ2_CONFIG.get("outdir", join("results", "deseq2"))
+)
+DESEQ2_ALPHA = _parse_float_config(DESEQ2_CONFIG, "alpha", 0.05, minimum=0.0, maximum=1.0)
+if DESEQ2_ALPHA == 0:
+    raise ValueError("deseq2.alpha must be > 0.")
+DESEQ2_LFC_THRESHOLD = _parse_float_config(
+    DESEQ2_CONFIG, "lfc_threshold", 1.0, minimum=0.0
+)
+DESEQ2_MIN_REPLICATES_PER_GROUP = _parse_int_config(
+    DESEQ2_CONFIG, "min_replicates_per_group", 2, minimum=1
+)
+DESEQ2_MIN_TOTAL_COUNT = _parse_int_config(
+    DESEQ2_CONFIG, "min_total_count", 1, minimum=0
+)
+DESEQ2_REPORT_TOP_N = _parse_int_config(
+    DESEQ2_CONFIG, "report_top_n", 50, minimum=1
+)
+DESEQ2_REPORT_LABEL_TOP_N = _parse_int_config(
+    DESEQ2_CONFIG, "report_label_top_n", 15, minimum=0
+)
+DESEQ2_REPORT_MAX_TABLE_ROWS = _parse_int_config(
+    DESEQ2_CONFIG, "report_max_table_rows", 50000, minimum=1
+)
+DESEQ2_SIZE_FACTOR_TYPE = str(
+    DESEQ2_CONFIG.get("size_factor_type", "poscounts")
+).strip()
+if DESEQ2_SIZE_FACTOR_TYPE not in {"ratio", "poscounts", "iterate"}:
+    raise ValueError(
+        "deseq2.size_factor_type must be one of ratio, poscounts, iterate."
+    )
+DESEQ2_FIT_TYPE = str(DESEQ2_CONFIG.get("fit_type", "parametric")).strip()
+if DESEQ2_FIT_TYPE not in {"parametric", "local", "mean", "glmGamPoi"}:
+    raise ValueError(
+        "deseq2.fit_type must be one of parametric, local, mean, glmGamPoi."
+    )
+DESEQ2_SHRINK_TYPE = str(DESEQ2_CONFIG.get("shrink_type", "apeglm")).strip()
+if DESEQ2_SHRINK_TYPE not in {"apeglm", "ashr", "normal"}:
+    raise ValueError("deseq2.shrink_type must be one of apeglm, ashr, normal.")
+DESEQ2_P_ADJUST_METHOD = str(
+    DESEQ2_CONFIG.get("p_adjust_method", "BH")
+).strip()
+if DESEQ2_P_ADJUST_METHOD not in {
+    "holm",
+    "hochberg",
+    "hommel",
+    "bonferroni",
+    "BH",
+    "BY",
+    "fdr",
+    "none",
+}:
+    raise ValueError(
+        "deseq2.p_adjust_method must be one of holm, hochberg, hommel, bonferroni, BH, BY, fdr, none."
+    )
+DESEQ2_COOKS_CUTOFF = _parse_bool_config(
+    DESEQ2_CONFIG, "cooks_cutoff", True
+)
+DESEQ2_INDEPENDENT_FILTERING = _parse_bool_config(
+    DESEQ2_CONFIG, "independent_filtering", True
+)
+DESEQ2_VST_BLIND = _parse_bool_config(DESEQ2_CONFIG, "vst_blind", True)
+DESEQ2_HTML_SELF_CONTAINED = _parse_bool_config(
+    DESEQ2_CONFIG, "html_self_contained", True
+)
+DESEQ2_DESIGN_FACTORS = DESEQ2_CONFIG.get("design_factors", ["group"])
+if isinstance(DESEQ2_DESIGN_FACTORS, str):
+    DESEQ2_DESIGN_FACTORS = [DESEQ2_DESIGN_FACTORS]
+if not isinstance(DESEQ2_DESIGN_FACTORS, list) or not all(
+    isinstance(item, str) for item in DESEQ2_DESIGN_FACTORS
+):
+    raise ValueError("deseq2.design_factors must be a list of strings.")
+DESEQ2_DESIGN_FACTORS = [item.strip() for item in DESEQ2_DESIGN_FACTORS if item.strip()]
+if DESEQ2_ENABLED and DESEQ2_DESIGN_FACTORS != ["group"]:
+    raise ValueError(
+        "Future DESeq2 covariates are not implemented yet. Set deseq2.design_factors to ['group']."
+    )
+
+DESEQ2_HOST_GENE_FLANK_SIZE = int(
+    config.get("tn5_motif", {}).get("host_gene_flank_size", 250)
+)
+DESEQ2_VIRUS_BIN_SIZE = int(config.get("tn5_motif", {}).get("virus_bin_size", 100))
+DESEQ2_TRNA_GENE_FLANK_SIZE = int(config.get("tn5_motif", {}).get("trna_gene_flank_size", 100))
+DESEQ2_CONTRASTS = []
+DESEQ2_CONTRASTS_BY_COMPARISON = {}
+
+if DESEQ2_ENABLED:
+    if DESEQ2_CONTRASTS_FILE == "":
+        raise ValueError(
+            "deseq2.enabled is true, but deseq2.contrasts_tsv is empty."
+        )
+    if not os.path.isfile(DESEQ2_CONTRASTS_FILE) or not os.access(
+        DESEQ2_CONTRASTS_FILE, os.R_OK
+    ):
+        raise FileNotFoundError(
+            f"deseq2.contrasts_tsv is not readable: {DESEQ2_CONTRASTS_FILE}"
+        )
+    deseq2_container = str(
+        config.get("containers", {}).get("deseq2_report", "")
+    ).strip()
+    if deseq2_container == "":
+        raise ValueError(
+            "deseq2.enabled is true, but containers.deseq2_report is not set."
+        )
+
+    try:
+        DESEQ2_CONTRASTS_DF = pd.read_csv(
+            DESEQ2_CONTRASTS_FILE, sep="\t", dtype=str
+        ).fillna("")
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to read deseq2.contrasts_tsv '{DESEQ2_CONTRASTS_FILE}': {exc}"
+        )
+
+    if list(DESEQ2_CONTRASTS_DF.columns) != ["group1", "group2"]:
+        raise ValueError(
+            "deseq2.contrasts_tsv must have exactly two tab-delimited headers: group1 and group2."
+        )
+    if DESEQ2_CONTRASTS_DF.empty:
+        raise ValueError("deseq2.contrasts_tsv does not contain any contrasts.")
+
+    known_groups = set(GROUPNAME2SAMPLENAME.keys())
+    for row_idx, row in enumerate(
+        DESEQ2_CONTRASTS_DF.itertuples(index=False), start=2
+    ):
+        group1 = str(row.group1).strip()
+        group2 = str(row.group2).strip()
+        if group1 == "" or group2 == "":
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} contains an empty group."
+            )
+        if group1 == group2:
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} compares the same group '{group1}' to itself."
+            )
+        if group1 not in known_groups or group2 not in known_groups:
+            raise ValueError(
+                f"deseq2.contrasts_tsv line {row_idx} references unknown groups: {group1!r}, {group2!r}."
+            )
+        if len(GROUPNAME2SAMPLENAME[group1]) < DESEQ2_MIN_REPLICATES_PER_GROUP:
+            raise ValueError(
+                f"Group '{group1}' has fewer than deseq2.min_replicates_per_group={DESEQ2_MIN_REPLICATES_PER_GROUP} samples."
+            )
+        if len(GROUPNAME2SAMPLENAME[group2]) < DESEQ2_MIN_REPLICATES_PER_GROUP:
+            raise ValueError(
+                f"Group '{group2}' has fewer than deseq2.min_replicates_per_group={DESEQ2_MIN_REPLICATES_PER_GROUP} samples."
+            )
+        comparison = f"{_slugify_label(group1)}_vs_{_slugify_label(group2)}"
+        if comparison in DESEQ2_CONTRASTS_BY_COMPARISON:
+            raise ValueError(
+                f"deseq2.contrasts_tsv produces duplicate comparison slug '{comparison}'."
+            )
+        contrast = {
+            "comparison": comparison,
+            "group1": group1,
+            "group2": group2,
+        }
+        DESEQ2_CONTRASTS.append(contrast)
+        DESEQ2_CONTRASTS_BY_COMPARISON[comparison] = contrast
 
 # Optional: print or return results
 if "workflow" in globals() and getattr(workflow, "dryrun", False):

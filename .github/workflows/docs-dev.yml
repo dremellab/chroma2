@@ -1,0 +1,63 @@
+name: Deploy Dev Docs
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "docs/**"
+      - "_quarto.yml"
+      - "*.md"
+      - "*.qmd"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build dev docs from"
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render site
+        run: quarto render
+
+      - name: Deploy to gh-pages /dev/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          destination_dir: dev
+          keep_files: true
+
+      - name: Update root redirect to dev docs index
+        run: |
+          mkdir -p _root
+          cat > _root/index.html << 'EOF'
+          <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+              <title>Redirect to dev docs</title>
+              <meta http-equiv="refresh" content="0;URL='dev/docs/index.html'" />
+            </head>
+            <body></body>
+          </html>
+          EOF
+
+      - name: Deploy root redirect
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_root
+          keep_files: true

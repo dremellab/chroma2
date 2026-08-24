@@ -1,0 +1,313 @@
+---
+title: "DESeq2 Contrast Report"
+output:
+  html_document:
+    df_print: paged
+params:
+  context_path: NULL
+---
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(ggrepel)
+  library(plotly)
+  library(DT)
+  library(htmltools)
+  library(knitr)
+  library(tibble)
+})
+
+context <- readRDS(params$context_path)
+
+sig_mask <- function(df, alpha, lfc_threshold) {
+  !is.na(df$adjusted_pvalue) &
+    df$adjusted_pvalue < alpha &
+    !is.na(df$log2FoldChange_shrunk) &
+    abs(df$log2FoldChange_shrunk) >= lfc_threshold
+}
+
+ordered_hits <- function(df) {
+  df %>%
+    dplyr::mutate(
+      abs_lfc = abs(.data$log2FoldChange_shrunk),
+      padj_sort = ifelse(is.na(.data$adjusted_pvalue), Inf, .data$adjusted_pvalue)
+    ) %>%
+    dplyr::arrange(.data$padj_sort, dplyr::desc(.data$abs_lfc))
+}
+
+lfc_axis_label <- function(section) {
+  if (isFALSE(section$shrinkage_applied)) {
+    "log2 fold change (unshrunk -- shrinkage failed)"
+  } else {
+    "Shrunken log2 fold change"
+  }
+}
+
+make_volcano <- function(section, alpha, lfc_threshold, label_top_n) {
+  # adjusted_pvalue (BH-corrected from the raw pvalue column, computed once in
+  # run_deseq2_contrast_report.R) can underflow to exactly 0 for very small
+  # p-values, which would make -log10(adjusted_pvalue) infinite; clamp to the
+  # smallest representable positive double instead of dropping the point (an
+  # NA_real_ fallback would make the most significant hits invisible on the
+  # plot while still being counted as significant).
+  df <- section$results %>%
+    dplyr::mutate(
+      significant = sig_mask(section$results, alpha, lfc_threshold),
+      direction = dplyr::case_when(
+        .data$significant & .data$log2FoldChange_shrunk > 0 ~ paste("Up in", context$group1),
+        .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", context$group2),
+        TRUE ~ "Not significant"
+      ),
+      neg_log10_padj = dplyr::if_else(
+        !is.na(.data$adjusted_pvalue),
+        -log10(pmax(.data$adjusted_pvalue, .Machine$double.xmin)),
+        NA_real_
+      ),
+      feature_label = section$feature_labels
+    )
+
+  top_labels <- ordered_hits(df %>% dplyr::filter(.data$significant)) %>%
+    dplyr::slice_head(n = label_top_n)
+
+  plot_obj <- ggplot(df, aes(
+    x = .data$log2FoldChange_shrunk,
+    y = .data$neg_log10_padj,
+    color = .data$direction,
+    text = paste0(
+      .data$feature_label,
+      "<br>padj: ", signif(.data$adjusted_pvalue, 3),
+      "<br>log2FC: ", signif(.data$log2FoldChange_shrunk, 3)
+    )
+  )) +
+    geom_point(alpha = 0.7, na.rm = TRUE) +
+    geom_vline(xintercept = c(-lfc_threshold, lfc_threshold), linetype = "dashed", color = "grey40") +
+    geom_hline(yintercept = -log10(alpha), linetype = "dashed", color = "grey40") +
+    scale_color_manual(
+      values = setNames(
+        c("#c0392b", "#1f618d", "#9e9e9e"),
+        c(paste("Up in", context$group1), paste("Up in", context$group2), "Not significant")
+      )
+    ) +
+    labs(
+      x = lfc_axis_label(section),
+      y = "-log10 adjusted p-value",
+      color = "Call"
+    ) +
+    theme_minimal(base_size = 12)
+
+  if (nrow(top_labels) > 0) {
+    plot_obj <- plot_obj +
+      ggrepel::geom_text_repel(
+        data = top_labels,
+        aes(label = .data$feature_label),
+        size = 3,
+        show.legend = FALSE,
+        max.overlaps = Inf
+      )
+  }
+
+  plotly::ggplotly(plot_obj, tooltip = "text")
+}
+
+make_ma <- function(section) {
+  df <- section$results %>%
+    dplyr::mutate(
+      significant = sig_mask(section$results, context$config$alpha, context$config$lfc_threshold),
+      direction = dplyr::case_when(
+        .data$significant & .data$log2FoldChange_shrunk > 0 ~ paste("Up in", context$group1),
+        .data$significant & .data$log2FoldChange_shrunk < 0 ~ paste("Up in", context$group2),
+        TRUE ~ "Not significant"
+      )
+    )
+
+  ggplot(df, aes(x = .data$baseMean, y = .data$log2FoldChange_shrunk, color = .data$direction)) +
+    geom_point(alpha = 0.7, na.rm = TRUE) +
+    scale_x_log10() +
+    scale_color_manual(
+      values = setNames(
+        c("#c0392b", "#1f618d", "#9e9e9e"),
+        c(paste("Up in", context$group1), paste("Up in", context$group2), "Not significant")
+      )
+    ) +
+    labs(x = "baseMean", y = lfc_axis_label(section), color = "Call") +
+    theme_minimal(base_size = 12)
+}
+
+make_pca <- function(section) {
+  if (is.null(section$pca_data) || nrow(section$pca_data) == 0) {
+    return(NULL)
+  }
+
+  ggplot(section$pca_data, aes(x = .data$PC1, y = .data$PC2, color = .data$group, label = .data$sample)) +
+    geom_point(size = 3) +
+    ggrepel::geom_text_repel(size = 3, show.legend = FALSE) +
+    labs(
+      x = paste0("PC1 (", section$percent_var[[1]], "%)"),
+      y = paste0("PC2 (", section$percent_var[[2]], "%)"),
+      color = "Group"
+    ) +
+    theme_minimal(base_size = 12)
+}
+
+make_sample_distance <- function(section) {
+  if (is.null(section$sample_distance)) {
+    return(NULL)
+  }
+
+  dist_df <- as.data.frame(as.table(section$sample_distance))
+  colnames(dist_df) <- c("sample_x", "sample_y", "distance")
+
+  ggplot(dist_df, aes(x = .data$sample_x, y = .data$sample_y, fill = .data$distance)) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Blues", direction = 1) +
+    theme_minimal(base_size = 12) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = NULL, y = NULL, fill = "Distance")
+}
+
+summary_table <- function(section) {
+  tibble::tibble(
+    metric = c(
+      "Features tested",
+      "Significant",
+      paste("Up in", context$group1),
+      paste("Up in", context$group2)
+    ),
+    value = c(
+      section$summary$n_features_tested,
+      section$summary$n_significant,
+      section$summary$n_up_group1,
+      section$summary$n_up_group2
+    )
+  )
+}
+
+top_hits_table <- function(section, top_n) {
+  ordered_hits(section$results) %>%
+    dplyr::slice_head(n = top_n)
+}
+
+full_results_table <- function(section, max_rows) {
+  if (nrow(section$results) <= max_rows) {
+    return(section$results)
+  }
+  section$results %>% dplyr::slice_head(n = max_rows)
+}
+
+download_link <- function(section) {
+  htmltools::tags$p(
+    htmltools::tags$a(
+      href = basename(section$output_path),
+      target = "_blank",
+      "Download TSV"
+    )
+  )
+}
+```
+
+# `r context$comparison`
+
+```{r overview, echo=FALSE}
+knitr::kable(
+  tibble::tibble(
+    field = c("Group 1", "Group 2", "Contrast file", "Alpha", "LFC threshold"),
+    value = c(
+      context$group1,
+      context$group2,
+      basename(context$contrast_file),
+      context$config$alpha,
+      context$config$lfc_threshold
+    )
+  )
+)
+```
+
+## Samples
+
+```{r samples, echo=FALSE}
+knitr::kable(context$sample_table)
+```
+
+```{r render-sections, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+render_section <- function(section, section_title) {
+  if (isTRUE(section$skipped)) {
+    icon <- if (identical(section$skip_type, "skip_list")) "⏭️" else "⚠️"
+    cat(sprintf("## %s\n\n%s %s\n\n", section_title, icon, section$reason))
+    return(invisible(NULL))
+  }
+
+  cat(sprintf("## %s\n\n", section_title))
+  print(download_link(section))
+
+  if (isFALSE(section$shrinkage_applied)) {
+    cat(sprintf(
+      "⚠️ **LFC shrinkage failed for this comparison** (%s) -- the `log2FoldChange_shrunk` column and all plots below show **unshrunk** log2 fold changes instead.\n\n",
+      section$shrinkage_error
+    ))
+  }
+
+  cat("### Summary\n\n")
+  print(knitr::kable(summary_table(section)))
+
+  cat("\n### Volcano Plot\n\n")
+  print(make_volcano(section, context$config$alpha, context$config$lfc_threshold, context$config$report_label_top_n))
+
+  cat("\n### MA Plot\n\n")
+  print(make_ma(section))
+
+  cat("\n### PCA\n\n")
+  pca_plot <- make_pca(section)
+  if (is.null(pca_plot)) {
+    cat("PCA unavailable for this section.\n\n")
+  } else {
+    print(pca_plot)
+  }
+
+  cat("\n### Sample Distance Heatmap\n\n")
+  sample_dist_plot <- make_sample_distance(section)
+  if (is.null(sample_dist_plot)) {
+    cat("Sample distance heatmap unavailable for this section.\n\n")
+  } else {
+    print(sample_dist_plot)
+  }
+
+  cat("\n### Top Hits\n\n")
+  print(knitr::kable(top_hits_table(section, context$config$report_top_n)))
+
+  cat("\n### Full Results\n\n")
+  print(
+    DT::datatable(
+      full_results_table(section, context$config$report_max_table_rows),
+      extensions = "Buttons",
+      options = list(
+        pageLength = 25,
+        dom = "Bfrtip",
+        buttons = c("copy", "csv")
+      ),
+      rownames = FALSE
+    )
+  )
+
+  if (nrow(section$results) > context$config$report_max_table_rows) {
+    cat(
+      sprintf(
+        "\nFull results table truncated to the first %d rows for HTML rendering.\n\n",
+        context$config$report_max_table_rows
+      )
+    )
+  }
+}
+
+if (!is.null(context$host)) {
+  render_section(context$host, context$host$display_name)
+}
+
+if (length(context$viruses) > 0) {
+  for (virus_name in names(context$viruses)) {
+    section <- context$viruses[[virus_name]]
+    render_section(section, section$display_name)
+  }
+}
+```

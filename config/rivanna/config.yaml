@@ -18,8 +18,8 @@ verbose: true # is true by default for plugin
 printshellcmds: true
 
 # rerun settings
-# --rerun-triggers input mtime software-env code
-rerun-triggers: [mtime, input, code, software-env]
+# --rerun-triggers input mtime software-env code params
+rerun-triggers: [mtime, input, params, code, software-env]
 # rerun-triggers: [mtime, code]
 # --rerun-incomplete
 rerun-incomplete: true # not parsed via plugin
@@ -28,7 +28,7 @@ ignore-incomplete: false # set true via plugin
 
 # no parameters
 # --notemp
-notemp: true # logs of successful jobs are kept .. this is parsed correctly via plugin but logs are still deleted
+notemp: false # allow Snakemake to delete temp() outputs after they are no longer needed
 # do not use --nolock
 nolock: false # reset lock to default, plugin sets to true .. but this does not work it is still set to true by plugin
 # do not use --no-hooks
@@ -68,6 +68,9 @@ set-threads:
   fastqc_raw: 8
   fastqc_trimmed: 8
   bowtie2_index: 8
+  extract_tn5_motifs_host: 4
+  extract_tn5_motifs_virus: 4
+  deseq2_contrast_report: 2
 
 set-resources:
   fastp:
@@ -89,7 +92,7 @@ set-resources:
   bowtie2_align:
     mem_mb: 122880 # 120 GB
     threads: 16
-    runtime: 480
+    runtime: 960
 
   bowtie2_filter:
     mem_mb: 49152 # 48 GB
@@ -97,6 +100,51 @@ set-resources:
     runtime: 480
 
   alignment_flagstat_summary:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  extract_tn5_motifs_host:
+    mem_mb: 122880
+    threads: 4
+    runtime: 480
+
+  extract_tn5_motifs_virus:
+    mem_mb: 122880
+    threads: 4
+    runtime: 480
+
+  deseq2_contrast_report:
+    mem_mb: 32768
+    threads: 2
+    runtime: 240
+
+  tss_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  tss_virus_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  macs2_summits_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  macs2_summits_virus_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  narrowpeak_host_to_bigbed:
+    mem_mb: 8192
+    threads: 1
+    runtime: 60
+
+  narrowpeak_virus_to_bigbed:
     mem_mb: 8192
     threads: 1
     runtime: 60
@@ -150,3 +198,51 @@ set-resources:
     mem_mb: 122880 # 120 GB
     threads: 2
     runtime: 240
+
+  macs2_atac_callpeak_virus:
+    # Real sacct/jobbyplus data from a completed run: peak usage ~0.08-0.12 GB
+    # on the 40GB default across all samples -- MACS2 (unlike Genrich) reads
+    # the filtered/deduped BAM and is not memory-hungry. This is an explicit,
+    # deliberately modest override (not a bump), mainly so it's documented as
+    # sized on purpose rather than omitted, and to avoid reserving 40GB of
+    # shared-cluster capacity for a job that needs a fraction of a GB.
+    mem_mb: 8192 # 8 GB
+    threads: 2
+    runtime: 60
+
+  macs2_atac_callpeak_host:
+    mem_mb: 8192 # 8 GB
+    threads: 2
+    runtime: 60
+
+  pool_virus_filtered_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_virus_qname_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_host_filtered_bam:
+    # No host-pooled run has executed yet to measure real usage against (unlike
+    # pool_virus_*, whose real sacct usage was ~1.5-11GB despite the 120GB
+    # allocation). Host BAMs are whole-genome, far larger than the single-virus-
+    # genome BAMs pool_virus_* merges, so the low virus-pooling usage can't be
+    # assumed to carry over. Matching pool_virus_*'s existing (already generous)
+    # values as a conservative starting point; revisit via sacct/jobbyplus once
+    # a real host-pooled run exists.
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  pool_host_qname_bam:
+    mem_mb: 122880 # 120 GB
+    threads: 4
+    runtime: 240
+
+  s3_transfer_if_enabled:
+    mem_mb: 4096 # 4 GB (minimal, just AWS CLI)
+    runtime: 480 # 8 hours (for large transfers)
+    threads: 1
