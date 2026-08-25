@@ -76,7 +76,7 @@ The four `--host` values are distinct genome builds, not just naming variants �
 | `mm39`       | GRCm39, rDNA-enriched          | chr1–19, X, Y, chrM, chrR (23) | rDNA-mapping genome (mouse)                                           | 78,277 | Yes     |
 | `hs1`        | T2T-CHM13v2.0, rDNA-enriched   | chr1–22, X, Y, chrM, chrR (26) | rDNA-mapping genome (T2T)                                             | 28,363 | Yes     |
 
-**Choosing between `hg38` and `hg38_basic`** (the only build offered in both forms): `hg38_basic` is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it's the default). `hg38` trades that annotation depth for the `chrR` contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. `mm39` and `hs1` only ship as their rDNA-enriched build (`chrR` included by default); there's no `mm39_basic` or `hs1_basic`.
+**Choosing between `hg38` and `hg38_basic`** (the only build offered in both forms): `hg38_basic` is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it's the default). `hg38` trades that annotation depth for the `chrR` contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. `mm39` and `hs1` only ship as their rDNA-enriched build, with `chrR` included by default.
 
 ### Reference Data Paths
 
