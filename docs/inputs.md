@@ -65,6 +65,19 @@ Set via `-w/--workdir` on every `chroma2` invocation. Must not already exist at 
 
 At least one of host or viruses must be non-empty, or the pipeline exits with an error.
 
+### Supported Host Genomes
+
+The four `--host` values are distinct genome builds, not just naming variants — different FASTA, different annotation source, and (except `hg38_basic`) a custom `chrR` contig added specifically so reads from ribosomal DNA repeats, which collapse/misassemble in a standard reference, map correctly:
+
+| Host         | Assembly                       | Chromosomes                    | Annotation source                                                                                                                          | Genes   | `chrR`? |
+| ------------ | ------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- |
+| `hg38_basic` | GRCh38 primary assembly (NCBI) | chr1–22, X, Y, chrM (25)       | GENCODE v38 (comprehensive: gene/transcript/exon/CDS/UTR/codons)                                                                           | ~60,649 | No      |
+| `hg38`       | GRCh38, rDNA-enriched          | chr1–22, X, Y, chrM, chrR (26) | NCBI RefSeq via [Dremel Lab's rDNA-mapping genome](https://github.com/dremellab/rDNA-Mapping-Genomes) (minimal: gene/transcript/exon only) | ~28,091 | Yes     |
+| `mm39`       | GRCm39, rDNA-enriched          | chr1–19, X, Y, chrM, chrR (23) | rDNA-mapping genome (mouse)                                                                                                                | —       | Yes     |
+| `hs1`        | T2T-CHM13v2.0, rDNA-enriched   | chr1–22, X, Y, chrM, chrR (26) | rDNA-mapping genome (T2T)                                                                                                                  | —       | Yes     |
+
+**Choosing between `hg38` and `hg38_basic`** (the only build offered in both forms): `hg38_basic` is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it's the default). `hg38` trades that annotation depth for the `chrR` contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. `mm39` and `hs1` only ship as their rDNA-enriched build (`chrR` included by default); there's no `mm39_basic` or `hs1_basic`. See `hg38_basic.README.md` and `COMPARISON_hg38_basic_vs_hg38rDNA.md` alongside the FASTA/GTF files in `fastas_gtfs_dir` for the full source/statistics comparison behind these numbers.
+
 ### Reference Data Paths
 
 | Type                             | Default Location                                                                                      |

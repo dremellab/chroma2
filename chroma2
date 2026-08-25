@@ -518,7 +518,7 @@ def usage() -> str:
             * dry       : same as dryrun
 
         Optional Arguments:
-        --host|-g       : host genome (e.g. hg38_basic or mm39_basic)                 (--runmode=init only)
+        --host|-g       : host genome (hg38_basic, hg38, mm39, or hs1)                (--runmode=init only)
         --additives|-a  : comma-separated list of additives (e.g. ERCC,BAC16Insert)   (--runmode=init only)
         --viruses|-v    : comma-separated list of viruses                       (--runmode=init only)
         --manifest|-s   : absolute path to samples.tsv (copied to WORKDIR)      (--runmode=init only)
