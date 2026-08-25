@@ -611,6 +611,14 @@ Input_ctrl_rep2 Input   batch1  /data/Input_ctrl_rep2_R1.fastq.gz   /data/Input_
 <h3 class="anchored" data-anchor-id="supported-host-genomes">Supported Host Genomes</h3>
 <p>The four <code>--host</code> values are distinct genome builds, not just naming variants — different FASTA, different annotation source, and (except <code>hg38_basic</code>) a custom <code>chrR</code> contig added specifically so reads from ribosomal DNA repeats, which collapse/misassemble in a standard reference, map correctly:</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 19%">
+<col style="width: 19%">
+<col style="width: 44%">
+<col style="width: 3%">
+<col style="width: 4%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Host</th>
@@ -627,15 +635,15 @@ Input_ctrl_rep2 Input   batch1  /data/Input_ctrl_rep2_R1.fastq.gz   /data/Input_
 <td>GRCh38 primary assembly (NCBI)</td>
 <td>chr1–22, X, Y, chrM (25)</td>
 <td>GENCODE v38 (comprehensive: gene/transcript/exon/CDS/UTR/codons)</td>
-<td>~60,649</td>
+<td>60,649</td>
 <td>No</td>
 </tr>
 <tr class="even">
 <td><code>hg38</code></td>
 <td>GRCh38, rDNA-enriched</td>
 <td>chr1–22, X, Y, chrM, chrR (26)</td>
-<td>NCBI RefSeq via <a href="https://github.com/dremellab/rDNA-Mapping-Genomes">Dremel Lab’s rDNA-mapping genome</a> (minimal: gene/transcript/exon only)</td>
-<td>~28,091</td>
+<td>NCBI RefSeq, rDNA-mapping genome (minimal: gene/transcript/exon only)</td>
+<td>28,091</td>
 <td>Yes</td>
 </tr>
 <tr class="odd">
@@ -643,7 +651,7 @@ Input_ctrl_rep2 Input   batch1  /data/Input_ctrl_rep2_R1.fastq.gz   /data/Input_
 <td>GRCm39, rDNA-enriched</td>
 <td>chr1–19, X, Y, chrM, chrR (23)</td>
 <td>rDNA-mapping genome (mouse)</td>
-<td>—</td>
+<td>78,277</td>
 <td>Yes</td>
 </tr>
 <tr class="even">
@@ -651,12 +659,12 @@ Input_ctrl_rep2 Input   batch1  /data/Input_ctrl_rep2_R1.fastq.gz   /data/Input_
 <td>T2T-CHM13v2.0, rDNA-enriched</td>
 <td>chr1–22, X, Y, chrM, chrR (26)</td>
 <td>rDNA-mapping genome (T2T)</td>
-<td>—</td>
+<td>28,363</td>
 <td>Yes</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Choosing between <code>hg38</code> and <code>hg38_basic</code></strong> (the only build offered in both forms): <code>hg38_basic</code> is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it’s the default). <code>hg38</code> trades that annotation depth for the <code>chrR</code> contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. <code>mm39</code> and <code>hs1</code> only ship as their rDNA-enriched build (<code>chrR</code> included by default); there’s no <code>mm39_basic</code> or <code>hs1_basic</code>. See <code>hg38_basic.README.md</code> and <code>COMPARISON_hg38_basic_vs_hg38rDNA.md</code> alongside the FASTA/GTF files in <code>fastas_gtfs_dir</code> for the full source/statistics comparison behind these numbers.</p>
+<p><strong>Choosing between <code>hg38</code> and <code>hg38_basic</code></strong> (the only build offered in both forms): <code>hg38_basic</code> is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it’s the default). <code>hg38</code> trades that annotation depth for the <code>chrR</code> contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. <code>mm39</code> and <code>hs1</code> only ship as their rDNA-enriched build (<code>chrR</code> included by default); there’s no <code>mm39_basic</code> or <code>hs1_basic</code>.</p>
 </section>
 <section id="reference-data-paths" class="level3">
 <h3 class="anchored" data-anchor-id="reference-data-paths">Reference Data Paths</h3>
