@@ -442,6 +442,13 @@ ul.task-list li input[type="checkbox"] {
 <p>All notable changes to this project will be documented in this file.</p>
 <section id="unreleased" class="level2">
 <h2 class="anchored" data-anchor-id="unreleased">[Unreleased]</h2>
+<ul>
+<li>fix(runlocal): surface the same “no per-rule failure details could be parsed” fallback message on a <code>runlocal()</code> failure that the sbatch <code>--internal-finalize</code> path already had (closes #56)
+<ul>
+<li><code>extract_failed_rules_digest()</code> can legitimately return an empty list two ways: no Snakemake rule failed directly (e.g.&nbsp;a config/setup error before any rule ran), or a future Snakemake/executor-plugin version changed its log wording and the parser’s regexes silently stopped matching – either way, <code>pipeline.failed</code>’s content said nothing when the digest came back empty</li>
+<li>the <code>--internal-finalize</code> path (used by the generated sbatch script) already had an honest fallback message covering both possibilities; <code>runlocal()</code>’s own failure path never got the same treatment, so an interactive <code>chroma2 runlocal</code> failure with an empty digest wrote no explanation at all – ported the same message there for consistency</li>
+</ul></li>
+</ul>
 </section>
 <section id="section" class="level2">
 <h2 class="anchored" data-anchor-id="section">[2.0.0]</h2>
