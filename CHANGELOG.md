@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- fix(runlocal): surface the same "no per-rule failure details could be parsed" fallback message on a `runlocal()` failure that the sbatch `--internal-finalize` path already had (closes #56)
+  - `extract_failed_rules_digest()` can legitimately return an empty list two ways: no Snakemake rule failed directly (e.g. a config/setup error before any rule ran), or a future Snakemake/executor-plugin version changed its log wording and the parser's regexes silently stopped matching -- either way, `pipeline.failed`'s content said nothing when the digest came back empty
+  - the `--internal-finalize` path (used by the generated sbatch script) already had an honest fallback message covering both possibilities; `runlocal()`'s own failure path never got the same treatment, so an interactive `chroma2 runlocal` failure with an empty digest wrote no explanation at all -- ported the same message there for consistency
+
 ## [2.0.0]
 
 ### ⚠️ Breaking Changes

@@ -1079,6 +1079,13 @@ def runlocal(
     content = last_progress
     if failed_rules:
         content += f"\n{len(failed_rules)} job(s) failed:\n" + "\n".join(failed_rules)
+    else:
+        content += (
+            f"\nNo per-rule failure details could be parsed from {runlocal_log} -- "
+            "either no Snakemake rule failed directly (e.g. a config/setup "
+            "error before any rule ran) or the log format has changed since "
+            "this parser was written. Check the log directly for the real error."
+        )
     write_pipeline_state_marker(
         workdir,
         "failed",
