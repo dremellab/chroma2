@@ -36,6 +36,11 @@ CHROMA2_RULES = [
     },
     {
         "kind": "path",
+        "path": "results/alignmentqc/norm_factors.tsv",
+        "dest": "qc/norm_factors.tsv",
+    },
+    {
+        "kind": "path",
         "path": "results/multiqc/multiqc_report.html",
         "dest": "qc/multiqc_report.html",
     },

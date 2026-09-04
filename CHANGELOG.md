@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- feat(normalization): scale bigWigs and DESeq2 by a read-depth-based factor instead of unscaled tracks / DESeq2's own count-based size-factor estimate (closes #94)
+  - new `results/alignmentqc/norm_factors.tsv` (via a new `compute_norm_factors` rule), one row per sample: `bw_scale_factor` (fed into `bamCoverage --scaleFactor` for `bamcoverage_host`/`bamcoverage_virus`) and `deseq2_size_factor` (set directly via `sizeFactors(dds) <-` in `run_deseq2_contrast_report.R`, replacing `estimateSizeFactors()`) -- both derived from non-mitochondrial trimmed reads (`post_trimming_input_sequences - chrM_raw`, host chrM only) so tracks and DE statistics use the same per-sample scale
+  - PCA and volcano plots need no separate change -- both already read off the same `dds` object, so they inherit the manually-set size factors automatically
+  - on by default; toggle off with `normalization.use_read_depth_scaling: false` in `config.yaml` to restore unscaled bigWigs and DESeq2's own `estimateSizeFactors()` behavior
+  - `norm_factors.tsv` is also pushed to S3 under `qc/norm_factors.tsv` when `push_to_s3: true`
+- fix(runlocal): surface the same "no per-rule failure details could be parsed" fallback message on a `runlocal()` failure that the sbatch `--internal-finalize` path already had (closes #56)
+  - `extract_failed_rules_digest()` can legitimately return an empty list two ways: no Snakemake rule failed directly (e.g. a config/setup error before any rule ran), or a future Snakemake/executor-plugin version changed its log wording and the parser's regexes silently stopped matching -- either way, `pipeline.failed`'s content said nothing when the digest came back empty
+  - the `--internal-finalize` path (used by the generated sbatch script) already had an honest fallback message covering both possibilities; `runlocal()`'s own failure path never got the same treatment, so an interactive `chroma2 runlocal` failure with an empty digest wrote no explanation at all -- ported the same message there for consistency
+
 ## [2.0.0]
 
 ### ⚠️ Breaking Changes

@@ -87,7 +87,7 @@ Adapter/quality trimming with `fastp` (PE or SE, `--detect_adapter_for_pe` for p
 - **Parallelization:** fully parallel across samples/organisms
 
 #### 4a. Postprocess Split and Coverage Tracks
-The filtered `aligned.final.bam` is split into per-organism BAMs (`postprocess/{sample}.host.bam`, `postprocess/{sample}.virus.{virus}.bam`), from which `deeptools bamCoverage` generates bigWig tracks (50bp bins for host, 1bp for virus — reflecting typical genome size differences).
+The filtered `aligned.final.bam` is split into per-organism BAMs (`postprocess/{sample}.host.bam`, `postprocess/{sample}.virus.{virus}.bam`), from which `deeptools bamCoverage` generates bigWig tracks (50bp bins for host, 1bp for virus — reflecting typical genome size differences), scaled per sample by a read-depth-based factor so tracks are comparable across samples with different sequencing depth / mitochondrial content — see [Outputs — Normalization Factors](outputs.md#norm-factors).
 
 #### 4b. Pooled Input-Control Construction (optional)
 If control samples are assigned to a `host_input_pool`/`virus_input_pool` in the sample manifest, their qname and filtered BAMs are merged per pool (`samtools merge`) into shared control BAMs, used as `-c` input for peak calling when `peakcalling.use_host_input`/`use_virus_input` is enabled.
@@ -127,7 +127,7 @@ Builds genomic bins for each enabled matrix type (gene TSS, tRNA gene midpoints,
 - **Duration:** medium, per contrast
 - **Parallelization:** parallel across contrasts
 
-For every `group1`/`group2` contrast, runs a DESeq2 analysis against every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other matrix types analyzed alongside), applying configured feature filters (e.g. tRNA skipped by default for insufficient ATAC-seq signal) and rendering a self-contained HTML report.
+For every `group1`/`group2` contrast, runs a DESeq2 analysis against every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other matrix types analyzed alongside), applying configured feature filters (e.g. tRNA skipped by default for insufficient ATAC-seq signal) and rendering a self-contained HTML report. By default, DESeq2's size factors are the same read-depth-based factors used to scale the bigWigs (from `norm_factors.tsv`), not DESeq2's own count-based estimate — see [Outputs — Normalization Factors](outputs.md#norm-factors); set `normalization.use_read_depth_scaling: false` to revert to DESeq2's own estimation.
 
 ### **Stage 8: Report Generation — MultiQC** {#stage-8-multiqc}
 

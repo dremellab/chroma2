@@ -55,6 +55,33 @@ rule alignment_flagstat_summary:
 
 
 ###################################################################################
+# read-depth-based normalization factors (non-MT trimmed reads -> bigwig
+# scale factor + DESeq2 size factor); see plans/read-depth-normalization-plan.md
+###################################################################################
+
+rule compute_norm_factors:
+    input:
+        tsv=join(RESULTSDIR, "alignmentqc", "idxstats_summary.tsv"),
+    output:
+        tsv=join(RESULTSDIR, "alignmentqc", "norm_factors.tsv"),
+    threads:
+        _get_threads("compute_norm_factors", profile_config)
+    container:
+        config["containers"]["py311"]
+    log:
+        join(_logdir("compute_norm_factors"), "compute_norm_factors.log")
+    shell:
+        r"""
+        set -exo pipefail
+        mkdir -p $(dirname {log})
+        exec > >(tee -a {log}) 2>&1
+        python {SCRIPTS_DIR}/compute_norm_factors.py \
+          --idxstats-summary {input.tsv} \
+          --output {output.tsv}
+        """
+
+
+###################################################################################
 # ATAC-seq QC with ataqv (host + per-virus, custom chromsizes)
 ###################################################################################
 

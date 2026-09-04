@@ -22,13 +22,19 @@ website:
     right:
       - text: "Docs"
         href: docs/index.md
-      # Version menu: automatically patched during release builds (docs-release.yml)
-      # For dev docs, this shows dev as current; for release docs, it shows the release version as current
-      # and links to dev. Do not manually edit the menu items below—they are auto-updated during releases.
+      # Version menu: docs-release.yml auto-patches this whole block during a
+      # release build (tag push), setting the pushed version as current and
+      # linking back to dev. For dev-branch builds (docs-dev.yml), this
+      # checked-in list is used as-is -- add a new entry here after every
+      # tagged release so the dev docs dropdown links to it too (older
+      # already-built versioned pages are frozen snapshots and can't pick up
+      # later additions either way).
       - text: "Version: dev"
         menu:
           - text: "dev (current)"
             href: https://dremellab.github.io/chroma2/dev/docs/index.html
+          - text: "2.0.0"
+            href: https://dremellab.github.io/chroma2/2.0.0/docs/index.html
       - icon: github
         href: https://github.com/dremellab/chroma2
 

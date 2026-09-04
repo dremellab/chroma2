@@ -17,6 +17,7 @@ $WORKDIR/
     ├── align/                     # sorted/filtered/qname BAMs + idxstats/flagstat
     ├── alignmentqc/
     │   ├── idxstats_summary.tsv   # aggregate alignment stats across all filter stages
+    │   ├── norm_factors.tsv       # per-sample bigWig/DESeq2 normalization factors
     │   └── ataqv/                 # per-sample ataqv JSON + mkarv aggregate HTML reports
     ├── inputs/                    # pooled input-control BAMs (host + per-virus)
     ├── peaks/                     # MACS2 + Genrich narrowPeak/summits (gzipped)
@@ -71,7 +72,7 @@ Each stage above also has a matching `.idxstats.txt`/`.flagstat.txt` side-output
 
 ### Coverage Tracks
 
-`results/bigwig/{sample}.{host,virus}.bw` — `deeptools bamCoverage` on the postprocess-split filtered BAM (50bp bins host, 1bp bins virus).
+`results/bigwig/{sample}.{host,virus}.bw` — `deeptools bamCoverage` on the postprocess-split filtered BAM (50bp bins host, 1bp bins virus), scaled using that sample's `bw_scale_factor` from `norm_factors.tsv` (see below) unless `normalization.use_read_depth_scaling: false`.
 
 ### Quality Control
 
@@ -120,6 +121,27 @@ normalized <- sweep(counts_matrix, 2, colSums(counts_matrix), "/")
 ### Alignment Quality Summary
 
 `results/alignmentqc/idxstats_summary.tsv` — per-sample read counts at every filter stage (raw sorted → clean → dedup → final) plus host/virus split, feeding the MultiQC `alignment_stats` and `host_virus_ratio` custom-content panels.
+
+### Normalization Factors {#norm-factors}
+
+`results/alignmentqc/norm_factors.tsv` — one number per sample that says "this sample needs to be scaled up/down by this much to be fairly compared to the others."
+
+**Why this exists:** samples don't all get sequenced to the same depth, and they don't all have the same amount of mitochondrial (chrM) contamination. A sample with more usable (non-chrM) reads will look like it has "more signal" everywhere — not because biology, just because more reads. To compare samples fairly (in bigWig tracks you look at in a browser, and in DESeq2's statistics), each sample needs to be re-scaled down/up first.
+
+**How it's calculated**, per sample:
+
+1. Take trimmed reads and subtract chrM reads → "non-MT trimmed reads"
+2. Divide by 1 million → e.g. 45.2 (million)
+3. Flip it: `1 / 45.2` → the bigWig scale factor. A sample with fewer non-MT reads gets a _bigger_ multiplier (its thin signal gets boosted); a sample with more reads gets a _smaller_ multiplier (its signal gets scaled down) — so tracks end up comparable.
+4. Divide that by the average scale factor across all samples in the run → the DESeq2 size factor (DESeq2 expects factors centered around 1, not raw multipliers).
+
+| Column               | Meaning                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `sample`             | sample name                                                                                                             |
+| `bw_scale_factor`    | multiplier passed to `bamCoverage --scaleFactor` when generating that sample's bigWig                                   |
+| `deseq2_size_factor` | multiplier passed directly into DESeq2 (via `sizeFactors()`) instead of letting DESeq2 estimate its own from the counts |
+
+This file is regenerated automatically at the start of every run from `idxstats_summary.tsv` — you never need to edit it by hand. Set `normalization.use_read_depth_scaling: false` in `config.yaml` to turn this off and go back to unscaled bigWigs / DESeq2's own count-based size-factor estimation.
 
 ### Peak Calls
 

@@ -58,6 +58,7 @@ s3://dremel-lab-bucket/_HTS/CHROMA/my_atac_run/
 │   └── contrasts.tsv
 ├── qc/
 │   ├── alignment_summary.tsv
+│   ├── norm_factors.tsv
 │   ├── multiqc_report.html
 │   ├── multiqc_data/...
 │   ├── custom/...
@@ -84,6 +85,7 @@ s3://dremel-lab-bucket/_HTS/CHROMA/my_atac_run/
 |---|---|---|---|
 | Config | `samples.tsv`, `config.yaml`, `contrasts.tsv` | `config/` | default |
 | Alignment QC | `results/alignmentqc/idxstats_summary.tsv` | `qc/alignment_summary.tsv` | default |
+| Normalization factors | `results/alignmentqc/norm_factors.tsv` | `qc/norm_factors.tsv` | default |
 | MultiQC | `results/multiqc/multiqc_report.html`, `results/multiqc/multiqc_data/` | `qc/` | default |
 | Custom QC data | `results/multiqc_extra_data/custom/` | `qc/custom/` | default |
 | ataqv reports | `results/alignmentqc/ataqv/`, plus any other `*.json` (excluding fastp report JSONs) | `qc/ataqv/` | default |

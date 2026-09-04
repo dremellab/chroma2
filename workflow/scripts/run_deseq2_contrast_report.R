@@ -246,7 +246,12 @@ validate_design_factors <- function(design_factors) {
 
 build_deseq2_config <- function(cfg) {
   dcfg <- default_if_null(cfg$deseq2, list())
+  ncfg <- default_if_null(cfg$normalization, list())
   list(
+    use_read_depth_scaling = as_bool(
+      default_if_null(ncfg$use_read_depth_scaling, TRUE),
+      "normalization.use_read_depth_scaling"
+    ),
     alpha = as.numeric(default_if_null(dcfg$alpha, 0.05)),
     lfc_threshold = as.numeric(default_if_null(dcfg$lfc_threshold, 1.0)),
     min_total_count = as.integer(default_if_null(dcfg$min_total_count, 1)),
@@ -300,6 +305,40 @@ read_manifest <- function(path, group1, group2) {
     manifest = manifest,
     selected = selected
   )
+}
+
+# Read results/alignmentqc/norm_factors.tsv (sample, bw_scale_factor,
+# deseq2_size_factor), produced by compute_norm_factors.py from non-MT
+# trimmed read depth -- see plans/read-depth-normalization-plan.md. Returns a
+# named numeric vector keyed by sampleName.
+read_norm_factors <- function(path) {
+  if (identical(trimws(default_if_null(path, "")), "")) {
+    stopf("--norm-factors was not provided.")
+  }
+  norm_tbl <- suppressMessages(readr::read_tsv(path, show_col_types = FALSE, progress = FALSE))
+  required_cols <- c("sample", "deseq2_size_factor")
+  missing_cols <- setdiff(required_cols, colnames(norm_tbl))
+  if (length(missing_cols) > 0) {
+    stopf("norm_factors.tsv (%s) is missing required columns: %s", path, paste(missing_cols, collapse = ", "))
+  }
+  size_factors <- as.numeric(norm_tbl$deseq2_size_factor)
+  names(size_factors) <- as.character(norm_tbl$sample)
+  size_factors
+}
+
+# Subset/reorder precomputed size factors to match coldata$sampleName exactly.
+# Errors loudly on any missing sample rather than silently falling back to
+# auto-estimation, since a silent gap would defeat the point of supplying
+# manual size factors.
+match_size_factors <- function(norm_factors, sample_names, comparison, feature_type) {
+  missing_samples <- setdiff(sample_names, names(norm_factors))
+  if (length(missing_samples) > 0) {
+    stopf(
+      "No precomputed norm factor for sample(s) in comparison '%s' (%s): %s. Re-run compute_norm_factors, or set normalization.use_read_depth_scaling: false to fall back to DESeq2-estimated size factors.",
+      comparison, feature_type, paste(missing_samples, collapse = ", ")
+    )
+  }
+  norm_factors[sample_names]
 }
 
 prepare_counts <- function(matrix_df, all_manifest_samples, selected_samples, min_total_count, feature_type) {
@@ -375,7 +414,8 @@ run_deseq2_matrix <- function(
   group1,
   group2,
   feature_type,
-  cfg
+  cfg,
+  norm_factors
 ) {
   feature_type_lower <- tolower(feature_type)
 
@@ -445,7 +485,11 @@ run_deseq2_matrix <- function(
     colData = coldata,
     design = ~ group
   )
-  dds <- estimateSizeFactors(dds, type = cfg$size_factor_type)
+  if (cfg$use_read_depth_scaling) {
+    sizeFactors(dds) <- match_size_factors(norm_factors, coldata$sampleName, comparison, feature_type)
+  } else {
+    dds <- estimateSizeFactors(dds, type = cfg$size_factor_type)
+  }
 
   fit_types_to_try <- c(cfg$fit_type, "local", "mean")
   fit_types_to_try <- unique(fit_types_to_try)
@@ -634,6 +678,7 @@ option_list <- list(
   make_option("--group2", dest = "group2", type = "character"),
   make_option("--report-template", dest = "report_template", type = "character"),
   make_option("--report-output", dest = "report_output", type = "character"),
+  make_option("--norm-factors", dest = "norm_factors", type = "character", default = ""),
   make_option("--host-matrix", dest = "host_matrix", type = "character", default = ""),
   make_option("--host-output", dest = "host_output", type = "character", default = ""),
   make_option("--host-volcano", dest = "host_volcano", type = "character", default = ""),
@@ -664,6 +709,7 @@ for (opt_name in required_opts) {
 cfg <- read_config(opts$config_yaml)
 validate_design_factors(default_if_null(cfg$deseq2$design_factors, c("group")))
 deseq2_cfg <- build_deseq2_config(cfg)
+norm_factors <- if (deseq2_cfg$use_read_depth_scaling) read_norm_factors(opts$norm_factors) else NULL
 
 manifest_data <- read_manifest(opts$manifest, opts$group1, opts$group2)
 virus_labels <- split_delimited(opts$virus_labels)
@@ -702,7 +748,8 @@ if (nzchar(trimws(opts$host_matrix))) {
         group1 = opts$group1,
         group2 = opts$group2,
         feature_type = "host",
-        cfg = deseq2_cfg
+        cfg = deseq2_cfg,
+        norm_factors = norm_factors
       )
     },
     error = function(err) {
@@ -735,7 +782,8 @@ if (length(virus_labels) > 0) {
           group1 = opts$group1,
           group2 = opts$group2,
           feature_type = virus_labels[[idx]],
-          cfg = deseq2_cfg
+          cfg = deseq2_cfg,
+          norm_factors = norm_factors
         )
       },
       error = function(err) {

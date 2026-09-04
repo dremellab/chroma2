@@ -65,6 +65,19 @@ Set via `-w/--workdir` on every `chroma2` invocation. Must not already exist at 
 
 At least one of host or viruses must be non-empty, or the pipeline exits with an error.
 
+### Supported Host Genomes
+
+The four `--host` values are distinct genome builds, not just naming variants — different FASTA, different annotation source, and (except `hg38_basic`) a custom `chrR` contig added specifically so reads from ribosomal DNA repeats, which collapse/misassemble in a standard reference, map correctly:
+
+| Host         | Assembly                       | Chromosomes                    | Annotation source                                                     | Genes  | `chrR`? |
+| ------------ | ------------------------------ | ------------------------------ | --------------------------------------------------------------------- | ------ | ------- |
+| `hg38_basic` | GRCh38 primary assembly (NCBI) | chr1–22, X, Y, chrM (25)       | GENCODE v38 (comprehensive: gene/transcript/exon/CDS/UTR/codons)      | 60,649 | No      |
+| `hg38`       | GRCh38, rDNA-enriched          | chr1–22, X, Y, chrM, chrR (26) | NCBI RefSeq, rDNA-mapping genome (minimal: gene/transcript/exon only) | 28,091 | Yes     |
+| `mm39`       | GRCm39, rDNA-enriched          | chr1–19, X, Y, chrM, chrR (23) | rDNA-mapping genome (mouse)                                           | 78,277 | Yes     |
+| `hs1`        | T2T-CHM13v2.0, rDNA-enriched   | chr1–22, X, Y, chrM, chrR (26) | rDNA-mapping genome (T2T)                                             | 28,363 | Yes     |
+
+**Choosing between `hg38` and `hg38_basic`** (the only build offered in both forms): `hg38_basic` is the general-purpose choice — comprehensive GENCODE gene models, full CDS/UTR detail, best for standard RNA-seq/splice-junction/protein-coding analysis (this is why it's the default). `hg38` trades that annotation depth for the `chrR` contig, which matters when rRNA quantification is a goal — without a dedicated rDNA-mapping chromosome, reads from the highly repetitive rDNA locus map ambiguously or get lost against the standard assembly. `mm39` and `hs1` only ship as their rDNA-enriched build, with `chrR` included by default.
+
 ### Reference Data Paths
 
 | Type                             | Default Location                                                                                      |
@@ -144,6 +157,7 @@ Rendered from `config/config.yaml` at `init`/`reconfig` time — `WORKDIR`, `HOS
 | `peakcalling` | `use_host_input`, `use_virus_input` | `false`, `true` | Whether pooled input-control BAMs are passed to peak callers |
 | `genrich` | `qvalue`, `remove_dups`, `junctions`, `exclude_chr`, `virus_exclude_chr`, `blacklist`, `virus_blacklist`, `host_fraglen`, `virus_fraglen`, `host_mval`, `virus_mval`, `minlen`, `maxlen`, `extra_args` | `0.05`, `true`, `true`, `chrM,MT`, `""`, `""`, `""`, `200`, `100`, `30`, `5`, `150`, `1000`, `""` | Genrich peak-calling parameters, separately tunable for host vs. virus |
 | `postprocessing` | `host_bin_size`, `virus_bin_size`, `host_bw_extra_args`, `virus_bw_extra_args` | `50`, `1`, `""`, `""` | bigWig generation bin sizes |
+| `normalization` | `use_read_depth_scaling` | `true` | Scale bigWigs and DESeq2 by a read-depth-based factor instead of unscaled tracks / DESeq2's own count-based estimate — see [Outputs — Normalization Factors](outputs.md#norm-factors) |
 | `tn5_motif` | `flank_size`, `virus_bin_size`, `host_gene_flank_size`, `trna_gene_flank_size`, `trna_gene_max_size`, `mapq_min`, `dedup`, `exclude_secondary`, `exclude_supplementary`, `fractional_counting`, `logo_format`, `generate_logo` | `10`, `100`, `250`, `100`, `1000`, `0`, `false`, `false`, `true`, `true`, `png`, `false` | Tn5 cut-site extraction / motif-logo config; also read by count-matrix rules for shared filters |
 | `ataqv` | `extra_args`, `virus_tss_extension` | `""`, `200` | ataqv QC parameters |
 | `deseq2` | `enabled`, `contrasts_tsv`, `outdir`, `alpha`, `lfc_threshold`, `min_replicates_per_group`, `min_total_count`, `min_features_per_matrix`, `size_factor_type`, `fit_type`, `shrink_type`, `p_adjust_method`, `cooks_cutoff`, `independent_filtering`, `vst_blind`, `report_top_n`, `report_label_top_n`, `report_max_table_rows`, `html_self_contained`, `design_factors`, `skip_features` | `false`, `""`, `results/deseq2`, `0.05`, `1.0`, `2`, `10`, `50`, `poscounts`, `parametric`, `apeglm`, `BH`, `true`, `true`, `true`, `50`, `15`, `50000`, `true`, `[group]`, `[tRNA]` | Full DESeq2 differential-accessibility configuration (`design_factors` is currently locked to `["group"]` — additional covariates are not yet implemented) |

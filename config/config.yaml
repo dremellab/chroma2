@@ -181,6 +181,11 @@ postprocessing:
   host_bw_extra_args: ""
   virus_bw_extra_args: ""
 
+# read-depth-based normalization (non-MT trimmed reads -> bigwig scale factor
+# + DESeq2 size factor); see plans/read-depth-normalization-plan.md
+normalization:
+  use_read_depth_scaling: true
+
 # Tn5 motif extraction
 tn5_motif:
   flank_size: 10
