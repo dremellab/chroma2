@@ -104,6 +104,11 @@ set-resources:
     threads: 1
     runtime: 60
 
+  compute_norm_factors:
+    mem_mb: 4096
+    threads: 1
+    runtime: 30
+
   extract_tn5_motifs_host:
     mem_mb: 122880
     threads: 4

@@ -7,16 +7,21 @@ import hashlib
 import json
 import shlex
 
-# Digest of just the deseq2: config block, used as a params (not input) rerun
-# trigger below -- deseq2_contrast_report used to declare the whole
-# config.yaml as an `input:`, so ANY edit to the file (e.g. flipping
+# Digest of the deseq2: and normalization: config blocks, used as a params
+# (not input) rerun trigger below -- deseq2_contrast_report used to declare
+# the whole config.yaml as an `input:`, so ANY edit to the file (e.g. flipping
 # push_to_s3 on) invalidated every DESeq2 report even though only an
 # unrelated section changed. config.yaml is still passed to the R script at
 # runtime (it re-reads it directly), just via a plain param path instead of a
-# tracked input, so only a genuine change to the deseq2: block itself
-# triggers a rerun.
+# tracked input, so only a genuine change to one of these two blocks
+# (normalization: included since it toggles manual vs. estimated size
+# factors) triggers a rerun.
 DESEQ2_CONFIG_DIGEST = hashlib.sha256(
-    json.dumps(config.get("deseq2", {}), sort_keys=True, default=str).encode()
+    json.dumps(
+        {"deseq2": config.get("deseq2", {}), "normalization": config.get("normalization", {})},
+        sort_keys=True,
+        default=str,
+    ).encode()
 ).hexdigest()
 
 # Count matrices configuration
@@ -92,6 +97,8 @@ if DESEQ2_ENABLED:
             report_template=join(SCRIPTS_DIR, "deseq2_contrast_report.Rmd"),
             # Include all available matrices as inputs
             matrices=list(DESEQ2_AVAILABLE_MATRICES.values()),
+            # Read-depth-based norm factors -- see plans/read-depth-normalization-plan.md
+            norm_factors=join(RESULTSDIR, "alignmentqc", "norm_factors.tsv"),
         output:
             report=join(DESEQ2_OUTDIR, "{comparison}", "{comparison}.deseq2_report.html"),
         params:
@@ -158,6 +165,7 @@ if DESEQ2_ENABLED:
               --group2 {params.group2} \
               --report-template "{input.report_template}" \
               --report-output "{output.report}" \
+              --norm-factors "{input.norm_factors}" \
               --host-matrix {params.host_matrix} \
               --host-output {params.host_output} \
               --host-volcano {params.host_volcano} \
