@@ -46,9 +46,9 @@ ul.task-list li input[type="checkbox"] {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-34dbf897b697f50edbbc4554a08e61a3.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -552,7 +552,7 @@ ul.task-list li input[type="checkbox"] {
 </ul>
 <section id="a.-postprocess-split-and-coverage-tracks" class="level4">
 <h4 class="anchored" data-anchor-id="a.-postprocess-split-and-coverage-tracks">4a. Postprocess Split and Coverage Tracks</h4>
-<p>The filtered <code>aligned.final.bam</code> is split into per-organism BAMs (<code>postprocess/{sample}.host.bam</code>, <code>postprocess/{sample}.virus.{virus}.bam</code>), from which <code>deeptools bamCoverage</code> generates bigWig tracks (50bp bins for host, 1bp for virus — reflecting typical genome size differences).</p>
+<p>The filtered <code>aligned.final.bam</code> is split into per-organism BAMs (<code>postprocess/{sample}.host.bam</code>, <code>postprocess/{sample}.virus.{virus}.bam</code>), from which <code>deeptools bamCoverage</code> generates bigWig tracks (50bp bins for host, 1bp for virus — reflecting typical genome size differences), scaled per sample by a read-depth-based factor so tracks are comparable across samples with different sequencing depth / mitochondrial content — see <a href="../docs/outputs.html#norm-factors">Outputs — Normalization Factors</a>.</p>
 </section>
 <section id="b.-pooled-input-control-construction-optional" class="level4">
 <h4 class="anchored" data-anchor-id="b.-pooled-input-control-construction-optional">4b. Pooled Input-Control Construction (optional)</h4>
@@ -598,7 +598,7 @@ ul.task-list li input[type="checkbox"] {
 <li><strong>Duration:</strong> medium, per contrast</li>
 <li><strong>Parallelization:</strong> parallel across contrasts</li>
 </ul>
-<p>For every <code>group1</code>/<code>group2</code> contrast, runs a DESeq2 analysis against every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other matrix types analyzed alongside), applying configured feature filters (e.g.&nbsp;tRNA skipped by default for insufficient ATAC-seq signal) and rendering a self-contained HTML report.</p>
+<p>For every <code>group1</code>/<code>group2</code> contrast, runs a DESeq2 analysis against every available count-matrix type (gene matrix as the primary analysis with a volcano plot; other matrix types analyzed alongside), applying configured feature filters (e.g.&nbsp;tRNA skipped by default for insufficient ATAC-seq signal) and rendering a self-contained HTML report. By default, DESeq2’s size factors are the same read-depth-based factors used to scale the bigWigs (from <code>norm_factors.tsv</code>), not DESeq2’s own count-based estimate — see <a href="../docs/outputs.html#norm-factors">Outputs — Normalization Factors</a>; set <code>normalization.use_read_depth_scaling: false</code> to revert to DESeq2’s own estimation.</p>
 </section>
 <section id="stage-8-multiqc" class="level3">
 <h3 class="anchored" data-anchor-id="stage-8-multiqc"><strong>Stage 8: Report Generation — MultiQC</strong></h3>

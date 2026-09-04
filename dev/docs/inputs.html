@@ -81,9 +81,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-34dbf897b697f50edbbc4554a08e61a3.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -843,30 +843,36 @@ KOS_4h  KOS_8h</code></pre>
 <td>bigWig generation bin sizes</td>
 </tr>
 <tr class="even">
+<td><code>normalization</code></td>
+<td><code>use_read_depth_scaling</code></td>
+<td><code>true</code></td>
+<td>Scale bigWigs and DESeq2 by a read-depth-based factor instead of unscaled tracks / DESeq2’s own count-based estimate — see <a href="../docs/outputs.html#norm-factors">Outputs — Normalization Factors</a></td>
+</tr>
+<tr class="odd">
 <td><code>tn5_motif</code></td>
 <td><code>flank_size</code>, <code>virus_bin_size</code>, <code>host_gene_flank_size</code>, <code>trna_gene_flank_size</code>, <code>trna_gene_max_size</code>, <code>mapq_min</code>, <code>dedup</code>, <code>exclude_secondary</code>, <code>exclude_supplementary</code>, <code>fractional_counting</code>, <code>logo_format</code>, <code>generate_logo</code></td>
 <td><code>10</code>, <code>100</code>, <code>250</code>, <code>100</code>, <code>1000</code>, <code>0</code>, <code>false</code>, <code>false</code>, <code>true</code>, <code>true</code>, <code>png</code>, <code>false</code></td>
 <td>Tn5 cut-site extraction / motif-logo config; also read by count-matrix rules for shared filters</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>ataqv</code></td>
 <td><code>extra_args</code>, <code>virus_tss_extension</code></td>
 <td><code>""</code>, <code>200</code></td>
 <td>ataqv QC parameters</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>deseq2</code></td>
 <td><code>enabled</code>, <code>contrasts_tsv</code>, <code>outdir</code>, <code>alpha</code>, <code>lfc_threshold</code>, <code>min_replicates_per_group</code>, <code>min_total_count</code>, <code>min_features_per_matrix</code>, <code>size_factor_type</code>, <code>fit_type</code>, <code>shrink_type</code>, <code>p_adjust_method</code>, <code>cooks_cutoff</code>, <code>independent_filtering</code>, <code>vst_blind</code>, <code>report_top_n</code>, <code>report_label_top_n</code>, <code>report_max_table_rows</code>, <code>html_self_contained</code>, <code>design_factors</code>, <code>skip_features</code></td>
 <td><code>false</code>, <code>""</code>, <code>results/deseq2</code>, <code>0.05</code>, <code>1.0</code>, <code>2</code>, <code>10</code>, <code>50</code>, <code>poscounts</code>, <code>parametric</code>, <code>apeglm</code>, <code>BH</code>, <code>true</code>, <code>true</code>, <code>true</code>, <code>50</code>, <code>15</code>, <code>50000</code>, <code>true</code>, <code>[group]</code>, <code>[tRNA]</code></td>
 <td>Full DESeq2 differential-accessibility configuration (<code>design_factors</code> is currently locked to <code>["group"]</code> — additional covariates are not yet implemented)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>containers</code></td>
 <td>one Docker URI per tool</td>
 <td><code>seqinfomics/*</code> / <code>staphb/*</code> images</td>
 <td>Container images for every rule (fastp, fastqc, multiqc, featurecounts, bowtie2, bedToBigBed, py311, pysam, macs2, genrich, deeptools, ataqv, deseq2_report, aws)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>S3 (top-level)</td>
 <td><code>push_to_s3</code>, <code>s3_pipeline_name</code>, <code>s3_sample_set_name</code>, <code>s3_aws_credentials_file</code>, <code>s3_bucket</code>, <code>s3_output_prefix</code>, <code>s3_default_storage_class</code>, <code>s3_large_file_storage_class</code></td>
 <td><code>false</code>, <code>CHROMA</code>, <code>""</code>, …, <code>dremel-lab-bucket</code>, <code>_HTS</code>, <code>GLACIER_IR</code>, <code>GLACIER</code></td>

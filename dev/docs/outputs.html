@@ -81,9 +81,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-60383baa369db6667c77bdca9eedff41.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-f83c246346592b24d02aa84ae3974412.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-34dbf897b697f50edbbc4554a08e61a3.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-89af0c2d685ccb09a4d7d65decb66752.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -469,6 +469,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#count-matrices" id="toc-count-matrices" class="nav-link" data-scroll-target="#count-matrices">Count Matrices</a></li>
   <li><a href="#alignment-quality-summary" id="toc-alignment-quality-summary" class="nav-link" data-scroll-target="#alignment-quality-summary">Alignment Quality Summary</a></li>
+  <li><a href="#norm-factors" id="toc-norm-factors" class="nav-link" data-scroll-target="#norm-factors">Normalization Factors</a></li>
   <li><a href="#peak-calls" id="toc-peak-calls" class="nav-link" data-scroll-target="#peak-calls">Peak Calls</a></li>
   <li><a href="#tn5-motif-outputs-optional" id="toc-tn5-motif-outputs-optional" class="nav-link" data-scroll-target="#tn5-motif-outputs-optional">Tn5 Motif Outputs (Optional)</a></li>
   </ul></li>
@@ -522,6 +523,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     ├── align/                     # sorted/filtered/qname BAMs + idxstats/flagstat
     ├── alignmentqc/
     │   ├── idxstats_summary.tsv   # aggregate alignment stats across all filter stages
+    │   ├── norm_factors.tsv       # per-sample bigWig/DESeq2 normalization factors
     │   └── ataqv/                 # per-sample ataqv JSON + mkarv aggregate HTML reports
     ├── inputs/                    # pooled input-control BAMs (host + per-virus)
     ├── peaks/                     # MACS2 + Genrich narrowPeak/summits (gzipped)
@@ -643,7 +645,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="coverage-tracks" class="level3">
 <h3 class="anchored" data-anchor-id="coverage-tracks">Coverage Tracks</h3>
-<p><code>results/bigwig/{sample}.{host,virus}.bw</code> — <code>deeptools bamCoverage</code> on the postprocess-split filtered BAM (50bp bins host, 1bp bins virus).</p>
+<p><code>results/bigwig/{sample}.{host,virus}.bw</code> — <code>deeptools bamCoverage</code> on the postprocess-split filtered BAM (50bp bins host, 1bp bins virus), scaled using that sample’s <code>bw_scale_factor</code> from <code>norm_factors.tsv</code> (see below) unless <code>normalization.use_read_depth_scaling: false</code>.</p>
 </section>
 <section id="quality-control" class="level3">
 <h3 class="anchored" data-anchor-id="quality-control">Quality Control</h3>
@@ -736,6 +738,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="alignment-quality-summary" class="level3">
 <h3 class="anchored" data-anchor-id="alignment-quality-summary">Alignment Quality Summary</h3>
 <p><code>results/alignmentqc/idxstats_summary.tsv</code> — per-sample read counts at every filter stage (raw sorted → clean → dedup → final) plus host/virus split, feeding the MultiQC <code>alignment_stats</code> and <code>host_virus_ratio</code> custom-content panels.</p>
+</section>
+<section id="norm-factors" class="level3">
+<h3 class="anchored" data-anchor-id="norm-factors">Normalization Factors</h3>
+<p><code>results/alignmentqc/norm_factors.tsv</code> — one number per sample that says “this sample needs to be scaled up/down by this much to be fairly compared to the others.”</p>
+<p><strong>Why this exists:</strong> samples don’t all get sequenced to the same depth, and they don’t all have the same amount of mitochondrial (chrM) contamination. A sample with more usable (non-chrM) reads will look like it has “more signal” everywhere — not because biology, just because more reads. To compare samples fairly (in bigWig tracks you look at in a browser, and in DESeq2’s statistics), each sample needs to be re-scaled down/up first.</p>
+<p><strong>How it’s calculated</strong>, per sample:</p>
+<ol type="1">
+<li>Take trimmed reads and subtract chrM reads → “non-MT trimmed reads”</li>
+<li>Divide by 1 million → e.g.&nbsp;45.2 (million)</li>
+<li>Flip it: <code>1 / 45.2</code> → the bigWig scale factor. A sample with fewer non-MT reads gets a <em>bigger</em> multiplier (its thin signal gets boosted); a sample with more reads gets a <em>smaller</em> multiplier (its signal gets scaled down) — so tracks end up comparable.</li>
+<li>Divide that by the average scale factor across all samples in the run → the DESeq2 size factor (DESeq2 expects factors centered around 1, not raw multipliers).</li>
+</ol>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 85%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sample</code></td>
+<td>sample name</td>
+</tr>
+<tr class="even">
+<td><code>bw_scale_factor</code></td>
+<td>multiplier passed to <code>bamCoverage --scaleFactor</code> when generating that sample’s bigWig</td>
+</tr>
+<tr class="odd">
+<td><code>deseq2_size_factor</code></td>
+<td>multiplier passed directly into DESeq2 (via <code>sizeFactors()</code>) instead of letting DESeq2 estimate its own from the counts</td>
+</tr>
+</tbody>
+</table>
+<p>This file is regenerated automatically at the start of every run from <code>idxstats_summary.tsv</code> — you never need to edit it by hand. Set <code>normalization.use_read_depth_scaling: false</code> in <code>config.yaml</code> to turn this off and go back to unscaled bigWigs / DESeq2’s own count-based size-factor estimation.</p>
 </section>
 <section id="peak-calls" class="level3">
 <h3 class="anchored" data-anchor-id="peak-calls">Peak Calls</h3>
