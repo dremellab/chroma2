@@ -111,16 +111,7 @@ rule bamcoverage_host:
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
-        scale_args=""
-        if [ "{params.use_scaling}" = "1" ]; then
-            sf=$(awk -F '\t' -v s={wildcards.sample} '$1==s{{print $2}}' {input.norm_factors})
-            if [ -n "$sf" ]; then
-                scale_args="--scaleFactor $sf"
-                echo "[bamcoverage_host] sample={wildcards.sample} scaleFactor=$sf"
-            else
-                echo "[bamcoverage_host] sample={wildcards.sample} has no precomputed norm factor; generating unscaled bigwig"
-            fi
-        fi
+        scale_args=$(bash {SCRIPTS_DIR}/get_bw_scale_args.sh bamcoverage_host {wildcards.sample} {params.use_scaling} {input.norm_factors})
         bamCoverage \
           -b {input.bam} \
           -o {output.bw} \
@@ -157,16 +148,7 @@ rule bamcoverage_virus:
         mkdir -p $(dirname {log})
         exec > >(tee -a {log}) 2>&1
         mkdir -p {params.outdir}
-        scale_args=""
-        if [ "{params.use_scaling}" = "1" ]; then
-            sf=$(awk -F '\t' -v s={wildcards.sample} '$1==s{{print $2}}' {input.norm_factors})
-            if [ -n "$sf" ]; then
-                scale_args="--scaleFactor $sf"
-                echo "[bamcoverage_virus] sample={wildcards.sample} scaleFactor=$sf"
-            else
-                echo "[bamcoverage_virus] sample={wildcards.sample} has no precomputed norm factor; generating unscaled bigwig"
-            fi
-        fi
+        scale_args=$(bash {SCRIPTS_DIR}/get_bw_scale_args.sh bamcoverage_virus {wildcards.sample} {params.use_scaling} {input.norm_factors})
         bamCoverage \
           -b {input.bam} \
           -o {output.bw} \
